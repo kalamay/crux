@@ -1,0 +1,246 @@
+#ifndef CRUX_COMMON_H
+#define CRUX_COMMON_H
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#define xcontainer(ptr, type, member) __extension__ ({ \
+	const __typeof (((type *)0)->member) *__mptr = (ptr); \
+	(type *)(void *)((char *)__mptr - offsetof(type,member)); \
+})
+
+#define xlen(arr) \
+	(sizeof (arr) / sizeof ((arr)[0]))
+
+/**
+ * @brief  Schedules a function to be execute when the task terminates
+ *
+ * This will be called after the return of the coroutine function but before
+ * yielding back to the parent context. Deferred calls occur in LIFO order.
+ *
+ * @param  fn    function to call
+ * @param  data  data to pass to `fn`
+ */
+extern int
+xdefer (void (*fn) (void *), void *data);
+
+/**
+ * @brief  Creates an allocation with a deferred free
+ *
+ * @param  size  number of bytes to allocate
+ * @return  point or `NULL` on error
+ */
+extern void *
+xmalloc (size_t size);
+
+/**
+ * @brief  Creates a zeroed allocation with a deferred free
+ *
+ * @param  count  number of contiguous objects
+ * @param  size   number of bytes for each object
+ * @return  point or `NULL` on error
+ */
+extern void *
+xcalloc (size_t count, size_t size);
+
+/**
+ * @brief Gets the clock for the current task.
+ *
+ * This clock is updated to the current just prior to the task regaining
+ * context. This is useful for planning timed events the need to run at a
+ * somewhat constant interval regardless of time taken by the task itself.
+ *
+ * @return  clock object reference
+ */
+extern const struct xclock *
+xclock (void);
+
+/**
+ * @brief Sleeps the current context.
+ *
+ * If the current context is a task, this will yield context to back to the
+ * hub. Otherwise, this acts a normal thread sleep.
+ *
+ * @param  ms  number of milliseconds to sleep for
+ * @return  0 on success, -errno on error
+ */
+extern int
+xsleep (unsigned ms);
+
+/**
+ * @brief  Exits the current running task
+ *
+ * @return  0 on success, -errno on error
+ */
+extern int
+xexit (void);
+
+/**
+ * @brief Yields the current context until a signal is delivered.
+ *
+ * @param  signum     signal number to wait for
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  signum on success, -errno on error
+ */
+extern int
+xsignal (int signum, int timeoutms);
+
+/**
+ * @brief Reads upto `len` bytes from the file descriptor.
+ *
+ * This calls `read(2)`. If this results in an `EAGAIN`, the current task will
+ * yield context until either the file descriptor becomes readable or the
+ * timeout is reached.
+ *
+ * @param  fd         file descriptor to read from
+ * @param  buf        buffer to read bytes into
+ * @param  len        maximum number of bytes to read
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  number of bytes read, -errno on error
+ */
+extern ssize_t
+xread (int fd, void *buf, size_t len, int timeoutms);
+
+/**
+ * @brief Reads iovec buffers from the file descriptor.
+ *
+ * This calls `readv(2)`. If this results in an `EAGAIN`, the current task will
+ * yield context until either the file descriptor becomes readable or the
+ * timeout is reached.
+ *
+ * @param  fd         file descriptor to read from
+ * @param  iov        array of iovec structures
+ * @param  iovcnt     maximum number of iovec structures to read into
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  number of bytes read, -errno on error
+ */
+extern ssize_t
+xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms);
+
+/**
+ * @brief Writes upto `len` bytes to the file descriptor.
+ *
+ * This calls `write(2)`. If this results in an `EAGAIN`, the current task will
+ * yield context until either the file descriptor becomes writable or the
+ * timeout is reached.
+ *
+ * @param  fd         file descriptor to write to
+ * @param  buf        buffer to write bytes from
+ * @param  len        maximum number of bytes to write
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  number of bytes written, -errno on error
+ */
+extern ssize_t
+xwrite (int fd, const void *buf, size_t len, int timeoutms);
+
+/**
+ * @brief Writes iovec structures to the file descriptor.
+ *
+ * This calls `writev(2)`. If this results in an `EAGAIN`, the current task will
+ * yield context until either the file descriptor becomes writable or the
+ * timeout is reached.
+ *
+ * @param  fd         file descriptor to write to
+ * @param  iov        array of iovec structures
+ * @param  iovcnt     maximum number of iovec structures to write from
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  number of bytes written, -errno on error
+ */
+extern ssize_t
+xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms);
+
+extern ssize_t
+xsendto (int s, const void *buf, size_t len, int flags,
+	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
+
+extern ssize_t
+xrecvfrom (int s, void *buf, size_t len, int flags,
+	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
+
+/**
+ * @brief Creates a non-blocking pipe pair.
+ *
+ * This will also set the FD_CLOEXEC flag. If either of the pipe file
+ * descriptors need to be shared with a child process, they should either be
+ * eplicitly duplicated or have the flag removed.
+ *
+ * @param  fds  2-element array to capture to pipe file descriptors
+ * @return  0 on success, -errno on error
+ */
+extern int
+xpipe (int fds[static 2]);
+
+/**
+ * @brief Opens a non-blocking socket.
+ *
+ * This will also set the FD_CLOEXEC flag. If the socket needs to be shared
+ * with a child process, it should either be eplicitly duplicated or have the
+ * flag removed.
+ *
+ * See `socket(2)` for information about the `domain`, `type`,
+ * and `protocol` parameters.
+ *
+ * @param  domain    communication domain (AF_INET, AF_LOCAL, etc.)
+ * @param  type      socket type (SOCK_STREAM, SOCK_DGRAM, etc.)
+ * @param  protocol  protocol for the socket, or 0 for default
+ * @return  >0 file descriptor on success, -errno on error
+ */
+extern int
+xsocket (int domain, int type, int protocol);
+
+/**
+ * @brief Accepts a connection off of the stream socket.
+ *
+ * If the socket has no pending connections, the task will yield until one
+ * becomes available or the timeout is reached.
+ *
+ * See `accept(2)` for information about the `s`, `addr`, and
+ * `addrlen` parameters. The `timeoutms` parameter optionally
+ * specifies a timeout in milliseconds for the accept. If this
+ * value is less than 0, the accept will wait indefinitely.
+ *
+ * @param  s                socket file descriptor
+ * @param[out]  addr        address of the connecting entity
+ * @param[in,out]  addrlen  input the maximum size of `addr`, output size of `addr`
+ * @param  timeoutms        millisecond timeout or <0 for infinite
+ * @return  0 on success, -errno on error
+ */
+extern int
+xaccept (int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms);
+
+/**
+ * @brief Sets the O_NONBLOCK flag on the file descriptor.
+ *
+ * When successful, reads and writes to this file descriptor will return
+ * EAGAIN when doing so would block. Given that most of the concurrency
+ * primatives rely on non-blocking IO, the socket creation functions will
+ * have already set this flag.
+ *
+ * This function will pass through `fd` as-is if either `fd` is less than
+ * zero (i.e. already an error), or the flag is applied successfully. 
+ *
+ * @param  file descriptor or error
+ * @return  >0 file descriptor on success, -errno on error
+ */
+extern int
+xunblock (int fd);
+
+/**
+ * @brief Sets the FD_CLOEXEC flag on the file descriptor.
+ *
+ * When successful, this file descriptor will not be duplicated in child
+ * processes. It is generally preferrable to set all file descriptors to not
+ * be inherited, and then explicitly duplicate file descriptors into the child
+ * process, and the socket creation functions will have already set this flag.
+ *
+ * This function will pass through `fd` as-is if either `fd` is less than
+ * zero (i.e. already an error), or the flag is applied successfully. 
+ *
+ * @param  file descriptor or error
+ * @return  >0 file descriptor on success, -errno on error
+ */
+extern int
+xcloexec (int fd);
+
+#endif
+

@@ -1,0 +1,1 @@
+-Iinclude -Ibuild/debug/tmp -Ibuild/release/tmp -std=gnu11

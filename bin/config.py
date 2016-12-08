@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+
+import os, math, platform, resource, ctypes
+from subprocess import Popen, PIPE
+
+PAGESIZE = resource.getpagesize()
+PTRSIZE = ctypes.sizeof(ctypes.c_void_p)
+PAGEPTR = PAGESIZE / PTRSIZE
+ARCH = {
+	'x86_64': 'X86_64',
+	'AMD64': 'X86_64',
+	'i386': 'X86_32',
+	'x86': 'X86_32',
+}
+CC = ['cc', '-ldl', '-x', 'c', '-o', '/dev/null', '-']
+DEVNULL = open(os.devnull, 'w')
+
+def memoize(f):
+	class memodict(dict):
+		def __missing__(self, key):
+			ret = self[key] = f(key)
+			return ret 
+	return memodict().__getitem__
+
+def arch(machine=platform.machine()):
+	return ARCH.get(machine) or machine.upper()
+
+@memoize
+def compiles(c):
+	p = Popen(CC, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL)
+	p.communicate(input=c)
+	return p.returncode == 0
+
+def has_clock_gettime():
+	return compiles("""
+		#include <time.h>
+		struct timespec tp;
+		int main(void) { clock_gettime (CLOCK_REALTIME, &tp); }
+	""")
+
+def has_mach_time():
+	return compiles("""
+		#include <mach/mach_time.h>
+		int main(void) { mach_absolute_time (); }
+	""")
+
+def has_dlsym():
+	return compiles("""
+		#include <dlfcn.h>
+		Dl_info info;
+		int main(void) { dladdr (main, &info); }
+	""")
+
+def has_kqueue():
+	return compiles("""
+		#include <sys/event.h>
+		int main(void) { kqueue (); }
+	""")
+
+def has_epoll():
+	return compiles("""
+		#include <sys/epoll.h>
+		int main(void) { epoll_create (10); }
+	""")
+
+print("#define XHEAP_PAGECOUNT %d" % PAGEPTR)
+print("#define XHEAP_PAGEMASK %d" % (PAGEPTR - 1))
+print("#define XHEAP_PAGESHIFT %d" % math.log(PAGEPTR, 2))
+print("#define PAGESIZE %d" % PAGESIZE)
+print("#define HAS_%s 1" % arch())
+if has_clock_gettime():
+	print("#define HAS_CLOCK_GETTIME 1")
+if has_mach_time():
+	print("#define HAS_MACH_TIME 1")
+if has_dlsym():
+	print("#define HAS_DLADDR 1")
+if has_kqueue():
+	print("#define HAS_KQUEUE 1")
+elif has_epoll():
+	print("#define HAS_EPOLL 1")
+
