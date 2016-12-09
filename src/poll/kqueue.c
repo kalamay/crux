@@ -111,23 +111,14 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	//     #define EVFILT_TIMER   6U
 	type = -1 - type;
 #endif
-	if (poll->wpos == xlen (poll->pev)) {
-		int rc = xpoll__update (poll, 0, &zero);
-		if (rc < 0) { return rc; }
-		if (poll->wpos == xlen (poll->pev)) {
-			struct kevent ev;
-			EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
-			rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
-			return rc < 0 ? XERRNO : 0;
-		}
+	if (type == EVFILT_SIGNAL || poll->wpos == xlen (poll->pev)) {
+		struct kevent ev;
+		EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
+		int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
+		return rc < 0 ? XERRNO : 0;
 	}
-
 	struct kevent *ev = &poll->pev[poll->wpos++];
 	EV_SET (ev, id, type, op|EV_ONESHOT|EV_RECEIPT, 0, 0, ptr);
-	if (type == EVFILT_SIGNAL) {
-		int rc = xpoll__update (poll, 0, &zero);
-		if (rc < 0) { return rc; }
-	}
 	return 0;
 }
 
