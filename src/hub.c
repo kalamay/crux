@@ -69,7 +69,7 @@ schedule_poll (struct xhub_entry *ent, int id, int type, int timeoutms)
 	}
 
 	struct xhub *h = ent->hub;
-	rc = xpoll_add (&h->poll, type, id, ent);
+	rc = xpoll_ctl (&h->poll, XPOLL_ADD, type, id, ent);
 	if (rc < 0) {
 		xheap_remove (&h->timeout, &ent->hent);
 		return rc;
@@ -85,7 +85,7 @@ static void
 unschedule (struct xhub_entry *ent)
 {
 	if (ent->poll_type) {
-		xpoll_del (&ent->hub->poll, ent->poll_type, ent->poll_id);
+		xpoll_ctl (&ent->hub->poll, XPOLL_DEL, ent->poll_type, ent->poll_id, NULL);
 	}
 
 	if (xlist_is_added (&ent->lent)) {

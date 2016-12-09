@@ -5,21 +5,24 @@
 
 #include "clock.h"
 
-#define XPOLL_IN  1
-#define XPOLL_OUT 2
-#define XPOLL_SIG 3
+#define XPOLL_ADD 0x0001
+#define XPOLL_DEL 0x0002
+
+#define XPOLL_IN  (-1)
+#define XPOLL_OUT (-2)
+#define XPOLL_SIG (-6)
 
 #define XPOLL_ERR (1 << 16)
 #define XPOLL_EOF (1 << 17)
 
-#define XEVENT_TYPE(ev) \
-	(int)((ev)->type & 0xFFFF)
+#define XPOLL_OP(n)    (int)((n) & 0x000F)
+#define XPOLL_TYPE(n)  (int)((n) & 0x0F00)
+#define XPOLL_ISERR(n) (!!((n) & XPOLL_ERR))
+#define XPOLL_ISEOF(n) (!!((n) & XPOLL_EOF))
 
-#define XEVENT_ISERR(ev) \
-	(!!((ev)->type & XPOLL_ERR))
-
-#define XEVENT_ISEOF(ev) \
-	(!!((ev)->type & XPOLL_EOF))
+#define XEVENT_TYPE(ev)  XPOLL_TYPE(ev->type)
+#define XEVENT_ISERR(ev) XPOLL_ISERR(ev->type)
+#define XEVENT_ISEOF(ev) XPOLL_ISEOF(ev->type)
 
 struct xpoll;
 
@@ -38,10 +41,7 @@ extern void
 xpoll_free (struct xpoll **pollp);
 
 extern int
-xpoll_add (struct xpoll *poll, int type, int id, void *ptr);
-
-extern int
-xpoll_del (struct xpoll *poll, int type, int id);
+xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
 
 /**
  * <0 on error

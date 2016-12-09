@@ -3,15 +3,15 @@
 
 #define XPOLL_HEADER \
 	struct xclock clock; \
-	sigset_t sigmask; \
-	int fd; \
-	uint16_t rpos, rlen
+	sigset_t sigmask
 
 #if HAS_KQUEUE
 #include <sys/event.h>
 
 struct xpoll {
 	XPOLL_HEADER;
+	int fd;
+	uint16_t rpos, rlen;
 	struct kevent pev[64];
 };
 
@@ -22,7 +22,8 @@ struct xpoll {
 struct xpoll {
 	XPOLL_HEADER;
 	void *sig[31];
-	int sigfd;
+	int fd, sigfd;
+	uint16_t rpos, rlen;
 	struct epoll_event pev[64];
 };
 

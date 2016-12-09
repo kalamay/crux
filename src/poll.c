@@ -4,6 +4,7 @@
 #include "../include/crux/clock.h"
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -14,25 +15,16 @@ static void
 xpoll__final (struct xpoll *poll);
 
 static int
-xpoll__more (struct xpoll *poll, int64_t ms, const struct timespec *ts);
+xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
+
+static bool
+xpoll__has_more (struct xpoll *poll);
 
 static int
-xpoll__add_in (struct xpoll *poll, int fd, void *ptr);
+xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts);
 
 static int
-xpoll__add_out (struct xpoll *poll, int fd, void *ptr);
-
-static int
-xpoll__add_sig (struct xpoll *poll, int signum, void *ptr);
-
-static int
-xpoll__del_in (struct xpoll *poll, int fd);
-
-static int
-xpoll__del_out (struct xpoll *poll, int fd);
-
-static int
-xpoll__del_sig (struct xpoll *poll, int signum);
+xpoll__next (struct xpoll *poll, struct xevent *dst);
 
 #if HAS_KQUEUE
 #include "poll/kqueue.c"
@@ -66,9 +58,6 @@ xpoll_init (struct xpoll *poll)
 	int rc = xclock_real (&poll->clock);
 	if (rc < 0) { return rc; }
 	sigemptyset (&poll->sigmask);
-    poll->fd = -1;
-    poll->rpos = 0;
-	poll->rlen = 0;
 	return xpoll__init (poll);
 }
 
@@ -86,82 +75,47 @@ xpoll_free (struct xpoll **pollp)
 void
 xpoll_final (struct xpoll *poll)
 {
-	if (poll == NULL) { return; }
-	if (poll->fd >= 0) {
-		close (poll->fd);
-		poll->fd = -1;
-	}
-	xpoll__final (poll);
-}
-
-int
-xpoll_add (struct xpoll *poll, int type, int id, void *ptr)
-{
-	assert (poll != NULL);
-
-	switch (type & 0xFFFF) {
-
-	case XPOLL_IN:
-		if (id < 0) { return -EBADF; }
-		return xpoll__add_in (poll, id, ptr);
-
-	case XPOLL_OUT:
-		if (id < 0) { return -EBADF; }
-		return xpoll__add_out (poll, id, ptr);
-
-	case XPOLL_SIG:
-		if (id < 1 || id > 31) { return -EINVAL; }
-		sigset_t mask = poll->sigmask;
-		sigaddset (&mask, id);
-		if (sigprocmask (SIG_SETMASK, &mask, NULL) < 0) {
-			return XERRNO;
-		}
-		int rc = xpoll__add_sig (poll, id, ptr);
-		if (rc < 0) {
-			sigprocmask (SIG_SETMASK, &poll->sigmask, NULL);
-			return rc;
-		}
-		poll->sigmask = mask;
-		return 0;
-
-	default:
-		return -EINVAL;
+	if (poll != NULL) { 
+		xpoll__final (poll);
 	}
 }
 
 int
-xpoll_del (struct xpoll *poll, int type, int id)
+xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 {
 	assert (poll != NULL);
 
-	switch (type & 0xFFFF) {
+	if (op != XPOLL_ADD && op == XPOLL_DEL) { return -EINVAL; }
 
+	sigset_t mask;
+
+	switch (type) {
 	case XPOLL_IN:
-		if (id < 0) { return -EBADF; }
-		return xpoll__del_in (poll, id);
-
 	case XPOLL_OUT:
 		if (id < 0) { return -EBADF; }
-		return xpoll__del_out (poll, id);
-
+		break;
 	case XPOLL_SIG:
 		if (id < 1 || id > 31) { return -EINVAL; }
-		sigset_t mask = poll->sigmask;
-		sigdelset (&mask, id);
+		mask = poll->sigmask;
+		op == XPOLL_ADD ? sigaddset (&mask, id) : sigdelset (&mask, id);
 		if (sigprocmask (SIG_SETMASK, &mask, NULL) < 0) {
 			return XERRNO;
 		}
-		int rc = xpoll__del_sig (poll, id);
-		if (rc < 0) {
-			sigprocmask (SIG_SETMASK, &poll->sigmask, NULL);
-			return rc;
-		}
-		poll->sigmask = mask;
-		return 0;
-
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	int rc = xpoll__ctl (poll, op, type, id, ptr);
+	if (type == XPOLL_SIG) {
+		if (rc < 0) {
+			sigprocmask (SIG_SETMASK, &poll->sigmask, NULL);
+		}
+		else {
+			poll->sigmask = mask;
+		}
+	}
+	return rc;
 }
 
 int
@@ -180,8 +134,8 @@ xpoll (struct xpoll *poll, int64_t ms, struct xevent *ev)
 read:
 	xclock_real (&poll->clock);
 
-	while (poll->rpos < poll->rlen) {
-		rc = xpoll__copy (ev, &poll->pev[poll->rpos++]);
+	while (xpoll__has_more (poll)) {
+		rc = xpoll__next (poll, ev);
 		if (rc != 0) {
 			return rc;
 		}
@@ -198,18 +152,18 @@ poll:
 		tsp = &ts;
 	}
 
-	assert (poll->rpos == poll->rlen); // all pending events must be processed
-	poll->rpos = 0;
-	poll->rlen = 0;
-
-	rc = xpoll__more (poll, ms, tsp);
-	if (rc > 0) {
+	rc = xpoll__update (poll, ms, tsp);
+	if (rc >= 0) {
 		goto read;
 	}
 
 	xclock_real (&poll->clock);
 
-	if (rc == -EINTR) {
+	if (rc == -ETIMEDOUT) {
+		return 0;
+	}
+
+	if (rc == 0 || rc == -EINTR) {
 		if (ms >= 0) {
 			ms = XCLOCK_REL_MSEC (&poll->clock, abstime);
 			if (ms < 0) {

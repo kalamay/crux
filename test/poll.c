@@ -10,7 +10,7 @@ test_signal (void)
 
 	mu_assert_int_eq (xpoll_new (&p), 0);
 	mu_assert_int_eq (xpoll (p, 0, &ev), 0);
-	mu_assert_int_eq (xpoll_add (p, XPOLL_SIG, SIGHUP, "test"), 0);
+	mu_assert_int_eq (xpoll_ctl (p, XPOLL_ADD, XPOLL_SIG, SIGHUP, "test"), 0);
 
 	kill (getpid (), SIGHUP);
 
@@ -32,8 +32,8 @@ test_io (void)
 	mu_assert_call (pipe (fd));
 
 	mu_assert_int_eq (xpoll_new (&p), 0);
-	mu_assert_int_eq (xpoll_add (p, XPOLL_IN, fd[0], "in"), 0);
-	mu_assert_int_eq (xpoll_add (p, XPOLL_OUT, fd[1], "out"), 0);
+	mu_assert_int_eq (xpoll_ctl (p, XPOLL_ADD, XPOLL_IN, fd[0], "in"), 0);
+	mu_assert_int_eq (xpoll_ctl (p, XPOLL_ADD, XPOLL_OUT, fd[1], "out"), 0);
 
 	mu_assert_int_eq (xpoll (p, 0, &ev), 1);
 	mu_assert_int_eq (ev.type & XPOLL_OUT, XPOLL_OUT);

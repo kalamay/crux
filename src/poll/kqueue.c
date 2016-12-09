@@ -1,109 +1,66 @@
-static const struct timespec zero = { 0, 0 };
+#include <string.h>
 
-static int
-update (struct xpoll *poll, struct kevent *ev, int n, const struct timespec *ts)
-{
-	int rc = kevent (poll->fd,
-			ev, n,
-			poll->pev + poll->rlen, xlen (poll->pev) - poll->rlen,
-			ts);
-	if (rc < 0) {
-		return XERRNO;
-	}
-	poll->rlen += rc;
-	return rc;
-}
+static const struct timespec zero = { 0, 0 };
 
 int
 xpoll__init (struct xpoll *poll)
 {
-	int fd = kqueue ();
-	if (fd < 0) { return XERRNO; }
-	sigemptyset (&poll->sigmask);
-    poll->fd = fd;
-	return 0;
+    poll->fd = kqueue ();
+	poll->rpos = 0;
+	poll->rlen = 0;
+	return poll->fd < 0 ? XERRNO : 0;
 }
 
 void
 xpoll__final (struct xpoll *poll)
 {
-	(void)poll;
+	if (poll->fd >= 0) {
+		close (poll->fd);
+		poll->fd = -1;
+	}
+}
+
+bool
+xpoll__has_more (struct xpoll *poll)
+{
+	return poll->rpos < poll->rlen;
 }
 
 int
-xpoll__more (struct xpoll *poll, int64_t ms, const struct timespec *ts)
+xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
 {
 	(void)ms;
-	return update (poll, NULL, 0, ts);
+
+	if (poll->rpos == poll->rlen) {
+		poll->rpos = 0;
+		poll->rlen = 0;
+	}
+
+	struct kevent *pev = poll->pev + poll->rlen;
+	int nevents = xlen (poll->pev) - poll->rlen;
+
+	int rc = kevent (poll->fd, NULL, 0, pev, nevents, ts);
+	if (rc < 0) { return XERRNO; }
+	if (rc == 0) { return -ETIMEDOUT; }
+	poll->rlen += rc;
+	return rc;
 }
 
 int
-xpoll__add_in (struct xpoll *poll, int fd, void *ptr)
+xpoll__next (struct xpoll *poll, struct xevent *dst)
 {
-	struct kevent ev;
-	EV_SET (&ev, fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, ptr);
-	int rc = update (poll, &ev, 1, &zero);
-	return rc < 0 ? rc : 0;
-}
-
-int
-xpoll__add_out (struct xpoll *poll, int fd, void *ptr)
-{
-	struct kevent ev;
-	EV_SET (&ev, fd, EVFILT_WRITE, EV_ADD|EV_ONESHOT, 0, 0, ptr);
-	int rc = update (poll, &ev, 1, &zero);
-	return rc < 0 ? rc : 0;
-}
-
-int
-xpoll__add_sig (struct xpoll *poll, int signum, void *ptr)
-{
-	struct kevent ev;
-	EV_SET (&ev, signum, EVFILT_SIGNAL, EV_ADD|EV_ONESHOT, 0, 0, ptr);
-	int rc = update (poll, &ev, 1, &zero);
-	return rc < 0 ? rc : 0;
-}
-
-int
-xpoll__del_in (struct xpoll *poll, int fd)
-{
-	struct kevent ev;
-	EV_SET (&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
-	int rc = update (poll, &ev, 1, &zero);
-	return rc < 0 ? rc : 0;
-}
-
-int
-xpoll__del_out (struct xpoll *poll, int fd)
-{
-	struct kevent ev;
-	EV_SET (&ev, fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-	int rc = update (poll, &ev, 1, &zero);
-	return rc < 0 ? rc : 0;
-}
-
-int
-xpoll__del_sig (struct xpoll *poll, int signum)
-{
-	struct kevent ev;
-	EV_SET (&ev, signum, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
-	int rc = update (poll, &ev, 1, &zero);
-	return rc < 0 ? rc : 0;
-}
-
-int
-xpoll__copy (struct xevent *dst, const struct kevent *src)
-{
-	dst->ptr = src->udata;
-	dst->id = (int)src->ident;
+	struct kevent *src = &poll->pev[poll->rpos++];
 
 	switch (src->filter) {
-	case EVFILT_READ:   dst->type = XPOLL_IN;   break;
-	case EVFILT_WRITE:  dst->type = XPOLL_OUT;  break;
-	case EVFILT_SIGNAL: dst->type = XPOLL_SIG;  break;
+	case EVFILT_READ:   dst->type = XPOLL_IN;  break;
+	case EVFILT_WRITE:  dst->type = XPOLL_OUT; break;
+	case EVFILT_SIGNAL: dst->type = XPOLL_SIG; break;
 	default:
 		return 0;
 	}
+
+	dst->ptr = src->udata;
+	dst->id = (int)src->ident;
 
 	if (src->flags & EV_ERROR) {
 		dst->type |= XPOLL_ERR;
@@ -115,5 +72,25 @@ xpoll__copy (struct xevent *dst, const struct kevent *src)
 	}
 
 	return 1;
+}
+
+int
+xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
+{
+#ifdef __NetBSD__
+	// NetBSD uses different filter values:
+	//     #define EVFILT_READ    0U
+	//     #define EVFILT_WRITE   1U
+	//     #define EVFILT_AIO     2U
+	//     #define EVFILT_VNODE   3U
+	//     #define EVFILT_PROC    4U
+	//     #define EVFILT_SIGNAL  5U
+	//     #define EVFILT_TIMER   6U
+	op = -1 - op;
+#endif
+	struct kevent ev;
+	EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
+	int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
+	return rc < 0 ? XERRNO : 0;
 }
 
