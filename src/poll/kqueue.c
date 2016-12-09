@@ -86,7 +86,7 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	//     #define EVFILT_PROC    4U
 	//     #define EVFILT_SIGNAL  5U
 	//     #define EVFILT_TIMER   6U
-	op = -1 - op;
+	type = -1 - type;
 #endif
 	struct kevent ev;
 	EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
