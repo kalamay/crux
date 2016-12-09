@@ -81,6 +81,8 @@ test_remove (void)
 	}
 
 	mu_assert_int_eq (xpoll_wait (p, 0, &ev), 0);
+
+	xpoll_free (&p);
 }
 
 int

@@ -20,9 +20,9 @@
 #define XPOLL_ISERR(n) (!!((n) & XPOLL_ERR))
 #define XPOLL_ISEOF(n) (!!((n) & XPOLL_EOF))
 
-#define XEVENT_TYPE(ev)  XPOLL_TYPE(ev->type)
-#define XEVENT_ISERR(ev) XPOLL_ISERR(ev->type)
-#define XEVENT_ISEOF(ev) XPOLL_ISEOF(ev->type)
+#define XEVENT_TYPE(ev)  XPOLL_TYPE((ev)->type)
+#define XEVENT_ISERR(ev) XPOLL_ISERR((ev)->type)
+#define XEVENT_ISEOF(ev) XPOLL_ISEOF((ev)->type)
 
 struct xpoll;
 
