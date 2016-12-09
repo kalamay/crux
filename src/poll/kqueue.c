@@ -74,6 +74,13 @@ xpoll__next (struct xpoll *poll, struct xevent *dst)
 {
 	struct kevent *src = &poll->events[poll->rpos++];
 
+	// EV_RECEIPT uses EV_ERROR to set registration status, but these should be
+	// removed by xpoll__update. However, this behavior is also used to mark
+	// events that have been removed. If data is 0, no error occurred.
+	if ((src->flags & EV_ERROR) && src->data == 0) {
+		return 0;
+	}
+
 	switch (src->filter) {
 	case EVFILT_READ:   dst->type = XPOLL_IN;  break;
 	case EVFILT_WRITE:  dst->type = XPOLL_OUT; break;
@@ -111,6 +118,15 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	//     #define EVFILT_TIMER   6U
 	type = -1 - type;
 #endif
+	if (op == XPOLL_DEL && poll->rlen > 0) {
+		struct kevent *p = poll->events, *pe = p + poll->rlen;
+		for (; p < pe; p++) {
+			if (p->filter == type && p->ident == (uintptr_t)id) {
+				p->flags |= EV_ERROR;
+				p->data = 0;
+			}
+		}
+	}
 	if (type == EVFILT_SIGNAL || poll->wpos == xlen (poll->events)) {
 		struct kevent ev;
 		EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
