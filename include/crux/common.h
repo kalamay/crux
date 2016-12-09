@@ -48,6 +48,15 @@ extern void *
 xcalloc (size_t count, size_t size);
 
 /**
+ * @brief  Exits the current running task or process.
+ *
+ * @param  ec  exit code
+ * @return  0 on success, -errno on error
+ */
+extern void
+xexit (int ec);
+
+/**
  * @brief Gets the clock for the current task.
  *
  * This clock is updated to the current just prior to the task regaining
@@ -70,14 +79,6 @@ xclock (void);
  */
 extern int
 xsleep (unsigned ms);
-
-/**
- * @brief  Exits the current running task
- *
- * @return  0 on success, -errno on error
- */
-extern int
-xexit (void);
 
 /**
  * @brief Yields the current context until a signal is delivered.

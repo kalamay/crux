@@ -102,6 +102,64 @@ test_defer (void)
 	xtask_free (&t);
 }
 
+static union xvalue
+doexit (void *ptr, union xvalue v)
+{
+	(void)ptr;
+	(void)v;
+	xyield (XINT (10));
+	xyield (XINT (20));
+	xtask_exit (NULL, 1);
+	return XZERO;
+}
+
+static void
+test_exit (void)
+{
+	struct xtask *t;
+	mu_assert_int_eq (xtask_new (&t, doexit, NULL), 0);
+
+	union xvalue val;
+
+	val = xresume (t, XZERO);
+	mu_assert (xtask_alive (t));
+	mu_assert_int_eq (xtask_exitcode (t), -1);
+	mu_assert_int_eq (val.i, 10);
+
+	val = xresume (t, XZERO);
+	mu_assert (xtask_alive (t));
+	mu_assert_int_eq (xtask_exitcode (t), -1);
+	mu_assert_int_eq (val.i, 20);
+
+	val = xresume (t, XZERO);
+	mu_assert (!xtask_alive (t));
+	mu_assert_int_eq (xtask_exitcode (t), 1);
+	mu_assert_int_eq (val.i, 0);
+
+	xtask_free (&t);
+}
+
+static void
+test_exit_external (void)
+{
+	struct xtask *t;
+	mu_assert_int_eq (xtask_new (&t, doexit, NULL), 0);
+
+	union xvalue val;
+
+	val = xresume (t, XZERO);
+	mu_assert (xtask_alive (t));
+	mu_assert_int_eq (xtask_exitcode (t), -1);
+	mu_assert_int_eq (val.i, 10);
+
+	xtask_exit (t, 2);
+
+	mu_assert (!xtask_alive (t));
+	mu_assert_int_eq (xtask_exitcode (t), 2);
+
+	xtask_free (&t);
+}
+
 int
 main (void)
 {
@@ -110,5 +168,7 @@ main (void)
 	mu_init ("task");
 	mu_run (test_fibonacci);
 	mu_run (test_defer);
+	mu_run (test_exit);
+	mu_run (test_exit_external);
 }
 

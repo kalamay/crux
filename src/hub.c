@@ -361,15 +361,14 @@ xsleep (unsigned ms)
 	return rc;
 }
 
-int
-xexit (void)
+void
+xexit (int ec)
 {
 	struct xtask *t = xtask_self ();
-	if (t == NULL) { return -EPERM; }
+	if (t == NULL) { exit (ec); }
 
-	unschedule (xtask_local (xtask_self ()));
-	xyield (XZERO);
-	return 0;
+	unschedule (xtask_local (t));
+	xtask_exit (t, ec);
 }
 
 int

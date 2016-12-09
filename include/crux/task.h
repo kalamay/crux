@@ -142,6 +142,15 @@ extern void *
 xtask_local (struct xtask *t);
 
 /**
+ * Gets the current stack space used
+ *
+ * @param  t  the task to access
+ * @return  number of bytes used
+ */
+extern size_t
+xtask_stack_used (const struct xtask *t);
+
+/**
  * Checks if a task is not dead
  *
  * This returns `true` if the state is suspended, current, or active. In
@@ -153,19 +162,23 @@ xtask_local (struct xtask *t);
  * whereas `xtask_state` expects a non-NULL task.
  *
  * @param  t  the task to test or `NULL`
- * @return  `true` if alive, `false` if dead
+ * @return  `true` if alive, `false` if dead or exited
  */
 extern bool
 xtask_alive (const struct xtask *t);
 
+extern int
+xtask_exitcode (const struct xtask *t);
+
 /**
- * Gets the current stack space used
+ * Exits a task
  *
- * @param  t  the task to access
- * @return  number of bytes used
+ * @param  t   the task to exit or `NULL` for the current task
+ * @param  ec  exit code
+ * @return  0 on succes, -errno of failure
  */
-extern size_t
-xtask_stack_used (const struct xtask *t);
+extern int
+xtask_exit (struct xtask *t, int ec);
 
 /**
  * Prints a representation of the task

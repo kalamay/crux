@@ -71,14 +71,14 @@
 #define SUSPENDED 0  /** new created or yielded */
 #define CURRENT   1  /** currently has context */
 #define ACTIVE    2  /** is in the parent list of the current */
-#define DEAD      3  /** function has returned */
+#define EXITED      3  /** function has returned */
 
 /** Maps state integers to name strings */
 static const char *state_names[] = {
 	[SUSPENDED] = "SUSPENDED",
 	[CURRENT]   = "CURRENT",
 	[ACTIVE]    = "ACTIVE",
-	[DEAD]      = "DEAD",
+	[EXITED]    = "EXITED",
 };
 
 /**
@@ -113,17 +113,18 @@ struct xdefer {
 };
 
 struct xtask {
+	union xvalue value;            /** the resume or yield value */
 	struct xtask *parent;          /** task the resumed this task */
 	void *data;                    /** user data */
 #if HAS_DLADDR
 	char *name;                    /** entry function name */
 #endif
 	size_t tls;                    /** task locak storage size */
-	union xvalue value;            /** the resume or yield value */
 	struct xdefer *defer;          /** defered execution linked list */
 	char **backtrace;              /** backtrace captured during task creationg */
+	int exitcode;                  /** code if in EXITED state */
 	uint8_t nbacktrace;            /** number of backtrace frames */
-	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or DEAD */
+	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXITED */
 	uintptr_t ctx[XCTX_REG_COUNT]; /** execution registers */
 	uint32_t flags;                /** flags used to create the task */
 	uint32_t map_size;             /** size of the mapped memory in bytes */
@@ -259,7 +260,10 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 
 	t->parent = NULL;
 	t->value = val;
-	t->state = DEAD;
+	if (t->state < EXITED) {
+		t->state = EXITED;
+		t->exitcode = 0;
+	}
 	parent->state = CURRENT;
 	defer_run (&t->defer);
 	xctx_swap (t->ctx, parent->ctx);
@@ -338,6 +342,7 @@ xtask_new_opt (struct xtask **tp,
 	t->defer = NULL;
 	t->backtrace = NULL;
 	t->nbacktrace = 0;
+	t->exitcode = -1;
 	t->state = SUSPENDED;
 	t->flags = flags;
 	t->map_size = map_size;
@@ -402,14 +407,6 @@ xtask_local (struct xtask *t)
 	return TLS (t);
 }
 
-bool
-xtask_alive (const struct xtask *t)
-{
-	assert (t != NULL);
-
-	return t->state != DEAD;
-}
-
 size_t
 xtask_stack_used (const struct xtask *t)
 {
@@ -417,6 +414,53 @@ xtask_stack_used (const struct xtask *t)
 		return 0;
 	}
 	return xctx_stack_size (t->ctx, MAP_BEGIN (t), STACK_SIZE (t), t == current);
+}
+
+bool
+xtask_alive (const struct xtask *t)
+{
+	assert (t != NULL);
+
+	return t->state < EXITED;
+}
+
+int
+xtask_exitcode (const struct xtask *t)
+{
+	assert (t != NULL);
+
+	return t->exitcode;
+}
+
+int
+xtask_exit (struct xtask *t, int ec)
+{
+	bool yield;
+	if (t == NULL) {
+		t = current;
+		if (t == NULL) { return -EINVAL; }
+		yield = true;
+	}
+	else {
+		yield = t == current;
+	}
+
+	if (t->state == EXITED) { return -EALREADY; }
+
+	struct xtask *p = t->parent;
+
+	t->parent = NULL;
+	t->value = XZERO;
+	t->exitcode = ec;
+	t->state = EXITED;
+
+	if (yield) {
+		current = p;
+		p->state = CURRENT;
+		xctx_swap (t->ctx, p->ctx);
+	}
+
+	return 0;
 }
 
 void
@@ -434,10 +478,10 @@ xtask_print (const struct xtask *t, FILE *out)
 		}
 	}
 
-	if (t->state == DEAD) {
+	if (t->state == EXITED) {
 		fprintf (out,
-				"#<crux:task:%p state=DEAD> {\n",
-				(void *)t);
+				"#<crux:task:%p state=EXITED, exitcode=%d> {\n",
+				(void *)t, t->exitcode);
 	}
 	else {
 		fprintf (out,
@@ -484,7 +528,7 @@ xresume (struct xtask *t, union xvalue val)
 	ensure (t, t != NULL, "attempting to resume a null task");
 	ensure (t, t->state != CURRENT, "attempting to resume the current task");
 	ensure (t, t->state != ACTIVE, "attempting to resume an active task");
-	ensure (t, t->state != DEAD, "attempting to resume a dead task");
+	ensure (t, t->state < EXITED, "attempting to resume an exited task");
 
 	struct xtask *p = current;
 	if (p == NULL) {
