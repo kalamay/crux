@@ -8,6 +8,7 @@ xpoll__init (struct xpoll *poll)
     poll->fd = kqueue ();
 	poll->rpos = 0;
 	poll->rlen = 0;
+	poll->wpos = 0;
 	return poll->fd < 0 ? XERRNO : 0;
 }
 
@@ -31,18 +32,40 @@ xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
 {
 	(void)ms;
 
-	if (poll->rpos == poll->rlen) {
+	struct kevent *events = poll->pev, *changes = events + poll->rlen;
+	int nevents = xlen (poll->pev), nchanges = poll->wpos - poll->rlen;
+	if (xpoll__has_more (poll)) {
+		events += poll->rlen;
+		nevents -= poll->rlen;
+	}
+
+	int rc = kevent (poll->fd, changes, nchanges, events, nevents, ts);
+	if (rc < 0) { return XERRNO; }
+	if (!xpoll__has_more (poll)) {
 		poll->rpos = 0;
 		poll->rlen = 0;
 	}
+	if (rc == 0) {
+		assert (nchanges == 0);
+		rc = -ETIMEDOUT;
+		goto done;
+	}
 
-	struct kevent *pev = poll->pev + poll->rlen;
-	int nevents = xlen (poll->pev) - poll->rlen;
-
-	int rc = kevent (poll->fd, NULL, 0, pev, nevents, ts);
-	if (rc < 0) { return XERRNO; }
-	if (rc == 0) { return -ETIMEDOUT; }
+	struct kevent *p = events, *pe = p + rc, *mark = p;
+	for (; p < pe; p++) {
+		if ((p->flags & EV_ERROR) && p->data == 0) {
+			rc--;
+			continue;
+		}
+		memmove (mark, p, (pe - p) * sizeof (*p));
+		pe = p - rc;
+		p = mark;
+		mark++;
+	}
 	poll->rlen += rc;
+
+done:
+	poll->wpos = poll->rlen;
 	return rc;
 }
 
@@ -88,9 +111,23 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	//     #define EVFILT_TIMER   6U
 	type = -1 - type;
 #endif
-	struct kevent ev;
-	EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
-	int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
-	return rc < 0 ? XERRNO : 0;
+	if (poll->wpos == xlen (poll->pev)) {
+		int rc = xpoll__update (poll, 0, &zero);
+		if (rc < 0) { return rc; }
+		if (poll->wpos == xlen (poll->pev)) {
+			struct kevent ev;
+			EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
+			rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
+			return rc < 0 ? XERRNO : 0;
+		}
+	}
+
+	struct kevent *ev = &poll->pev[poll->wpos++];
+	EV_SET (ev, id, type, op|EV_ONESHOT|EV_RECEIPT, 0, 0, ptr);
+	if (type == EVFILT_SIGNAL) {
+		int rc = xpoll__update (poll, 0, &zero);
+		if (rc < 0) { return rc; }
+	}
+	return 0;
 }
 

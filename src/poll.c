@@ -153,7 +153,7 @@ poll:
 	}
 
 	rc = xpoll__update (poll, ms, tsp);
-	if (rc >= 0) {
+	if (rc > 0) {
 		goto read;
 	}
 

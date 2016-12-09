@@ -11,7 +11,7 @@
 struct xpoll {
 	XPOLL_HEADER;
 	int fd;
-	uint16_t rpos, rlen;
+	uint16_t rpos, rlen, wpos;
 	struct kevent pev[64];
 };
 
