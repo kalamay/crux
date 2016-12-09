@@ -32,8 +32,8 @@ xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
 {
 	(void)ms;
 
-	struct kevent *events = poll->pev, *changes = events + poll->rlen;
-	int nevents = xlen (poll->pev), nchanges = poll->wpos - poll->rlen;
+	struct kevent *events = poll->events, *changes = events + poll->rlen;
+	int nevents = xlen (poll->events), nchanges = poll->wpos - poll->rlen;
 	if (xpoll__has_more (poll)) {
 		events += poll->rlen;
 		nevents -= poll->rlen;
@@ -72,7 +72,7 @@ done:
 int
 xpoll__next (struct xpoll *poll, struct xevent *dst)
 {
-	struct kevent *src = &poll->pev[poll->rpos++];
+	struct kevent *src = &poll->events[poll->rpos++];
 
 	switch (src->filter) {
 	case EVFILT_READ:   dst->type = XPOLL_IN;  break;
@@ -111,13 +111,13 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	//     #define EVFILT_TIMER   6U
 	type = -1 - type;
 #endif
-	if (type == EVFILT_SIGNAL || poll->wpos == xlen (poll->pev)) {
+	if (type == EVFILT_SIGNAL || poll->wpos == xlen (poll->events)) {
 		struct kevent ev;
 		EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
 		int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
 		return rc < 0 ? XERRNO : 0;
 	}
-	struct kevent *ev = &poll->pev[poll->wpos++];
+	struct kevent *ev = &poll->events[poll->wpos++];
 	EV_SET (ev, id, type, op|EV_ONESHOT|EV_RECEIPT, 0, 0, ptr);
 	return 0;
 }

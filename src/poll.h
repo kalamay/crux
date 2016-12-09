@@ -12,7 +12,7 @@ struct xpoll {
 	XPOLL_HEADER;
 	int fd;
 	uint16_t rpos, rlen, wpos;
-	struct kevent pev[64];
+	struct kevent events[64];
 };
 
 
@@ -24,7 +24,7 @@ struct xpoll {
 	void *sig[31];
 	int fd, sigfd;
 	uint16_t rpos, rlen;
-	struct epoll_event pev[64];
+	struct epoll_event events[64];
 };
 
 
