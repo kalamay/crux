@@ -596,7 +596,7 @@ xunblock (int fd)
 	if (fd < 0) { return fd; }
 	int flags = fcntl (fd, F_GETFL, 0);
 	if (flags < 0) { return XERRNO; }
-	if (flags & O_NONBLOCK) { return 0; }
+	if (flags & O_NONBLOCK) { return fd; }
 	return fcntl (fd, F_SETFL, flags|O_NONBLOCK) < 0 ? XERRNO : fd;
 
 }
@@ -607,7 +607,7 @@ xcloexec (int fd)
 	if (fd < 0) { return fd; }
 	int flags = fcntl (fd, F_GETFD, 0);
 	if (flags < 0) { return XERRNO; }
-	if (flags & FD_CLOEXEC) { return 0; }
+	if (flags & FD_CLOEXEC) { return fd; }
 	return fcntl (fd, F_SETFD, flags|FD_CLOEXEC) < 0 ? XERRNO : fd;
 }
 
