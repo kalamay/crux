@@ -49,7 +49,7 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
  *  1 on event
  */
 extern int
-xpoll (struct xpoll *poll, int64_t ms, struct xevent *ev);
+xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev);
 
 extern const struct xclock *
 xpoll_clock (const struct xpoll *poll);

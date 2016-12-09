@@ -9,12 +9,12 @@ test_signal (void)
 	struct xevent ev;
 
 	mu_assert_int_eq (xpoll_new (&p), 0);
-	mu_assert_int_eq (xpoll (p, 0, &ev), 0);
+	mu_assert_int_eq (xpoll_wait (p, 0, &ev), 0);
 	mu_assert_int_eq (xpoll_ctl (p, XPOLL_ADD, XPOLL_SIG, SIGHUP, "test"), 0);
 
 	kill (getpid (), SIGHUP);
 
-	mu_assert_int_eq (xpoll (p, -1, &ev), 1);
+	mu_assert_int_eq (xpoll_wait (p, -1, &ev), 1);
 	mu_assert_int_eq (ev.type, XPOLL_SIG);
 	mu_assert_int_eq (ev.id, SIGHUP);
 	mu_assert_str_eq (ev.ptr, "test");
@@ -35,13 +35,13 @@ test_io (void)
 	mu_assert_int_eq (xpoll_ctl (p, XPOLL_ADD, XPOLL_IN, fd[0], "in"), 0);
 	mu_assert_int_eq (xpoll_ctl (p, XPOLL_ADD, XPOLL_OUT, fd[1], "out"), 0);
 
-	mu_assert_int_eq (xpoll (p, 0, &ev), 1);
+	mu_assert_int_eq (xpoll_wait (p, 0, &ev), 1);
 	mu_assert_int_eq (ev.type & XPOLL_OUT, XPOLL_OUT);
 	mu_assert_str_eq (ev.ptr, "out");
 
 	mu_assert_int_eq (write (ev.id, "test", 4), 4);
 
-	mu_assert_int_eq (xpoll (p, 0, &ev), 1);
+	mu_assert_int_eq (xpoll_wait (p, 0, &ev), 1);
 	mu_assert_int_eq (ev.type & XPOLL_IN, XPOLL_IN);
 	mu_assert_str_eq (ev.ptr, "in");
 

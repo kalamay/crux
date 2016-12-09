@@ -206,7 +206,7 @@ run_once (struct xhub *hub)
 		ms = -1;
 	}
 
-	rc = xpoll (&hub->poll, ms, &ev);
+	rc = xpoll_wait (&hub->poll, ms, &ev);
 	switch (rc) {
 	case 0:
 		ent = xcontainer (wait, struct xhub_entry, hent);

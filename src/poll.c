@@ -119,7 +119,7 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 }
 
 int
-xpoll (struct xpoll *poll, int64_t ms, struct xevent *ev)
+xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev)
 {
 	int rc;
 	struct timespec ts = { 0, 0 }, *tsp = NULL;
