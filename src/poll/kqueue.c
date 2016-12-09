@@ -34,6 +34,8 @@ xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
 
 	struct kevent *events = poll->events, *changes = events + poll->rlen;
 	int nevents = xlen (poll->events), nchanges = poll->wpos - poll->rlen;
+
+	// don't overwrite events if some are pending
 	if (xpoll__has_more (poll)) {
 		events += poll->rlen;
 		nevents -= poll->rlen;
@@ -41,22 +43,28 @@ xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
 
 	int rc = kevent (poll->fd, changes, nchanges, events, nevents, ts);
 	if (rc < 0) { return XERRNO; }
+
+	// if there are no pending events, the read positions can be reset
 	if (!xpoll__has_more (poll)) {
 		poll->rpos = 0;
 		poll->rlen = 0;
 	}
+
 	if (rc == 0) {
 		assert (nchanges == 0);
 		rc = -ETIMEDOUT;
 		goto done;
 	}
 
+	// remove all successful EV_RECEIPT events
 	struct kevent *p = events, *pe = p + rc, *mark = p;
 	for (; p < pe; p++) {
 		if ((p->flags & EV_ERROR) && p->data == 0) {
+			// count all sequential receipts
 			rc--;
 			continue;
 		}
+		// only do a memmove if a non-receipt event is found
 		memmove (mark, p, (pe - p) * sizeof (*p));
 		pe = p - rc;
 		p = mark;
@@ -118,6 +126,8 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	//     #define EVFILT_TIMER   6U
 	type = -1 - type;
 #endif
+
+	// if deleting, find matching events in the pending list and "disable" them
 	if (op == XPOLL_DEL && poll->rlen > 0) {
 		struct kevent *p = poll->events, *pe = p + poll->rlen;
 		for (; p < pe; p++) {
@@ -127,12 +137,16 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 			}
 		}
 	}
+
+	// signal events must be registered immediately, otherwise only if full
 	if (type == EVFILT_SIGNAL || poll->wpos == xlen (poll->events)) {
 		struct kevent ev;
 		EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
 		int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
 		return rc < 0 ? XERRNO : 0;
 	}
+
+	// queue up the event change for the next xpoll__update
 	struct kevent *ev = &poll->events[poll->wpos++];
 	EV_SET (ev, id, type, op|EV_ONESHOT|EV_RECEIPT, 0, 0, ptr);
 	return 0;

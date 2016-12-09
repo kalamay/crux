@@ -87,8 +87,8 @@ int
 main (void)
 {
 	mu_init ("poll");
-	test_signal();
-	test_io();
-	test_remove();
+	mu_run (test_signal);
+	mu_run (test_io);
+	mu_run (test_remove);
 }
 
