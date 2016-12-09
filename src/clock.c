@@ -16,7 +16,6 @@ static mach_timebase_info_data_t info = { 1, 1 };
 static void __attribute__((constructor))
 init (void)
 {
-	printf ("INIT\n");
 	(void)mach_timebase_info (&info);
 }
 

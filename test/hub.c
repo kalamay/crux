@@ -23,7 +23,7 @@ static void
 test_concurrent_sleep (void)
 {
 	struct xhub *hub;
-	struct xclock clock;
+	struct xclock start, end;
 
 	mu_assert_int_eq (xhub_new (&hub), 0);
 
@@ -31,13 +31,14 @@ test_concurrent_sleep (void)
 	mu_assert_int_eq (xspawn (hub, dosleep, (void *)200), 0);
 	mu_assert_int_eq (xspawn (hub, dosleep, (void *)100), 0);
 
-	xclock_mono (&clock);
-
+	xclock_mono (&start);
 	mu_assert_int_eq (xhub_run (hub), 0);
+	xclock_mono (&end);
 
-	int ms = (int)round (xclock_step (&clock) * 1000);
-	mu_assert_int_ge (ms, 200);
-	mu_assert_int_le (ms, 210);
+	int64_t nsec = XCLOCK_NSEC (&end) - XCLOCK_NSEC (&start);
+	int ms = round ((double)nsec / X_NSEC_PER_MSEC);
+	mu_assert_int_ge (ms, 200-1);
+	mu_assert_int_le (ms, 200+1);
 
 	xhub_free (&hub);
 }

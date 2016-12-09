@@ -52,7 +52,7 @@ static int
 schedule_timeout (struct xhub_entry *ent, int ms)
 {
 	struct xhub *h = ent->hub;
-	ent->hent.prio = XCLOCK_ABS_MSEC (&h->poll.clock, ms);
+	ent->hent.prio = X_MSEC_TO_NSEC (ms) + XCLOCK_NSEC (&h->poll.clock);
 	int rc = xheap_add (&h->timeout, &ent->hent);
 	return rc < 0 ? rc : 0;
 }
@@ -194,7 +194,7 @@ run_once (struct xhub *hub)
 
 	wait = xheap_get (&hub->timeout, XHEAP_ROOT);
 	if (wait != NULL) {
-		ms = wait->prio - XCLOCK_MSEC (&hub->poll.clock);
+		ms = X_NSEC_TO_MSEC (wait->prio - XCLOCK_NSEC (&hub->poll.clock));
 		if (ms <= 0) {
 			ent = xcontainer (wait, struct xhub_entry, hent);
 			goto timeout;
@@ -475,10 +475,11 @@ xio (int fd, void *buf, size_t len, int timeoutms,
 		return -EINVAL;
 	}
 
-	struct xclock now, end;
+	struct xclock now;
+	int64_t abs;
 	if (timeoutms > 0) {
-		xclock_real (&end);
-		XCLOCK_INCR_MSEC (&end, timeoutms);
+		xclock_mono (&now);
+		abs = X_MSEC_TO_NSEC (timeoutms) + XCLOCK_NSEC (&now);
 	}
 
 	size_t total = 0;
@@ -490,8 +491,8 @@ again:
 	total += (size_t)rc;
 	if (total < len) {
 		if (timeoutms > 0) {
-			xclock_real (&now);
-			timeoutms = X_NSEC_TO_MSEC (XCLOCK_NSEC (&end) - XCLOCK_NSEC (&now));
+			xclock_mono (&now);
+			timeoutms = X_NSEC_TO_MSEC (abs - XCLOCK_NSEC (&now));
 			if (timeoutms < 0) { timeoutms = 0; }
 		}
 		goto again;

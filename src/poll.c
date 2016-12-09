@@ -55,7 +55,7 @@ xpoll_new (struct xpoll **pollp)
 int
 xpoll_init (struct xpoll *poll)
 {
-	int rc = xclock_real (&poll->clock);
+	int rc = xclock_mono (&poll->clock);
 	if (rc < 0) { return rc; }
 	sigemptyset (&poll->sigmask);
 	return xpoll__init (poll);
@@ -122,8 +122,9 @@ int
 xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev)
 {
 	int rc;
-	struct timespec ts = { 0, 0 }, *tsp = NULL;
-	int64_t abstime;
+	struct xclock wait;
+	struct timespec *tsp = NULL;
+	int64_t abs, rel;
 
 	ev->poll = poll;
 	ev->type = 0;
@@ -131,9 +132,12 @@ xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev)
 	ev->ptr = NULL;
 	ev->errcode = -1;
 
-read:
-	xclock_real (&poll->clock);
+	if (ms >= 0) {
+		xclock_mono (&poll->clock);
+		abs = X_MSEC_TO_NSEC (ms) + XCLOCK_NSEC (&poll->clock);
+	}
 
+read:
 	while (xpoll__has_more (poll)) {
 		rc = xpoll__next (poll, ev);
 		if (rc != 0) {
@@ -143,34 +147,25 @@ read:
 
 poll:
 	if (ms >= 0) {
-		// capture absolute time to remove elapsed time ms later
-		abstime = XCLOCK_ABS_MSEC (&poll->clock, ms);
-
-		// calculate timeout in milliseconds as a timespec
-		ts.tv_sec = ms / 1000;
-		ts.tv_nsec = (ms % 1000) * 1000000;
-		tsp = &ts;
+		xclock_mono (&poll->clock);
+		rel = abs - XCLOCK_NSEC (&poll->clock);
+		if (rel < 0) { rel = 0; }
+		ms = X_NSEC_TO_MSEC (rel);
+		XCLOCK_SET_NSEC (&wait, rel);
+		tsp = &wait.ts;
 	}
 
 	rc = xpoll__update (poll, ms, tsp);
 	if (rc > 0) {
 		goto read;
 	}
-
-	xclock_real (&poll->clock);
-
-	if (rc == -ETIMEDOUT) {
-		return 0;
+	if (rc == 0 || rc == -EINTR) {
+		goto poll;
 	}
 
-	if (rc == 0 || rc == -EINTR) {
-		if (ms >= 0) {
-			ms = XCLOCK_REL_MSEC (&poll->clock, abstime);
-			if (ms < 0) {
-				ms = 0;
-			}
-		}
-		goto poll;
+	xclock_mono (&poll->clock);
+	if (rc == -ETIMEDOUT) {
+		return 0;
 	}
 	return rc;
 }

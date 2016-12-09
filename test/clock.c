@@ -113,13 +113,13 @@ test_abs (void)
 
 	time_t abs;
 
-	abs = XCLOCK_ABS_NSEC (&clock, 54321);
+	abs = 54321 + XCLOCK_NSEC (&clock);
 	mu_assert_int_eq (abs, 123456843321);
 
-	abs = XCLOCK_ABS_USEC (&clock, 54321);
+	abs = 54321 + XCLOCK_USEC (&clock);
 	mu_assert_int_eq (abs, 123511110);
 
-	abs = XCLOCK_ABS_MSEC (&clock, 54321);
+	abs = 54321 + XCLOCK_MSEC (&clock);
 	mu_assert_int_eq (abs, 177777);
 }
 
@@ -130,13 +130,13 @@ test_rel (void)
 
 	time_t rel;
 
-	rel = XCLOCK_REL_NSEC (&clock, 123456843321);
+	rel = 123456843321 - XCLOCK_NSEC (&clock);
 	mu_assert_int_eq (rel, 54321);
 
-	rel = XCLOCK_REL_USEC (&clock, 123511110);
+	rel = 123511110 - XCLOCK_USEC (&clock);
 	mu_assert_int_eq (rel, 54321);
 
-	rel = XCLOCK_REL_MSEC (&clock, 177777);
+	rel = 177777 - XCLOCK_MSEC (&clock);
 	mu_assert_int_eq (rel, 54321);
 }
 

@@ -77,42 +77,6 @@ struct xclock {
 } while (0)
 
 
-#define XCLOCK_ABS(c, rel, n) \
-	((int64_t)(rel)+(X_SEC_TO_##n((c)->ts.tv_sec)+X_NSEC_TO_##n((c)->ts.tv_nsec)))
-
-#define XCLOCK_ABS_NSEC(c, rel) XCLOCK_ABS(c, rel, NSEC)
-#define XCLOCK_ABS_USEC(c, rel) XCLOCK_ABS(c, rel, USEC)
-#define XCLOCK_ABS_MSEC(c, rel) XCLOCK_ABS(c, rel, MSEC)
-#define XCLOCK_ABS_SEC(c, rel)  XCLOCK_ABS(c, rel, SEC)
-
-
-#define XCLOCK_REL(c, abs, n) \
-	((int64_t)(abs)-(X_SEC_TO_##n((c)->ts.tv_sec)+X_NSEC_TO_##n((c)->ts.tv_nsec)))
-
-#define XCLOCK_REL_NSEC(c, rel) XCLOCK_REL(c, rel, NSEC)
-#define XCLOCK_REL_USEC(c, rel) XCLOCK_REL(c, rel, USEC)
-#define XCLOCK_REL_MSEC(c, rel) XCLOCK_REL(c, rel, MSEC)
-#define XCLOCK_REL_SEC(c, rel)  XCLOCK_REL(c, rel, SEC)
-
-
-#define XCLOCK_INCR(c, v, n) \
-	XCLOCK_SET_NSEC (c, XCLOCK_NSEC (c) + X_##n##_TO_NSEC (v))
-
-#define XCLOCK_INCR_NSEC(c, v) XCLOCK_INCR(c, v, NSEC)
-#define XCLOCK_INCR_USEC(c, v) XCLOCK_INCR(c, v, USEC)
-#define XCLOCK_INCR_MSEC(c, v) XCLOCK_INCR(c, v, MSEC)
-#define XCLOCK_INCR_SEC(c, v)  XCLOCK_INCR(c, v, SEC)
-
-
-#define XCLOCK_DECR(c, v, n) \
-	XCLOCK_SET_NSEC (c, XCLOCK_NSEC (c) - X_##n_TO_NSEC (v))
-
-#define XCLOCK_DECR_NSEC(c, v) XCLOCK_DECR(c, v, NSEC)
-#define XCLOCK_DECR_USEC(c, v) XCLOCK_DECR(c, v, USEC)
-#define XCLOCK_DECR_MSEC(c, v) XCLOCK_DECR(c, v, MSEC)
-#define XCLOCK_DECR_SEC(c, v)  XCLOCK_DECR(c, v, SEC)
-
-
 #define XCLOCK_ADD(c, v) do { \
 	(c)->ts.tv_sec += (v)->ts.tv_sec; \
 	(c)->ts.tv_nsec += (v)->ts.tv_nsec; \

@@ -59,9 +59,11 @@ xexit (int ec);
 /**
  * @brief Gets the clock for the current task.
  *
- * This clock is updated to the current just prior to the task regaining
- * context. This is useful for planning timed events the need to run at a
- * somewhat constant interval regardless of time taken by the task itself.
+ * This clock is updated just prior to the task regaining context. This is
+ * useful for planning timed events the need to run at a somewhat constant
+ * interval regardless of time taken by the task itself.
+ *
+ * Note, this a monotonic clock.
  *
  * @return  clock object reference
  */
