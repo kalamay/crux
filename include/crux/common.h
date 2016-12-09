@@ -113,9 +113,9 @@ xread (int fd, void *buf, size_t len, int timeoutms);
  * @param  iovcnt     maximum number of iovec structures to read into
  * @param  timeoutms  millisecond timeout or <0 for infinite
  * @return  number of bytes read, -errno on error
- */
 extern ssize_t
 xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms);
+ */
 
 /**
  * @brief Writes upto `len` bytes to the file descriptor.
@@ -145,9 +145,9 @@ xwrite (int fd, const void *buf, size_t len, int timeoutms);
  * @param  iovcnt     maximum number of iovec structures to write from
  * @param  timeoutms  millisecond timeout or <0 for infinite
  * @return  number of bytes written, -errno on error
- */
 extern ssize_t
 xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms);
+ */
 
 extern ssize_t
 xsendto (int s, const void *buf, size_t len, int flags,
