@@ -85,7 +85,7 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 {
 	assert (poll != NULL);
 
-	if (op != XPOLL_ADD && op == XPOLL_DEL) { return -EINVAL; }
+	if (op != XPOLL_ADD && op != XPOLL_DEL) { return -EINVAL; }
 
 	sigset_t mask;
 
