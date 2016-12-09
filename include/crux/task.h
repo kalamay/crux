@@ -161,12 +161,18 @@ xtask_stack_used (const struct xtask *t);
  * The one difference is that a `NULL` task is not considered alive,
  * whereas `xtask_state` expects a non-NULL task.
  *
- * @param  t  the task to test or `NULL`
+ * @param  t  the task to test or `NULL` for the current task
  * @return  `true` if alive, `false` if dead or exited
  */
 extern bool
 xtask_alive (const struct xtask *t);
 
+/**
+ * Gets the exit code of the task
+ *
+ * @param  t  the task to test or `NULL` for the current task
+ * @return  exit code or -1 if not exited
+ */
 extern int
 xtask_exitcode (const struct xtask *t);
 
@@ -183,7 +189,7 @@ xtask_exit (struct xtask *t, int ec);
 /**
  * Prints a representation of the task
  *
- * @param  t    the task to print or `NULL`
+ * @param  t    the task to print or `NULL` for the current task
  * @param  out  `FILE *` handle to write to or `NULL`
  */
 extern void
