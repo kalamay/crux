@@ -3,6 +3,8 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <signal.h>
 
 #define xcontainer(ptr, type, member) __extension__ ({ \
 	const __typeof (((type *)0)->member) *__mptr = (ptr); \

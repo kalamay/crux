@@ -15,7 +15,7 @@ xerr_abort (int code);
 extern void __attribute__ ((format (printf, 2, 3)))
 xerr_fabort (int code, const char *fmt, ...);
 
-#define xerr_check(f) __extension__ ({ \
+#define xcheck(f) __extension__ ({ \
 	int __code = (f); \
 	if (__code < 0) { \
 		xerr_fabort (__code, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
@@ -23,7 +23,7 @@ xerr_fabort (int code, const char *fmt, ...);
 	__code; \
 })
 
-#define xerrno_check(f) __extension__ ({ \
+#define xcheck_errno(f) __extension__ ({ \
 	int __code = (f); \
 	if (__code < 0) { \
 		xerr_fabort (errno, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
