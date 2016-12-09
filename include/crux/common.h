@@ -12,6 +12,8 @@
 #define xlen(arr) \
 	(sizeof (arr) / sizeof ((arr)[0]))
 
+typedef ssize_t (*xio_fn) (int fd, void *buf, size_t len, int timeoutms);
+
 /**
  * @brief  Schedules a function to be execute when the task terminates
  *
@@ -126,7 +128,8 @@ xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms);
  *
  * @param  fd         file descriptor to read from
  * @param  buf        buffer to read bytes into
- * @param  len        maximum number of bytes to read
+ * @param  len        number of bytes to read
+ * @param  timeoutms  millisecond timeout or <0 for infinite
  * @return  number of bytes read, -errno on error
  */
 extern ssize_t
@@ -173,19 +176,72 @@ xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms);
  *
  * @param  fd         file descriptor to write to
  * @param  buf        buffer to write bytes from
- * @param  len        maximum number of bytes to write
+ * @param  len        number of bytes to write
+ * @param  timeoutms  millisecond timeout or <0 for infinite
  * @return  number of bytes written, -errno on error
  */
 extern ssize_t
 xwriten (int fd, const void *buf, size_t len, int timeoutms);
 
+/**
+ * @brief Recieves a message from a socket.
+ *
+ * This calls `recvfrom(2)`. If this results in an `EAGAIN`, the current task
+ * will yield context until either the file descriptor becomes readable or the
+ * timeout is reached.
+ *
+ * @param  s          socket file descriptor to read from
+ * @param  buf        buffer to read bytes into
+ * @param  len        maximum number of bytes to read
+ * @param  flags      flags to pass to `recvfrom(2)`
+ * @param[out]  src_addr   captures the source address if not `NULL`
+ * @param[in,out]  src_len  input the maximum size of `src_addr`, output size of `src_addr`
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  number of bytes read, -errno on error
+ */
 extern ssize_t
 xrecvfrom (int s, void *buf, size_t len, int flags,
 	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
 
+/**
+ * @brief Sends a message to a socket.
+ *
+ * This calls `sendto(2)`. If this results in an `EAGAIN`, the current task
+ * will yield context until either the file descriptor becomes readable or the
+ * timeout is reached.
+ *
+ * @param  s          socket file descriptor to send to
+ * @param  buf        buffer to write bytes from
+ * @param  len        maximum number of bytes to write
+ * @param  flags      flags to pass to `sendto(2)`
+ * @param[out]  src_addr   captures the source address if not `NULL`
+ * @param[in,out]  src_len  input the maximum size of `src_addr`, output size of `src_addr`
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @return  number of bytes written, -errno on error
+ */
 extern ssize_t
 xsendto (int s, const void *buf, size_t len, int flags,
 	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
+
+/**
+ * @brief  Calls `fn` for all bytes in `buf`.
+ *
+ * The callback function is expected to return either the number of bytes
+ * processed or an error. This callback will be invoked until all bytes have 
+ * been handled or an error is returned.
+ *
+ * If `timeoutms` is 0 or greater, the `xio` function will update the timeout
+ * before each call to `fn` to adjust the remaining timeout period.
+ *
+ * @param  fd         file descriptor to pass to `fn`
+ * @param  buf        buffer of bytes
+ * @param  len        number of bytes in `buf`
+ * @param  timeoutms  millisecond timeout or <0 for infinite
+ * @param  fn         function to handle process `buf`
+ * @return  the value of `len` on success, -errno on error
+ */
+extern ssize_t
+xio (int fd, void *buf, size_t len, int timeoutms, xio_fn fn);
 
 /**
  * @brief Creates a non-blocking pipe pair.

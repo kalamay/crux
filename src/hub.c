@@ -418,29 +418,6 @@ again: \
 	goto again; \
 } while (0)
 
-#define ALL(fd, ms, fn, buf, len) do { \
-	struct xclock now, end; \
-	if (ms > 0) { \
-		xclock_real (&end); \
-		XCLOCK_INCR_MSEC (&end, ms); \
-	} \
-	size_t total = 0; \
-	ssize_t rc; \
-again: \
-	rc = fn (fd, (uint8_t *)buf+total, len-total, ms); \
-	if (rc < 0) { return rc; } \
-	total += (size_t)rc; \
-	if (total < len) { \
-		if (ms > 0) { \
-			xclock_real (&now); \
-			ms = X_NSEC_TO_MSEC (XCLOCK_NSEC (&end) - XCLOCK_NSEC (&now)); \
-			if (ms < 0) { ms = 0; } \
-		} \
-		goto again; \
-	} \
-	return (ssize_t)total; \
-} while (0)
-
 ssize_t
 xread (int fd, void *buf, size_t len, int timeoutms)
 {
@@ -456,7 +433,7 @@ xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms)
 ssize_t
 xreadn (int fd, void *buf, size_t len, int timeoutms)
 {
-	ALL (fd, timeoutms, xread, buf, len);
+	return xio (fd, buf, len, timeoutms, xread);
 }
 
 ssize_t
@@ -474,7 +451,7 @@ xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms)
 ssize_t
 xwriten (int fd, const void *buf, size_t len, int timeoutms)
 {
-	ALL (fd, timeoutms, xwrite, buf, len);
+	return xio (fd, (void *)buf, len, timeoutms, (xio_fn)xwrite);
 }
 
 extern ssize_t
@@ -489,6 +466,38 @@ xsendto (int s, const void *buf, size_t len, int flags,
 	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms)
 {
 	SEND (s, timeoutms, sendto, buf, len, flags, dest_addr, dest_len);
+}
+
+ssize_t
+xio (int fd, void *buf, size_t len, int timeoutms,
+		ssize_t (*fn) (int fd, void *buf, size_t len, int timeoutms))
+{
+	if (len > SSIZE_MAX) {
+		return -EINVAL;
+	}
+
+	struct xclock now, end;
+	if (timeoutms > 0) {
+		xclock_real (&end);
+		XCLOCK_INCR_MSEC (&end, timeoutms);
+	}
+
+	size_t total = 0;
+	ssize_t rc;
+
+again:
+	rc = fn (fd, (uint8_t *)buf+total, len-total, timeoutms);
+	if (rc < 0) { return rc; }
+	total += (size_t)rc;
+	if (total < len) {
+		if (timeoutms > 0) {
+			xclock_real (&now);
+			timeoutms = X_NSEC_TO_MSEC (XCLOCK_NSEC (&end) - XCLOCK_NSEC (&now));
+			if (timeoutms < 0) { timeoutms = 0; }
+		}
+		goto again;
+	}
+	return (ssize_t)total;
 }
 
 int
