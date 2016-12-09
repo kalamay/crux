@@ -113,9 +113,24 @@ xread (int fd, void *buf, size_t len, int timeoutms);
  * @param  iovcnt     maximum number of iovec structures to read into
  * @param  timeoutms  millisecond timeout or <0 for infinite
  * @return  number of bytes read, -errno on error
+ */
 extern ssize_t
 xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms);
+
+/**
+ * @brief Reads exactly `len` bytes from the file descriptor.
+ *
+ * This calls `read(2)` until all bytes are read. If this results in an
+ * `EAGAIN`, the current task will yield context until either the file
+ * descriptor becomes readable or the timeout is reached.
+ *
+ * @param  fd         file descriptor to read from
+ * @param  buf        buffer to read bytes into
+ * @param  len        maximum number of bytes to read
+ * @return  number of bytes read, -errno on error
  */
+extern ssize_t
+xreadn (int fd, void *buf, size_t len, int timeoutms);
 
 /**
  * @brief Writes upto `len` bytes to the file descriptor.
@@ -145,17 +160,32 @@ xwrite (int fd, const void *buf, size_t len, int timeoutms);
  * @param  iovcnt     maximum number of iovec structures to write from
  * @param  timeoutms  millisecond timeout or <0 for infinite
  * @return  number of bytes written, -errno on error
+ */
 extern ssize_t
 xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms);
- */
 
+/**
+ * @brief Writes exactly `len` bytes to the file descriptor.
+ *
+ * This calls `write(2)` until all bytes are written. If this results in an
+ * `EAGAIN`, the current task will yield context until either the file
+ * descriptor becomes writable.
+ *
+ * @param  fd         file descriptor to write to
+ * @param  buf        buffer to write bytes from
+ * @param  len        maximum number of bytes to write
+ * @return  number of bytes written, -errno on error
+ */
 extern ssize_t
-xsendto (int s, const void *buf, size_t len, int flags,
-	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
+xwriten (int fd, const void *buf, size_t len, int timeoutms);
 
 extern ssize_t
 xrecvfrom (int s, void *buf, size_t len, int flags,
 	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
+
+extern ssize_t
+xsendto (int s, const void *buf, size_t len, int flags,
+	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
 
 /**
  * @brief Creates a non-blocking pipe pair.
