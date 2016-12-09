@@ -278,7 +278,7 @@ xspawn (struct xhub *hub,
 {
 	struct xtask *t;
 	int rc = xtask_new_opt (&t,
-			X_STACK_DEFAULT, X_FDEFAULT,
+			XTASK_STACK_DEFAULT, XTASK_FDEFAULT,
 			sizeof (struct xhub_entry),
 			spawn_fn, data);
 	if (rc < 0) {

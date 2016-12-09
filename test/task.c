@@ -163,7 +163,7 @@ test_exit_external (void)
 int
 main (void)
 {
-	xtask_configure (X_STACK_DEFAULT, X_FDEBUG);
+	xtask_configure (XTASK_STACK_DEFAULT, XTASK_FDEBUG);
 
 	mu_init ("task");
 	mu_run (test_fibonacci);

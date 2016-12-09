@@ -8,34 +8,34 @@
 
 #include "value.h"
 
-#define X_FPROTECT   (UINT32_C(1) << 0) /** protect the end of the stack */
-#define X_FBACKTRACE (UINT32_C(1) << 1) /** capture backtrace for new task */
-#define X_FENTRY     (UINT32_C(1) << 2) /** capture entry point name */
+#define XTASK_FPROTECT   (UINT32_C(1) << 0) /** protect the end of the stack */
+#define XTASK_FBACKTRACE (UINT32_C(1) << 1) /** capture backtrace for new task */
+#define XTASK_FENTRY     (UINT32_C(1) << 2) /** capture entry point name */
 
 /**
  * Minimum allowed stack size
  */
-#define X_STACK_MIN 16384
+#define XTASK_STACK_MIN 16384
 
 /**
  * Maximum allowed stack size
  */
-#define X_STACK_MAX (1024 * X_STACK_MIN)
+#define XTASK_STACK_MAX (1024 * XTASK_STACK_MIN)
 
 /**
  * Stack size just large enough to call all of glibc functions
  */
-#define X_STACK_DEFAULT (8 * X_STACK_MIN)
+#define XTASK_STACK_DEFAULT (8 * XTASK_STACK_MIN)
 
 /**
  * Flag combination ideal for general use
  */
-#define X_FDEFAULT (X_FPROTECT)
+#define XTASK_FDEFAULT (XTASK_FPROTECT)
 
 /**
  * Flag combination ideal for debugging purposed
  */
-#define X_FDEBUG (X_FPROTECT|X_FBACKTRACE|X_FENTRY)
+#define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FBACKTRACE|XTASK_FENTRY)
 
 /**
  * Opaque type for task instances

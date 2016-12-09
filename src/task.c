@@ -104,7 +104,7 @@ static const char *state_names[] = {
  * @return  if the task is in debug mode
  */
 #define debug(t) \
-	__builtin_expect ((t)->flags & X_FDEBUG, 0)
+	__builtin_expect ((t)->flags & XTASK_FDEBUG, 0)
 
 struct xdefer {
 	struct xdefer *next;
@@ -146,8 +146,8 @@ static __thread struct xdefer *pool = NULL;
 
 static union xtask_config config = {
 	.cfg = {
-		.stack_size = X_STACK_DEFAULT,
-		.flags = X_FDEFAULT
+		.stack_size = XTASK_STACK_DEFAULT,
+		.flags = XTASK_FDEFAULT
 	}
 };
 
@@ -161,11 +161,11 @@ static union xtask_config config = {
 static union xtask_config
 config_make (uint32_t stack_size, uint32_t flags)
 {
-	if (stack_size > X_STACK_MAX) {
-		stack_size = X_STACK_MAX;
+	if (stack_size > XTASK_STACK_MAX) {
+		stack_size = XTASK_STACK_MAX;
 	}
-	else if (stack_size < X_STACK_MIN) {
-		stack_size = X_STACK_MIN;
+	else if (stack_size < XTASK_STACK_MIN) {
+		stack_size = XTASK_STACK_MIN;
 	}
 
 	return (union xtask_config) {
@@ -305,7 +305,7 @@ xtask_new_opt (struct xtask **tp,
 	// round up to nearest page size
 	uint32_t map_size = (((min_size - 1) / PAGESIZE) + 1) * PAGESIZE;
 
-	if (flags & X_FPROTECT) {
+	if (flags & XTASK_FPROTECT) {
 		map_size += PAGESIZE;
 	}
 	
@@ -322,7 +322,7 @@ xtask_new_opt (struct xtask **tp,
 	t = (struct xtask *)(void *)(map + map_size - sizeof (*t));
 #endif
 
-	if ((flags & X_FPROTECT) && !(t->flags & X_FPROTECT)) {
+	if ((flags & XTASK_FPROTECT) && !(t->flags & XTASK_FPROTECT)) {
 #if STACK_GROWS_UP
 		int rc = mprotect (map+map_size-PAGESIZE, PAGESIZE, PROT_NONE);
 #else
@@ -351,7 +351,7 @@ xtask_new_opt (struct xtask **tp,
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
 
 #if HAS_DLADDR
-	if (flags & X_FENTRY) {
+	if (flags & XTASK_FENTRY) {
 		Dl_info info;
 		if (dladdr ((void *)fn, &info) > 0) {
 			t->name = strdup (info.dli_sname);
@@ -360,7 +360,7 @@ xtask_new_opt (struct xtask **tp,
 #endif
 
 #if HAS_EXECINFO
-	if (flags & X_FBACKTRACE) {
+	if (flags & XTASK_FBACKTRACE) {
 		void *calls[32];
 		int frames = backtrace (calls, sizeof calls / sizeof calls[0]);
 		if (frames > 0) {
