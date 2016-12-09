@@ -256,16 +256,16 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 	struct xtask *parent = t->parent;
 	union xvalue val = fn (t->data, t->value);
 
-	current = parent;
-
 	t->parent = NULL;
 	t->value = val;
 	if (t->state < EXITED) {
 		t->state = EXITED;
 		t->exitcode = 0;
 	}
-	parent->state = CURRENT;
 	defer_run (&t->defer);
+
+	current = parent;
+	parent->state = CURRENT;
 	xctx_swap (t->ctx, parent->ctx);
 }
 
@@ -447,17 +447,18 @@ xtask_exit (struct xtask *t, int ec)
 
 	if (t->state == EXITED) { return -EALREADY; }
 
-	struct xtask *p = t->parent;
+	struct xtask *parent = t->parent;
 
 	t->parent = NULL;
 	t->value = XZERO;
 	t->exitcode = ec;
 	t->state = EXITED;
+	defer_run (&t->defer);
 
 	if (yield) {
-		current = p;
-		p->state = CURRENT;
-		xctx_swap (t->ctx, p->ctx);
+		current = parent;
+		parent->state = CURRENT;
+		xctx_swap (t->ctx, parent->ctx);
 	}
 
 	return 0;
