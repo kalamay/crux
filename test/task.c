@@ -102,6 +102,47 @@ test_defer (void)
 	xtask_free (&t);
 }
 
+static void
+defer_fib (void *ptr)
+{
+	struct xtask *t;
+	mu_assert_int_eq (xtask_new (&t, fib, NULL), 0);
+
+	mu_assert_uint_eq (xresume (t, XZERO).u64, 0);
+	mu_assert_uint_eq (xresume (t, XZERO).u64, 1);
+	mu_assert_uint_eq (xresume (t, XZERO).u64, 1);
+	mu_assert_uint_eq (xresume (t, XZERO).u64, 2);
+	mu_assert_uint_eq (xresume (t, XZERO).u64, 3);
+	mu_assert_uint_eq (xresume (t, XZERO).u64, 5);
+	
+	*(int *)ptr = 1;
+
+	xtask_free (&t);
+}
+
+static union xvalue
+defer_resume_coro (void *ptr, union xvalue val)
+{
+	xdefer (defer_fib, ptr);
+	return val;
+}
+
+static void
+test_defer_resume (void)
+{
+	struct xtask *t;
+	int n = 0;
+
+	mu_assert_int_eq (xtask_new (&t, defer_resume_coro, &n), 0);
+
+	xresume (t, XZERO);
+
+	mu_assert (!xtask_alive (t))
+	mu_assert_int_eq (n, 1);
+
+	xtask_free (&t);
+}
+
 static union xvalue
 doexit (void *ptr, union xvalue v)
 {
@@ -168,6 +209,7 @@ main (void)
 	mu_init ("task");
 	mu_run (test_fibonacci);
 	mu_run (test_defer);
+	mu_run (test_defer_resume);
 	mu_run (test_exit);
 	mu_run (test_exit_external);
 }

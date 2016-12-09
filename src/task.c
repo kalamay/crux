@@ -71,7 +71,7 @@
 #define SUSPENDED 0  /** new created or yielded */
 #define CURRENT   1  /** currently has context */
 #define ACTIVE    2  /** is in the parent list of the current */
-#define EXITED      3  /** function has returned */
+#define EXITED    3  /** function has returned */
 
 /** Maps state integers to name strings */
 static const char *state_names[] = {
@@ -224,13 +224,26 @@ map_alloc (uint32_t map_size)
 	return map;
 }
 
+/**
+ * Executes end-of-life tasks
+ *
+ * @param  t    task to finalize
+ * @param  val  value if the final yield
+ * @param  ec   exit code
+ */
 static void
-defer_run (struct xdefer **d)
+eol (struct xtask *t, union xvalue val, int ec)
 {
-	assert (d != NULL);
+	struct xdefer *def = t->defer;
+	t->defer = NULL;
 
-	struct xdefer *def = *d;
-	*d = NULL;
+	// disable the ability to yield
+	t->parent = NULL;
+	t->value = val;
+
+	// prevent task from being resumed explicity
+	t->exitcode = ec;
+	t->state = EXITED;
 
 	while (def) {
 		struct xdefer *next = def->next;
@@ -238,6 +251,10 @@ defer_run (struct xdefer **d)
 		def->next = pool;
 		pool = def;
 		def = next;
+
+		// mark exit status again in case defer resumed a separate task
+		t->exitcode = ec;
+		t->state = EXITED;
 	}
 }
 
@@ -256,14 +273,7 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 	struct xtask *parent = t->parent;
 	union xvalue val = fn (t->data, t->value);
 
-	t->parent = NULL;
-	t->value = val;
-	if (t->state < EXITED) {
-		t->state = EXITED;
-		t->exitcode = 0;
-	}
-	defer_run (&t->defer);
-
+	eol (t, val, 0);
 	current = parent;
 	parent->state = CURRENT;
 	xctx_swap (t->ctx, parent->ctx);
@@ -387,7 +397,7 @@ xtask_free (struct xtask **tp)
 
 	*tp = NULL;
 
-	defer_run (&t->defer);
+	eol (t, XZERO, t->exitcode);
 	free (t->name);
 	free (t->backtrace);
 
@@ -421,7 +431,7 @@ xtask_alive (const struct xtask *t)
 {
 	assert (t != NULL);
 
-	return t->state < EXITED;
+	return t->state != EXITED;
 }
 
 int
@@ -448,13 +458,7 @@ xtask_exit (struct xtask *t, int ec)
 	if (t->state == EXITED) { return -EALREADY; }
 
 	struct xtask *parent = t->parent;
-
-	t->parent = NULL;
-	t->value = XZERO;
-	t->exitcode = ec;
-	t->state = EXITED;
-	defer_run (&t->defer);
-
+	eol (t, XZERO, ec);
 	if (yield) {
 		current = parent;
 		parent->state = CURRENT;
