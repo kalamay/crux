@@ -13,7 +13,7 @@ struct xheap_entry {
 	uint32_t user; /** unused user value */
 };
 
-typedef void (*xheap_cb)(struct xheap_entry *ent, void *data);
+typedef void (*xheap_fn)(struct xheap_entry *ent, void *data);
 
 #define XHEAP_NONE 0
 #define XHEAP_ROOT 1
@@ -54,7 +54,7 @@ extern int
 xheap_update (const struct xheap *heap, struct xheap_entry *e);
 
 extern void
-xheap_clear (struct xheap *heap, xheap_cb func, void *data);
+xheap_clear (struct xheap *heap, xheap_fn fn, void *data);
 
 #endif
 

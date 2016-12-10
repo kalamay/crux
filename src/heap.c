@@ -294,14 +294,14 @@ xheap_update (const struct xheap *heap, struct xheap_entry *e)
 }
 
 void
-xheap_clear (struct xheap *heap, xheap_cb each, void *data)
+xheap_clear (struct xheap *heap, xheap_fn fn, void *data)
 {
 	assert (heap != NULL);
 
 	uint32_t i;
 	for (i = XHEAP_ROOT; i < heap->next; i++) {
 		ENTRY (heap, i)->key = XHEAP_NONE;
-		each (ENTRY (heap, i), data);
+		fn (ENTRY (heap, i), data);
 		ENTRY (heap, i) = NULL;
 	}
 	for (i = (heap->capacity / ROW_WIDTH) - 1; i > 0; i--) {
