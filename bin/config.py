@@ -67,7 +67,7 @@ print("#define XHEAP_PAGECOUNT %d" % PAGEPTR)
 print("#define XHEAP_PAGEMASK %d" % (PAGEPTR - 1))
 print("#define XHEAP_PAGESHIFT %d" % math.log(PAGEPTR, 2))
 print("#define PAGESIZE %d" % PAGESIZE)
-print("#define HAS_%s 1" % arch())
+
 if has_clock_gettime():
 	print("#define HAS_CLOCK_GETTIME 1")
 if has_mach_time():
@@ -79,3 +79,16 @@ if has_kqueue():
 elif has_epoll():
 	print("#define HAS_EPOLL 1")
 
+print(("""
+#if defined (__aarch64__)
+# define HAS_ARM_64 1
+#elif defined (__arm__)
+# define HAS_ARM_32 1
+#elif defined (__amd64__) || defined (__x86_64__) || defined (_M_X64) || defined (_M_AMD64)
+# define HAS_X86_64 1
+#elif defined (__i386__) || defined (_M_IX86) || defined (_X86_)
+# define HAS_X86_32 1
+#else
+""").strip())
+print("# define HAS_%s 1" % arch())
+print("#endif")

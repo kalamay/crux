@@ -4,7 +4,7 @@
 static void
 test_convert (void)
 {
-	time_t a, b;
+	int64_t a, b;
 
 	a = 123;
 
@@ -44,7 +44,7 @@ test_convert (void)
 static void
 test_remainder (void)
 {
-	time_t a, b;
+	int64_t a, b;
 
 	a = 100000023456;
 	b = X_NSEC_REM (a);
@@ -111,7 +111,7 @@ test_abs (void)
 {
 	struct xclock clock = XCLOCK_MAKE_NSEC (123456789000);
 
-	time_t abs;
+	int64_t abs;
 
 	abs = 54321 + XCLOCK_NSEC (&clock);
 	mu_assert_int_eq (abs, 123456843321);
@@ -128,7 +128,7 @@ test_rel (void)
 {
 	struct xclock clock = XCLOCK_MAKE_NSEC (123456789000);
 
-	time_t rel;
+	int64_t rel;
 
 	rel = 123456843321 - XCLOCK_NSEC (&clock);
 	mu_assert_int_eq (rel, 54321);

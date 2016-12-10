@@ -11,7 +11,7 @@
 static uintptr_t *
 start (uint8_t *stack, size_t len)
 {
-	uintptr_t *s = (uintptr_t *)(stack + len - sizeof (uintptr_t)*2);
+	uintptr_t *s = (uintptr_t *)(void *)(stack + len - sizeof (uintptr_t)*2);
 	s = (void *)((uintptr_t)s - (uintptr_t)s%16);
 	return s - 1;
 }
@@ -58,13 +58,13 @@ xctx_print (const uintptr_t *ctx, FILE *out)
 }
 
 __asm__ (
-	".text                          \n"
+	".text             \n"
 #if defined (__APPLE__)
-	".globl _xctx_swap              \n"
-	"_xctx_swap:                    \n"
+	".globl _xctx_swap \n"
+	"_xctx_swap:       \n"
 #else
-	".globl xctx_swap               \n"
-	"xctx_swap:                     \n"
+	".globl xctx_swap  \n"
+	"xctx_swap:        \n"
 #endif
 		"movl    4(%esp),     %eax  \n"
 		"movl      %ecx,   24(%eax) \n"

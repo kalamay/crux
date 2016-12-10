@@ -65,13 +65,13 @@ xctx_print (const uintptr_t *ctx, FILE *out)
 }
 
 __asm__ (
-	".text                          \n"
+	".text             \n"
 #if defined (__APPLE__)
-	".globl _xctx_swap              \n"
-	"_xctx_swap:                    \n"
+	".globl _xctx_swap \n"
+	"_xctx_swap:       \n"
 #else
-	".globl xctx_swap               \n"
-	"xctx_swap:                     \n"
+	".globl xctx_swap  \n"
+	"xctx_swap:        \n"
 #endif
 		"movq      %rbx,    0(%rdi) \n"
 		"movq      %rbp,    8(%rdi) \n"
