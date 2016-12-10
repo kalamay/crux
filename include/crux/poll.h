@@ -8,15 +8,14 @@
 #define XPOLL_ADD 0x0001
 #define XPOLL_DEL 0x0002
 
-#define XPOLL_IN  (-1)
-#define XPOLL_OUT (-2)
-#define XPOLL_SIG (-6)
+#define XPOLL_IN  0x0001
+#define XPOLL_OUT 0x0002
+#define XPOLL_SIG 0x0006
 
-#define XPOLL_ERR (1 << 16)
-#define XPOLL_EOF (1 << 17)
+#define XPOLL_ERR 0x0100
+#define XPOLL_EOF 0x0200
 
-#define XPOLL_OP(n)    (int)((n) & 0x000F)
-#define XPOLL_TYPE(n)  (int)((n) & 0x0F00)
+#define XPOLL_TYPE(n)  (int)((n) & 0x000F)
 #define XPOLL_ISERR(n) (!!((n) & XPOLL_ERR))
 #define XPOLL_ISEOF(n) (!!((n) & XPOLL_EOF))
 

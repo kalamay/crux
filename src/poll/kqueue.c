@@ -71,6 +71,8 @@ done:
 int
 xpoll__next (struct xpoll *poll, struct xevent *dst)
 {
+	assert (xpoll__has_more (poll));
+
 	struct kevent *src = &poll->events[poll->rpos++];
 
 	// EV_RECEIPT uses EV_ERROR to set registration status, but these should be
@@ -80,16 +82,14 @@ xpoll__next (struct xpoll *poll, struct xevent *dst)
 		return 0;
 	}
 
-	switch (src->filter) {
-	case EVFILT_READ:   dst->type = XPOLL_IN;  break;
-	case EVFILT_WRITE:  dst->type = XPOLL_OUT; break;
-	case EVFILT_SIGNAL: dst->type = XPOLL_SIG; break;
-	default:
-		return 0;
-	}
-
+	dst->poll = poll;
 	dst->ptr = src->udata;
 	dst->id = (int)src->ident;
+#if EVFILT_READ == 0
+	dst->type = src->filter + 1; // NetBSD
+#else
+	dst->type = -src->filter; // FreeBSD, OpenBSD, DflyBSD, macOS
+#endif
 
 	if (dst->type == XPOLL_SIG) {
 		signal (dst->id, SIG_DFL);
@@ -110,16 +110,10 @@ xpoll__next (struct xpoll *poll, struct xevent *dst)
 int
 xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 {
-#ifdef __NetBSD__
-	// NetBSD uses different filter values:
-	//     #define EVFILT_READ    0U
-	//     #define EVFILT_WRITE   1U
-	//     #define EVFILT_AIO     2U
-	//     #define EVFILT_VNODE   3U
-	//     #define EVFILT_PROC    4U
-	//     #define EVFILT_SIGNAL  5U
-	//     #define EVFILT_TIMER   6U
-	type = -1 - type;
+#if EVFILT_READ == 0
+	type = type - 1; // NetBSD
+#else
+	type = -type; // FreeBSD, OpenBSD, DflyBSD, macOS
 #endif
 
 	// if deleting, find matching events in the pending list and "disable" them
