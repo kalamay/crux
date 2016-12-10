@@ -190,18 +190,20 @@ dorecv_timeout (struct xhub *h, void *data)
 	char buf[5];
 	memset (buf, 0, sizeof buf);
 
-	struct xclock clock;
-	xclock_mono (&clock);
+	struct xclock start, end;
 
-	int rc, ms;
+	xclock_mono (&start);
+	int rc = xrecvfrom (s, buf, 4, 0, (struct sockaddr *)&src, &len, 20);
+	xclock_mono (&end);
 
-	rc = xrecvfrom (s, buf, 4, 0, (struct sockaddr *)&src, &len, 100);
-	ms = (int)round (xclock_step (&clock) * 1000);
+	int64_t nsec = XCLOCK_NSEC (&end) - XCLOCK_NSEC (&start);
+	int ms = round ((double)nsec / X_NSEC_PER_MSEC);
+
 	mu_assert_int_eq (rc, -ETIMEDOUT);
-	mu_assert_int_ge (ms, 100);
-	mu_assert_int_le (ms, 110);
+	mu_assert_int_ge (ms, 20-1);
+	mu_assert_int_le (ms, 20+1);
 
-	rc = xrecvfrom (s, buf, 4, 0, (struct sockaddr *)&src, &len, 200);
+	rc = xrecvfrom (s, buf, 4, 0, (struct sockaddr *)&src, &len, 30);
 	mu_assert_int_eq (rc, 4);
 	mu_assert_str_eq (buf, "test");
 }
@@ -216,7 +218,7 @@ dosend_timeout (struct xhub *h, void *data)
 	mu_assert_call (s);
 	xdefer (doclose, (void *)(intptr_t)s);
 
-	xsleep (200);
+	xsleep (40);
 	int rc = xsendto (s, "test", 4, 0, (struct sockaddr *)dest, sizeof *dest, -1);
 	mu_assert_int_eq (rc, 4);
 }
