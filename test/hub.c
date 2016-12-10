@@ -12,11 +12,14 @@ doclose (void *data)
 	close ((int)(intptr_t)data);
 }
 
+static int sleep_count = 0;
+
 static void
 dosleep (struct xhub *h, void *data)
 {
 	(void)h;
 	xsleep ((uintptr_t)data);
+	sleep_count++;
 }
 
 static void
@@ -27,9 +30,9 @@ test_concurrent_sleep (void)
 
 	mu_assert_int_eq (xhub_new (&hub), 0);
 
-	mu_assert_int_eq (xspawn (hub, dosleep, (void *)100), 0);
-	mu_assert_int_eq (xspawn (hub, dosleep, (void *)200), 0);
-	mu_assert_int_eq (xspawn (hub, dosleep, (void *)100), 0);
+	mu_assert_int_eq (xspawn (hub, dosleep, (void *)10), 0);
+	mu_assert_int_eq (xspawn (hub, dosleep, (void *)20), 0);
+	mu_assert_int_eq (xspawn (hub, dosleep, (void *)10), 0);
 
 	xclock_mono (&start);
 	mu_assert_int_eq (xhub_run (hub), 0);
@@ -37,8 +40,10 @@ test_concurrent_sleep (void)
 
 	int64_t nsec = XCLOCK_NSEC (&end) - XCLOCK_NSEC (&start);
 	int ms = round ((double)nsec / X_NSEC_PER_MSEC);
-	mu_assert_int_ge (ms, 200-1);
-	mu_assert_int_le (ms, 200+1);
+	mu_assert_int_ge (ms, 20-1);
+	mu_assert_int_le (ms, 20+1);
+
+	mu_assert_int_eq (sleep_count, 3);
 
 	xhub_free (&hub);
 }
