@@ -11,6 +11,11 @@ struct xhub;
  *
  * @param[out]  hubp  indirect hub object pointer
  * @return  0 on success, -errno on error
+ *
+ * Errors:
+ *   `-EMFILE`: the per-process descriptor table is full
+ *   `-ENFILE`: the system file table is full
+ *   `-ENOMEM`: insufficient memory was available
  */
 extern int
 xhub_new (struct xhub **hubp);
