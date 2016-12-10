@@ -30,8 +30,11 @@
 
 
 /**
- * The stack size in bytes including the extra space below the corotoutine
- * and the protected page
+ * @brief  Stack size in bytes
+ *
+ * This is the stack size including the padding added for page boundary
+ * rounding. This will also include the protected page if it is uses,
+ * but it does not include the task local storage.
  *
  * @param  t  task pointer
  * @return  total size of the stack
@@ -40,7 +43,7 @@
 	((t)->map_size - sizeof (struct xtask) - (t)->tls)
 
 /**
- * Gets the task local storage
+ * @brief  Gets the task local storage
  *
  * @param  t  task pointer
  * @return  local storage pointer
@@ -55,7 +58,7 @@
 
 
 /**
- * Get the mapped address from a task
+ * @brief  Get the mapped address from a task
  *
  * @param  t  task pointer
  * @return  mapped address
@@ -73,7 +76,9 @@
 #define ACTIVE    2  /** is in the parent list of the current */
 #define EXITED    3  /** function has returned */
 
-/** Maps state integers to name strings */
+/**
+ * @brief  Maps state integers to name strings
+ * */
 static const char *state_names[] = {
 	[SUSPENDED] = "SUSPENDED",
 	[CURRENT]   = "CURRENT",
@@ -82,7 +87,7 @@ static const char *state_names[] = {
 };
 
 /**
- * Runtime assert that prints stack and error information before aborting
+ * @brief  Runtime assert that prints error and task information before aborting
  *
  * @param  t    task pointer
  * @param  exp  expression to ensure is `true`
@@ -96,15 +101,6 @@ static const char *state_names[] = {
 		abort (); \
 	} \
 } while (0)
-
-/**
- * Test if the task has debugging enabled
- *
- * @param  t  task pointer
- * @return  if the task is in debug mode
- */
-#define debug(t) \
-	__builtin_expect ((t)->flags & XTASK_FDEBUG, 0)
 
 struct xdefer {
 	struct xdefer *next;
@@ -152,7 +148,7 @@ static union xtask_config config = {
 };
 
 /**
- * Populates a config option with valid values
+ * @brief  Populates a config option with valid values
  *
  * @param  stack_size  desired stack size
  * @param  flags       flags for the task
@@ -177,7 +173,7 @@ config_make (uint32_t stack_size, uint32_t flags)
 }
 
 /**
- * Reclaims a "freed" mapping
+ * @brief  Reclaims a "freed" mapping
  *
  * If the map size doesn't meet needs it is unmapped and `NULL` is
  * returned. This will not iterate through the dead list as that could be
@@ -206,7 +202,7 @@ map_revive (uint32_t map_size)
 }
 
 /**
- * Reclaims or creates a new mapping
+ * @brief  Reclaims or creates a new mapping
  *
  * @param  map_size  minimum size requirement for the entire mapping
  * @return  pointer to mapped region or `NULL` on error
@@ -225,7 +221,7 @@ map_alloc (uint32_t map_size)
 }
 
 /**
- * Executes end-of-life tasks
+ * @brief  Executes end-of-life tasks
  *
  * @param  t    task to finalize
  * @param  val  value if the final yield
@@ -259,7 +255,7 @@ eol (struct xtask *t, union xvalue val, int ec)
 }
 
 /**
- * Entry point for a new task
+ * @brief  Entry point for a new task
  *
  * This runs the user function, kills the task, and restores the
  * parent context.

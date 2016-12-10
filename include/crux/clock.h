@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include <time.h>
 
+/**
+ * @brief  Transparent clock type
+ *
+ * This is simple clock that supports cross-platform monotonic and real time.
+ */
 struct xclock {
 	struct timespec ts;
 };
@@ -95,24 +100,64 @@ struct xclock {
 	} \
 } while (0)
 
+
 #define XCLOCK_CMP(c, v, op) ( \
 	(c)->ts.tv_sec == (v)->ts.tv_sec \
 		? (c)->ts.tv_nsec op (v)->ts.tv_nsec \
 		: (c)->ts.tv_sec op (v)->ts.tv_sec)
 
+#define XCLOCK_LT(c, v) XCLOCK_CMP(c, v <)
+#define XCLOCK_LE(c, v) XCLOCK_CMP(c, v <=)
+#define XCLOCK_GT(c, v) XCLOCK_CMP(c, v >)
+#define XCLOCK_GE(c, v) XCLOCK_CMP(c, v >=)
 
+
+/**
+ * @brief  Updates the clock to the current real time
+ *
+ * @param  c  clock pointer
+ * @return  0 on succes, -errno on error
+ */
 extern int
 xclock_real (struct xclock *c);
 
+/**
+ * @brief  Updates the clock to the current monotonic time
+ *
+ * @param  c  clock pointer
+ * @return  0 on succes, -errno on error
+ */
 extern int
 xclock_mono (struct xclock *c);
 
+/**
+ * @brief  Calculates the current monotonic time delta from the clock
+ *
+ * The clock must be initialized with `xclock_mono`.
+ *
+ * @param  c  clock pointer
+ * @return  delta time in seconds, NAN on error
+ */
 extern double
 xclock_diff (struct xclock *c);
 
+/**
+ * @brief  Update the clock to current monotonic time an returns the delta
+ *
+ * The clock must be initialized with `xclock_mono`.
+ *
+ * @param  c  clock pointer
+ * @return  delta time in seconds, NAN on error
+ */
 extern double
 xclock_step (struct xclock *c);
 
+/**
+ * @brief  Prints a representation of the clock
+ *
+ * @param  c    clock pointer
+ * @param  out  output stream or `NULL` for `stdout`
+ */
 extern void
 xclock_print (const struct xclock *c, FILE *out);
 

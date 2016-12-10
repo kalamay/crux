@@ -6,18 +6,10 @@
 #include <arpa/inet.h>
 #include <signal.h>
 
-#define xcontainer(ptr, type, member) __extension__ ({ \
-	const __typeof (((type *)0)->member) *__mptr = (ptr); \
-	(type *)(void *)((char *)__mptr - offsetof(type,member)); \
-})
-
-#define xlen(arr) \
-	(sizeof (arr) / sizeof ((arr)[0]))
-
 typedef ssize_t (*xio_fn) (int fd, void *buf, size_t len, int timeoutms);
 
 /**
- * @brief  Schedules a function to be execute when the task terminates
+ * @brief  Schedules a function to execute when the task terminates
  *
  * This will be called after the return of the coroutine function but before
  * yielding back to the parent context. Deferred calls occur in LIFO order.
@@ -48,7 +40,7 @@ extern void *
 xcalloc (size_t count, size_t size);
 
 /**
- * @brief  Exits the current running task or process.
+ * @brief  Exits the current running task or process
  *
  * @param  ec  exit code
  * @return  0 on success, -errno on error
@@ -57,7 +49,7 @@ extern void
 xexit (int ec);
 
 /**
- * @brief Gets the clock for the current task.
+ * @brief  Gets the clock for the current task
  *
  * This clock is updated just prior to the task regaining context. This is
  * useful for planning timed events the need to run at a somewhat constant
@@ -71,7 +63,7 @@ extern const struct xclock *
 xclock (void);
 
 /**
- * @brief Sleeps the current context.
+ * @brief  Sleeps the current context
  *
  * If the current context is a task, this will yield context to back to the
  * hub. Otherwise, this acts a normal thread sleep.
@@ -83,7 +75,7 @@ extern int
 xsleep (unsigned ms);
 
 /**
- * @brief Yields the current context until a signal is delivered.
+ * @brief  Yields the current context until a signal is delivered
  *
  * @param  signum     signal number to wait for
  * @param  timeoutms  millisecond timeout or <0 for infinite
@@ -93,7 +85,7 @@ extern int
 xsignal (int signum, int timeoutms);
 
 /**
- * @brief Reads upto `len` bytes from the file descriptor.
+ * @brief  Reads upto `len` bytes from the file descriptor
  *
  * This calls `read(2)`. If this results in an `EAGAIN`, the current task will
  * yield context until either the file descriptor becomes readable or the
@@ -109,7 +101,7 @@ extern ssize_t
 xread (int fd, void *buf, size_t len, int timeoutms);
 
 /**
- * @brief Reads iovec buffers from the file descriptor.
+ * @brief  Reads iovec buffers from the file descriptor
  *
  * This calls `readv(2)`. If this results in an `EAGAIN`, the current task will
  * yield context until either the file descriptor becomes readable or the
@@ -125,7 +117,7 @@ extern ssize_t
 xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms);
 
 /**
- * @brief Reads exactly `len` bytes from the file descriptor.
+ * @brief  Reads exactly `len` bytes from the file descriptor
  *
  * This calls `read(2)` until all bytes are read. If this results in an
  * `EAGAIN`, the current task will yield context until either the file
@@ -141,7 +133,7 @@ extern ssize_t
 xreadn (int fd, void *buf, size_t len, int timeoutms);
 
 /**
- * @brief Writes upto `len` bytes to the file descriptor.
+ * @brief  Writes upto `len` bytes to the file descriptor
  *
  * This calls `write(2)`. If this results in an `EAGAIN`, the current task will
  * yield context until either the file descriptor becomes writable or the
@@ -157,7 +149,7 @@ extern ssize_t
 xwrite (int fd, const void *buf, size_t len, int timeoutms);
 
 /**
- * @brief Writes iovec structures to the file descriptor.
+ * @brief  Writes iovec structures to the file descriptor
  *
  * This calls `writev(2)`. If this results in an `EAGAIN`, the current task will
  * yield context until either the file descriptor becomes writable or the
@@ -173,7 +165,7 @@ extern ssize_t
 xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms);
 
 /**
- * @brief Writes exactly `len` bytes to the file descriptor.
+ * @brief  Writes exactly `len` bytes to the file descriptor
  *
  * This calls `write(2)` until all bytes are written. If this results in an
  * `EAGAIN`, the current task will yield context until either the file
@@ -189,7 +181,7 @@ extern ssize_t
 xwriten (int fd, const void *buf, size_t len, int timeoutms);
 
 /**
- * @brief Recieves a message from a socket.
+ * @brief  Recieves a message from a socket
  *
  * This calls `recvfrom(2)`. If this results in an `EAGAIN`, the current task
  * will yield context until either the file descriptor becomes readable or the
@@ -209,7 +201,7 @@ xrecvfrom (int s, void *buf, size_t len, int flags,
 	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
 
 /**
- * @brief Sends a message to a socket.
+ * @brief  Sends a message to a socket
  *
  * This calls `sendto(2)`. If this results in an `EAGAIN`, the current task
  * will yield context until either the file descriptor becomes readable or the
@@ -229,7 +221,7 @@ xsendto (int s, const void *buf, size_t len, int flags,
 	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
 
 /**
- * @brief  Calls `fn` for all bytes in `buf`.
+ * @brief  Calls `fn` for all bytes in `buf`
  *
  * The callback function is expected to return either the number of bytes
  * processed or an error. This callback will be invoked until all bytes have 
@@ -249,7 +241,7 @@ extern ssize_t
 xio (int fd, void *buf, size_t len, int timeoutms, xio_fn fn);
 
 /**
- * @brief Creates a non-blocking pipe pair.
+ * @brief  Creates a non-blocking pipe pair
  *
  * This will also set the FD_CLOEXEC flag. If either of the pipe file
  * descriptors need to be shared with a child process, they should either be
@@ -262,7 +254,7 @@ extern int
 xpipe (int fds[static 2]);
 
 /**
- * @brief Opens a non-blocking socket.
+ * @brief  Opens a non-blocking socket
  *
  * This will also set the FD_CLOEXEC flag. If the socket needs to be shared
  * with a child process, it should either be eplicitly duplicated or have the
@@ -280,7 +272,7 @@ extern int
 xsocket (int domain, int type, int protocol);
 
 /**
- * @brief Accepts a connection off of the stream socket.
+ * @brief  Accepts a connection off of the stream socket
  *
  * If the socket has no pending connections, the task will yield until one
  * becomes available or the timeout is reached.
@@ -300,7 +292,7 @@ extern int
 xaccept (int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms);
 
 /**
- * @brief Sets the O_NONBLOCK flag on the file descriptor.
+ * @brief  Sets the O_NONBLOCK flag on the file descriptor
  *
  * When successful, reads and writes to this file descriptor will return
  * EAGAIN when doing so would block. Given that most of the concurrency
@@ -317,7 +309,7 @@ extern int
 xunblock (int fd);
 
 /**
- * @brief Sets the FD_CLOEXEC flag on the file descriptor.
+ * @brief  Sets the FD_CLOEXEC flag on the file descriptor
  *
  * When successful, this file descriptor will not be duplicated in child
  * processes. It is generally preferrable to set all file descriptors to not

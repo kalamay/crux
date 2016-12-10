@@ -76,18 +76,20 @@ xclock_step (struct xclock *c)
 {
 	assert (c != NULL);
 
-	double diff = xclock_diff (c);
-	if (isnan (diff) || xclock_mono (c) < 0) {
+	struct xclock now;
+	if (xclock_mono (&now) < 0) {
 		return NAN;
 	}
-	return diff;
+	double time = XCLOCK_TIME (&now) - XCLOCK_TIME (c);
+	*c = now;
+	return time;
 }
 
 void
 xclock_print (const struct xclock *c, FILE *out)
 {
 	if (out == NULL) {
-		out = stderr;
+		out = stdout;
 	}
 
 	if (c == NULL) {

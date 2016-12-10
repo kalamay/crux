@@ -13,37 +13,37 @@
 #define XTASK_FENTRY     (UINT32_C(1) << 2) /** capture entry point name */
 
 /**
- * Minimum allowed stack size
+ * @brief  Minimum allowed stack size
  */
 #define XTASK_STACK_MIN 16384
 
 /**
- * Maximum allowed stack size
+ * @brief  Maximum allowed stack size
  */
 #define XTASK_STACK_MAX (1024 * XTASK_STACK_MIN)
 
 /**
- * Stack size just large enough to call all of glibc functions
+ * @brief  Stack size just large enough to call all of glibc functions
  */
 #define XTASK_STACK_DEFAULT (8 * XTASK_STACK_MIN)
 
 /**
- * Flag combination ideal for general use
+ * @brief  Flag combination ideal for general use
  */
 #define XTASK_FDEFAULT (XTASK_FPROTECT)
 
 /**
- * Flag combination ideal for debugging purposed
+ * @brief  Flag combination ideal for debugging purposed
  */
 #define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FBACKTRACE|XTASK_FENTRY)
 
 /**
- * Opaque type for task instances
+ * @brief  Opaque type for task instances
  */
 struct xtask;
 
 /**
- * Updates the configuration for subsequent coroutines.
+ * @brief  Updates the configuration for subsequent coroutines
  *
  * Initially, coroutines are created using the `KD_TASK_STACK_DEFAULT` stack
  * size and the in `KD_TASK_FLAGS_DEFAULT` mode. This only needs to be called
@@ -59,7 +59,7 @@ extern void
 xtask_configure (uint32_t stack_size, uint32_t flags);
 
 /**
- * Creates a new task with a function for execution context
+ * @brief  Creates a new task with a function for execution context
  *
  * The newly created task will be in a suspended state. Calling
  * `resume` on the returned value will transfer execution context
@@ -75,8 +75,7 @@ xtask_new (struct xtask **tp,
 		union xvalue (*fn)(void *, union xvalue), void *data);
 
 /**
- * Creates a new task with a function for execution context using
- * per-task configuration options.
+ * @brief  Creates a new task using per-task configuration options
  *
  * The newly created task will be in a suspended state. Calling
  * `resume` on the returned value will transfer execution context
@@ -112,7 +111,7 @@ xtask_new_opt (struct xtask **tp,
 		union xvalue (*fn)(void *, union xvalue), void *data);
 
 /**
- * Frees an inactive task
+ * @brief  Frees an inactive task
  *
  * This returns the memory allocated for the task. This may not actually
  * return the memory to the OS, and the stack may be reused later.
@@ -125,7 +124,7 @@ extern void
 xtask_free (struct xtask **tp);
 
 /**
- * Gets the active task for the current thread
+ * @brief  Gets the active task for the current thread
  *
  * @return  task or `NULL` if none are active
  */
@@ -133,7 +132,7 @@ extern struct xtask *
 xtask_self (void);
 
 /**
- * Gets the task local storage if it was create with some
+ * @brief  Gets the task local storage if it was create with some
  *
  * @param  t  the task access storage for
  * @return  pointer to storage or `NULL`
@@ -142,7 +141,7 @@ extern void *
 xtask_local (struct xtask *t);
 
 /**
- * Gets the current stack space used
+ * @brief  Gets the current stack space used
  *
  * @param  t  the task to access
  * @return  number of bytes used
@@ -151,7 +150,7 @@ extern size_t
 xtask_stack_used (const struct xtask *t);
 
 /**
- * Checks if a task is not dead
+ * @brief  Checks if a task is not dead
  *
  * This returns `true` if the state is suspended, current, or active. In
  * other words, this is similar to:
@@ -168,7 +167,7 @@ extern bool
 xtask_alive (const struct xtask *t);
 
 /**
- * Gets the exit code of the task
+ * @brief  Gets the exit code of the task
  *
  * @param  t  the task to test or `NULL` for the current task
  * @return  exit code or -1 if not exited
@@ -177,7 +176,7 @@ extern int
 xtask_exitcode (const struct xtask *t);
 
 /**
- * Exits a task
+ * @brief  Exits a task
  *
  * @param  t   the task to exit or `NULL` for the current task
  * @param  ec  exit code
@@ -187,7 +186,7 @@ extern int
 xtask_exit (struct xtask *t, int ec);
 
 /**
- * Prints a representation of the task
+ * @brief  Prints a representation of the task
  *
  * @param  t    the task to print or `NULL` for the current task
  * @param  out  `FILE *` handle to write to or `NULL`
@@ -196,7 +195,7 @@ extern void
 xtask_print (const struct xtask *t, FILE *out);
 
 /**
- * Gives up context from the current task
+ * @brief  Gives up context from the current task
  *
  * This will return context to the parent task that called `resume`.
  * `val` will become the return value to `resume`, allowing a value to be

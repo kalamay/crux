@@ -6,7 +6,7 @@
 #include <inttypes.h>
 
 /**
- * Configures the context to invoke a function with 2 arguments
+ * @brief  Configures the context to invoke a function with 2 arguments
  *
  * @param  ctx    context pointer
  * @param  stack  lowest address of the stack
@@ -20,7 +20,7 @@ xctx_init (uintptr_t *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2);
 
 /**
- * Gets the current stack space usage in bytes
+ * @brief  Gets the current stack space usage in bytes
  *
  * @param  ctx      context pointer
  * @param  stack    lowest address of the stack
@@ -32,7 +32,7 @@ extern size_t
 xctx_stack_size (const uintptr_t *ctx, void *stack, size_t len, bool current);
 
 /**
- * Prints the value of the context
+ * @brief  Prints the value of the context
  *
  * @param  ctx  context pointer
  * @param  out  output `FILE *` object
@@ -41,7 +41,7 @@ extern void
 xctx_print (const uintptr_t *ctx, FILE *out);
 
 /**
- * Swaps execution contexts
+ * @brief  Swaps execution contexts
  *
  * @param  save  destination to save current context
  * @param  load  context to activate

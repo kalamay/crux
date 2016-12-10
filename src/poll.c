@@ -1,4 +1,5 @@
 #include "poll.h"
+#include "../include/crux/def.h"
 #include "../include/crux/err.h"
 #include "../include/crux/common.h"
 #include "../include/crux/clock.h"
