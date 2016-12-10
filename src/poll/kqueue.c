@@ -28,31 +28,21 @@ xpoll__has_more (struct xpoll *poll)
 }
 
 int
-xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
+xpoll__update (struct xpoll *poll, const struct timespec *ts)
 {
-	(void)ms;
+	assert (!xpoll__has_more (poll));
 
 	struct kevent *events = poll->events, *changes = events + poll->rlen;
 	int nevents = xlen (poll->events), nchanges = poll->wpos - poll->rlen;
 
-	// don't overwrite events if some are pending
-	if (xpoll__has_more (poll)) {
-		events += poll->rlen;
-		nevents -= poll->rlen;
-	}
-
 	int rc = kevent (poll->fd, changes, nchanges, events, nevents, ts);
 	if (rc < 0) { return XERRNO; }
 
-	// if there are no pending events, the read positions can be reset
-	if (!xpoll__has_more (poll)) {
-		poll->rpos = 0;
-		poll->rlen = 0;
-	}
+	poll->rpos = 0;
 
 	if (rc == 0) {
 		assert (nchanges == 0);
-		rc = -ETIMEDOUT;
+		poll->rlen = 0;
 		goto done;
 	}
 
@@ -70,7 +60,8 @@ xpoll__update (struct xpoll *poll, int64_t ms, const struct timespec *ts)
 		p = mark;
 		mark++;
 	}
-	poll->rlen += rc;
+	poll->rlen = rc;
+	if (!rc) { rc = -EINTR; }
 
 done:
 	poll->wpos = poll->rlen;
