@@ -195,7 +195,7 @@ run_once (struct xhub *hub)
 	wait = xheap_get (&hub->timeout, XHEAP_ROOT);
 	if (wait != NULL) {
 		ms = X_NSEC_TO_MSEC (wait->prio - XCLOCK_NSEC (&hub->poll.clock));
-		if (ms <= 0) {
+		if (ms < 0) {
 			ent = xcontainer (wait, struct xhub_entry, hent);
 			goto timeout;
 		}
