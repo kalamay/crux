@@ -91,6 +91,10 @@ xpoll__next (struct xpoll *poll, struct xevent *dst)
 	dst->ptr = src->udata;
 	dst->id = (int)src->ident;
 
+	if (dst->type == XPOLL_SIG) {
+		signal (dst->id, SIG_DFL);
+	}
+
 	if (src->flags & EV_ERROR) {
 		dst->type |= XPOLL_ERR;
 		dst->errcode = (int)src->data;
@@ -134,7 +138,9 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 		struct kevent ev;
 		EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
 		int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
-		return rc < 0 ? XERRNO : 0;
+		if (rc < 0) { return XERRNO; }
+		signal (id, XPOLL_ADD ? SIG_IGN : SIG_DFL);
+		return 0;
 	}
 
 	// queue up the event change for the next xpoll__update

@@ -1,15 +1,11 @@
 #include "../include/crux/poll.h"
 #include "config.h"
 
-#define XPOLL_HEADER \
-	struct xclock clock; \
-	sigset_t sigmask
-
 #if HAS_KQUEUE
 #include <sys/event.h>
 
 struct xpoll {
-	XPOLL_HEADER;
+	struct xclock clock;
 	int fd;
 	uint16_t rpos, rlen, wpos;
 	struct kevent events[64];
@@ -20,7 +16,7 @@ struct xpoll {
 #include <sys/epoll.h>
 
 struct xpoll {
-	XPOLL_HEADER;
+	struct xclock clock;
 	void *sig[31];
 	int fd, sigfd;
 	uint16_t rpos, rlen;

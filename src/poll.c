@@ -28,6 +28,8 @@ xpoll__final (struct xpoll *poll);
 /**
  * @brief  Modifies an event of interest for the poller
  *
+ * This function must also modify signal handling behavior.
+ *
  * @param  poll  poll instance
  * @param  op    operation type to perform (XPOLL_ADD or XPOLL_DEL)
  * @param  type  type of event (XPOLL_IN, XPOLL_OUT, or XPOLL_SIG)
@@ -111,7 +113,6 @@ xpoll_init (struct xpoll *poll)
 {
 	int rc = xclock_mono (&poll->clock);
 	if (rc < 0) { return rc; }
-	sigemptyset (&poll->sigmask);
 	return xpoll__init (poll);
 }
 
@@ -141,8 +142,6 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 
 	if (op != XPOLL_ADD && op != XPOLL_DEL) { return -EINVAL; }
 
-	sigset_t mask;
-
 	switch (type) {
 	case XPOLL_IN:
 	case XPOLL_OUT:
@@ -150,26 +149,12 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 		break;
 	case XPOLL_SIG:
 		if (id < 1 || id > 31) { return -EINVAL; }
-		mask = poll->sigmask;
-		op == XPOLL_ADD ? sigaddset (&mask, id) : sigdelset (&mask, id);
-		if (sigprocmask (SIG_SETMASK, &mask, NULL) < 0) {
-			return XERRNO;
-		}
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	int rc = xpoll__ctl (poll, op, type, id, ptr);
-	if (type == XPOLL_SIG) {
-		if (rc < 0) {
-			sigprocmask (SIG_SETMASK, &poll->sigmask, NULL);
-		}
-		else {
-			poll->sigmask = mask;
-		}
-	}
-	return rc;
+	return xpoll__ctl (poll, op, type, id, ptr);
 }
 
 int
@@ -194,9 +179,7 @@ xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev)
 read:
 	while (xpoll__has_more (poll)) {
 		rc = xpoll__next (poll, ev);
-		if (rc != 0) {
-			goto done;
-		}
+		if (rc != 0) { goto done; }
 	}
 
 poll:
