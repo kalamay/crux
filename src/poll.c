@@ -141,7 +141,7 @@ read:
 	while (xpoll__has_more (poll)) {
 		rc = xpoll__next (poll, ev);
 		if (rc != 0) {
-			return rc;
+			goto done;
 		}
 	}
 
@@ -162,11 +162,12 @@ poll:
 	if (rc == 0 || rc == -EINTR) {
 		goto poll;
 	}
-
-	xclock_mono (&poll->clock);
 	if (rc == -ETIMEDOUT) {
-		return 0;
+		rc = 0;
 	}
+
+done:
+	xclock_mono (&poll->clock);
 	return rc;
 }
 
