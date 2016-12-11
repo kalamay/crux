@@ -111,7 +111,7 @@ struct xdefer {
 
 struct xtask {
 	union xvalue value;            /** the resume or yield value */
-	struct xtask *parent;          /** task the resumed this task */
+	struct xtask *parent;          /** task that resumed this task */
 	size_t tls;                    /** task locak storage size */
 	void *data;                    /** user data */
 	struct xdefer *defer;          /** defered execution linked list */
@@ -399,7 +399,9 @@ xtask_free (struct xtask **tp)
 	*tp = NULL;
 
 	eol (t, XZERO, t->exitcode);
+#if HAS_EXECINFO
 	free (t->backtrace);
+#endif
 
 	t->parent = dead;
 	dead = t;
