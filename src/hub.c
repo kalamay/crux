@@ -276,11 +276,11 @@ int
 xspawn (struct xhub *hub, 
 		void (*fn)(struct xhub *, void *), void *data)
 {
+	struct xtask_opt opt = { .tls = sizeof (struct xhub_entry) };
+	xtask_get_config (&opt);
+
 	struct xtask *t;
-	int rc = xtask_new_opt (&t,
-			XTASK_STACK_DEFAULT, XTASK_FDEFAULT,
-			sizeof (struct xhub_entry),
-			spawn_fn, data);
+	int rc = xtask_new_opt (&t, &opt, spawn_fn, data);
 	if (rc < 0) {
 		return rc;
 	}

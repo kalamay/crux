@@ -111,28 +111,22 @@ struct xdefer {
 struct xtask {
 	union xvalue value;            /** the resume or yield value */
 	struct xtask *parent;          /** task the resumed this task */
-	void *data;                    /** user data */
-#if HAS_DLADDR
-	char *name;                    /** entry function name */
-#endif
 	size_t tls;                    /** task locak storage size */
+	void *data;                    /** user data */
 	struct xdefer *defer;          /** defered execution linked list */
-	char **backtrace;              /** backtrace captured during task creationg */
-	int exitcode;                  /** code if in EXITED state */
-	uint8_t nbacktrace;            /** number of backtrace frames */
-	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXITED */
 	uintptr_t ctx[XCTX_REG_COUNT]; /** execution registers */
+#if HAS_DLADDR
+	const char *name;              /** entry function name */
+#endif
 	uint32_t flags;                /** flags used to create the task */
 	uint32_t map_size;             /** size of the mapped memory in bytes */
+	const char *file;              /** allocation source file name */
+	int line;                      /** allocation source line number */
+	int16_t exitcode;              /** code if in EXITED state */
+	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXITED */
+	uint8_t nbacktrace;            /** number of backtrace frames */
+	char **backtrace;              /** backtrace captured during task creationg */
 } __attribute__ ((aligned (16)));
-
-union xtask_config {
-	int64_t value;
-	struct {
-		uint32_t stack_size;
-		uint32_t flags;
-	} cfg;
-};
 
 
 static __thread struct xtask *current = NULL;
@@ -140,37 +134,20 @@ static __thread struct xtask top = { .state = CURRENT };
 static __thread struct xtask *dead = NULL;
 static __thread struct xdefer *pool = NULL;
 
-static union xtask_config config = {
-	.cfg = {
-		.stack_size = XTASK_STACK_DEFAULT,
-		.flags = XTASK_FDEFAULT
-	}
+union xtask_config {
+	int64_t value;
+	struct xtask_opt opt;
 };
 
-/**
- * @brief  Populates a config option with valid values
- *
- * @param  stack_size  desired stack size
- * @param  flags       flags for the task
- * @return  valid configuration value
- */
-static union xtask_config
-config_make (uint32_t stack_size, uint32_t flags)
-{
-	if (stack_size > XTASK_STACK_MAX) {
-		stack_size = XTASK_STACK_MAX;
+static union xtask_config config = {
+	.opt = {
+		.stack_size = XTASK_STACK_DEFAULT,
+		.flags = XTASK_FDEFAULT,
+		.tls = 0,
+		.file = NULL,
+		.line = 0
 	}
-	else if (stack_size < XTASK_STACK_MIN) {
-		stack_size = XTASK_STACK_MIN;
-	}
-
-	return (union xtask_config) {
-		.cfg = {
-			.stack_size = stack_size,
-			.flags = flags & 0x7fffffff
-		}
-	};
-}
+};
 
 /**
  * @brief  Reclaims a "freed" mapping
@@ -278,31 +255,47 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 void
 xtask_configure (uint32_t stack_size, uint32_t flags)
 {
-	union xtask_config c = config_make (stack_size, flags);
+	if (stack_size > XTASK_STACK_MAX) { stack_size = XTASK_STACK_MAX; }
+	else if (stack_size < XTASK_STACK_MIN) { stack_size = XTASK_STACK_MIN; }
+
+	union xtask_config c = { .opt = { .stack_size = stack_size, .flags = flags } };
 	while (!__sync_bool_compare_and_swap (&config.value, config.value, c.value));
 }
 
-int
-xtask_new (struct xtask **tp, union xvalue (*fn)(void *, union xvalue), void *data)
+void
+xtask_get_config (struct xtask_opt *opt)
 {
-	assert (tp != NULL);
-	assert (fn != NULL);
-
 	union xtask_config c;
+
+	__sync_synchronize ();
 	c.value = config.value;
-	return xtask_new_opt (tp, c.cfg.stack_size, c.cfg.flags, 0, fn, data);
+	opt->stack_size = c.opt.stack_size;
+	opt->flags = c.opt.flags;
 }
 
 int
-xtask_new_opt (struct xtask **tp,
-		uint32_t stack_size, uint32_t flags, size_t tls,
+xtask_new_loc (struct xtask **tp, const char *file, int line,
 		union xvalue (*fn)(void *, union xvalue), void *data)
 {
 	assert (tp != NULL);
 	assert (fn != NULL);
 
-	tls = (tls + 15) & ~15;
+	struct xtask_opt opt = { .tls = 0, .file = file, .line = line };
+	xtask_get_config (&opt);
 
+	return xtask_new_opt (tp, &opt, fn, data);
+}
+
+int
+xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
+		union xvalue (*fn)(void *, union xvalue), void *data)
+{
+	assert (tp != NULL);
+	assert (fn != NULL);
+
+	uint32_t stack_size = opt->stack_size;
+	uint32_t flags = opt->flags;
+	size_t tls = (opt->tls + 15) & ~15;
 	uint8_t *map = NULL, *stack = NULL;
 	struct xtask *t = NULL;
 
@@ -341,17 +334,19 @@ xtask_new_opt (struct xtask **tp,
 		}
 	}
 
-	t->parent = NULL;
-	t->data = data;
-	t->tls = tls;
 	t->value = XZERO;
+	t->parent = NULL;
+	t->tls = tls;
+	t->data = data;
 	t->defer = NULL;
-	t->backtrace = NULL;
-	t->nbacktrace = 0;
-	t->exitcode = -1;
-	t->state = SUSPENDED;
 	t->flags = flags;
 	t->map_size = map_size;
+	t->file = opt->file;
+	t->line = opt->line;
+	t->exitcode = -1;
+	t->state = SUSPENDED;
+	t->nbacktrace = 0;
+	t->backtrace = NULL;
 
 	xctx_init (t->ctx, stack, STACK_SIZE (t),
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
@@ -360,7 +355,7 @@ xtask_new_opt (struct xtask **tp,
 	if (flags & XTASK_FENTRY) {
 		Dl_info info;
 		if (dladdr ((void *)fn, &info) > 0) {
-			t->name = strdup (info.dli_sname);
+			t->name = info.dli_sname;
 		}
 	}
 #endif
@@ -394,7 +389,6 @@ xtask_free (struct xtask **tp)
 	*tp = NULL;
 
 	eol (t, XZERO, t->exitcode);
-	free (t->name);
 	free (t->backtrace);
 
 	t->parent = dead;
@@ -471,30 +465,15 @@ xtask_print (const struct xtask *t, FILE *out)
 		out = stdout;
 	}
 
+	xtask_print_head (t, out);
+
 	if (t == NULL) {
-		t = current;
-		if (t == NULL) {
-			fprintf (out, "#<crux:task:(null)>\n");
-			return;
-		}
+		fputc ('\n', out);
+		return;
 	}
 
-	if (t->state == EXITED) {
-		fprintf (out,
-				"#<crux:task:%p state=EXITED, exitcode=%d> {\n",
-				(void *)t, t->exitcode);
-	}
-	else {
-		fprintf (out,
-				"#<crux:task:%p state=%s, stack=%zd> {\n",
-				(void *)t, state_names[t->state], xtask_stack_used (t));
-	}
+	fprintf (out, " {\n");
 	xctx_print (t->ctx, out);
-#if HAS_DLADDR
-	if (t->name != NULL) {
-		fprintf (out, "\tentry: %s\n", t->name);
-	}
-#endif
 	fprintf (out, "\tdata: %p\n", t->data);
 	if (t->nbacktrace > 0) {
 		fprintf (out, "\tbacktrace:\n");
@@ -504,6 +483,35 @@ xtask_print (const struct xtask *t, FILE *out)
 	}
 	fprintf (out, "}\n");
 	fflush (out);
+}
+
+void
+xtask_print_head (const struct xtask *t, FILE *out)
+{
+	if (out == NULL) {
+		out = stdout;
+	}
+
+	if (t == NULL) {
+		fprintf (out, 
+				"<crux:task:(null)>");
+	}
+	fprintf (out, "<crux:task:%p", (void *)t);
+#if HAS_DLADDR
+	if (t->name != NULL) {
+		fprintf (out, "#%s", t->name);
+	}
+#endif
+	if (t->file != NULL) {
+		fprintf (out, "@%s:%d", t->file, t->line);
+	}
+	if (t->state == EXITED) {
+		fprintf (out, " state=EXITED, exitcode=%d>", t->exitcode);
+	}
+	else {
+		fprintf (out, " state=%s, stack=%zd>",
+				state_names[t->state], xtask_stack_used (t));
+	}
 }
 
 union xvalue

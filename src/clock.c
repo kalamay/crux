@@ -93,10 +93,10 @@ xclock_print (const struct xclock *c, FILE *out)
 	}
 
 	if (c == NULL) {
-		fprintf (out, "#<crux:clock:(null)>\n");
+		fprintf (out, "<crux:clock:(null)>\n");
 	}
 	else {
-		fprintf (out, "#<crux:clock:%p time=%f>\n", (void *)c, XCLOCK_TIME (c));
+		fprintf (out, "<crux:clock:%p time=%f>\n", (void *)c, XCLOCK_TIME (c));
 	}
 }
 

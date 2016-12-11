@@ -42,6 +42,14 @@
  */
 struct xtask;
 
+struct xtask_opt {
+	uint32_t stack_size; /** minimum stack size for the task */
+	uint32_t flags;      /** construction flags */
+	size_t tls;          /** extra space for task local storage */
+	const char *file;
+	int line;
+};
+
 /**
  * @brief  Updates the configuration for subsequent coroutines
  *
@@ -58,6 +66,9 @@ struct xtask;
 extern void
 xtask_configure (uint32_t stack_size, uint32_t flags);
 
+extern void
+xtask_get_config (struct xtask_opt *opt);
+
 /**
  * @brief  Creates a new task with a function for execution context
  *
@@ -70,8 +81,11 @@ xtask_configure (uint32_t stack_size, uint32_t flags);
  * @param  data  user pointer to associate with the task
  * @return  new task or `NULL` on error
  */
+#define xtask_new(tp, fn, data) \
+	xtask_new_loc (tp, __FILE__, __LINE__, fn, data)
+
 extern int
-xtask_new (struct xtask **tp,
+xtask_new_loc (struct xtask **tp, const char *file, int line,
 		union xvalue (*fn)(void *, union xvalue), void *data);
 
 /**
@@ -98,16 +112,13 @@ xtask_new (struct xtask **tp,
  *     ┗━━━━━━┻━━━━━┻━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━┛
  *
  * @param  tp          reference to the task pointer to create
- * @param  stack_size  minimum stack size for the task
- * @param  flags       construction flags
- * @param  tls         extra space for task local storage
+ * @param  opt         task options
  * @param  fn          the function to execute in the new context
  * @param  data        user pointer to associate with the task
  * @return  new task or `NULL` on error
  */
 extern int
-xtask_new_opt (struct xtask **tp,
-		uint32_t stack_size, uint32_t flags, size_t tls,
+xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
 		union xvalue (*fn)(void *, union xvalue), void *data);
 
 /**
@@ -193,6 +204,9 @@ xtask_exit (struct xtask *t, int ec);
  */
 extern void
 xtask_print (const struct xtask *t, FILE *out);
+
+extern void
+xtask_print_head (const struct xtask *t, FILE *out);
 
 /**
  * @brief  Gives up context from the current task
