@@ -9,8 +9,7 @@
 #include "value.h"
 
 #define XTASK_FPROTECT   (UINT32_C(1) << 0) /** protect the end of the stack */
-#define XTASK_FBACKTRACE (UINT32_C(1) << 1) /** capture backtrace for new task */
-#define XTASK_FENTRY     (UINT32_C(1) << 2) /** capture entry point name */
+#define XTASK_FENTRY     (UINT32_C(1) << 1) /** capture entry point name */
 
 /**
  * @brief  Minimum allowed stack size
@@ -35,7 +34,7 @@
 /**
  * @brief  Flag combination ideal for debugging purposed
  */
-#define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FBACKTRACE|XTASK_FENTRY)
+#define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FENTRY)
 
 /**
  * @brief  Opaque type for task instances

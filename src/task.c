@@ -13,10 +13,6 @@
 #include <assert.h>
 #include <errno.h>
 
-#if HAS_EXECINFO
-# include <execinfo.h>
-#endif
-
 #if HAS_X86_64
 # include "ctx/x86_64.c"
 #elif HAS_X86_32
@@ -125,10 +121,6 @@ struct xtask {
 	int line;                      /** allocation source line number */
 	int16_t exitcode;              /** code if in EXIT state */
 	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXIT */
-#if HAS_EXECINFO
-	uint8_t nbacktrace;            /** number of backtrace frames */
-	char **backtrace;              /** backtrace captured during task creationg */
-#endif
 } __attribute__ ((aligned (16)));
 
 
@@ -353,10 +345,6 @@ xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
 	t->line = opt->line;
 	t->exitcode = -1;
 	t->state = SUSPENDED;
-#if HAS_EXECINFO
-	t->nbacktrace = 0;
-	t->backtrace = NULL;
-#endif
 
 	xctx_init (t->ctx, stack, STACK_SIZE (t),
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
@@ -366,17 +354,6 @@ xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
 		Dl_info info;
 		if (dladdr ((void *)fn, &info) > 0) {
 			t->name = info.dli_sname;
-		}
-	}
-#endif
-
-#if HAS_EXECINFO
-	if (flags & XTASK_FBACKTRACE) {
-		void *calls[32];
-		int frames = backtrace (calls, sizeof calls / sizeof calls[0]);
-		if (frames > 0) {
-			t->backtrace = backtrace_symbols (calls, frames);
-			t->nbacktrace = frames;
 		}
 	}
 #endif
@@ -399,9 +376,6 @@ xtask_free (struct xtask **tp)
 	*tp = NULL;
 
 	eol (t, XZERO, t->exitcode);
-#if HAS_EXECINFO
-	free (t->backtrace);
-#endif
 
 	t->parent = dead;
 	dead = t;
@@ -531,16 +505,7 @@ xtask_print (const struct xtask *t, FILE *out)
 
 	fprintf (out, " {\n");
 	xctx_print (t->ctx, out);
-	fprintf (out, "\tdata: %p\n", t->data);
-#if HAS_EXECINFO
-	if (t->nbacktrace > 0) {
-		fprintf (out, "\tbacktrace:\n");
-		for (int i = 0; i < t->nbacktrace; i++) {
-			fprintf (stderr, "\t\t%s\n", t->backtrace[i]);
-		}
-	}
-#endif
-	fprintf (out, "}\n");
+	fprintf (out, "\tdata: %p\n}\n", t->data);
 	fflush (out);
 }
 
