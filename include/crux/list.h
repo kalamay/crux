@@ -2,6 +2,7 @@
 #define CRUX_LIST_H
 
 #include <stdbool.h>
+#include "def.h"
 
 struct xlist {
 	struct xlist *link[2];

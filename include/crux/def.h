@@ -1,6 +1,8 @@
 #ifndef CRUX_DEF_H
 #define CRUX_DEF_H
 
+#include <stddef.h>
+
 #define xcontainer(ptr, type, member) __extension__ ({ \
 	const __typeof (((type *)0)->member) *__mptr = (ptr); \
 	(type *)(void *)((char *)__mptr - offsetof(type,member)); \
