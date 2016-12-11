@@ -19,7 +19,7 @@ xlist_init (struct xlist *list)
 }
 
 __attribute__((unused)) static inline void
-xlist_entry_clear (struct xlist *entry)
+xlist_clear (struct xlist *entry)
 {
 	entry->link[0] = NULL;
 	entry->link[1] = NULL;
@@ -95,7 +95,7 @@ xlist_del (struct xlist *entry)
 	struct xlist *link[2] = { entry->link[0], entry->link[1] };
 	link[0]->link[1] = link[1];
 	link[1]->link[0] = link[0];
-	xlist_entry_clear (entry);
+	xlist_clear (entry);
 }
 
 __attribute__((unused)) static inline struct xlist *

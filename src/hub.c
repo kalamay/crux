@@ -293,7 +293,7 @@ xspawn (struct xhub *hub,
 	ent->poll_type = 0;
 
 	ent->hent.key = XHEAP_NONE;
-	xlist_entry_clear (&ent->lent);
+	xlist_clear (&ent->lent);
 	ent->t = t;
 	ent->hub = hub;
 	ent->fn = fn;
