@@ -201,6 +201,25 @@ test_exit_external (void)
 	xtask_free (&t);
 }
 
+static void
+test_tls (void)
+{
+	struct xtask *t;
+	struct xtask_opt opt = {
+		.stack_size = XTASK_STACK_DEFAULT,
+		.flags = XTASK_FDEBUG,
+		.tls = 24
+	};
+
+	mu_assert_int_eq (xtask_new_opt (&t, &opt, doexit, NULL), 0);
+
+	void *tls = xtask_local (t);
+	mu_assert_ptr_ne (tls, NULL);
+	mu_assert_uint_eq ((uintptr_t)tls % 16, 0);
+
+	xtask_free (&t);
+}
+
 int
 main (void)
 {
@@ -212,5 +231,6 @@ main (void)
 	mu_run (test_defer_resume);
 	mu_run (test_exit);
 	mu_run (test_exit_external);
+	mu_run (test_tls);
 }
 
