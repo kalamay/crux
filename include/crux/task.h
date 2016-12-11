@@ -205,9 +205,6 @@ xtask_exit (struct xtask *t, int ec);
 extern void
 xtask_print (const struct xtask *t, FILE *out);
 
-extern void
-xtask_print_head (const struct xtask *t, FILE *out);
-
 /**
  * @brief  Gives up context from the current task
  *
