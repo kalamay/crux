@@ -245,7 +245,6 @@ xtask__new (struct xtask **tp,
 		void *tls, size_t len,
 		union xvalue (*fn)(void *tls, union xvalue))
 {
-	printf ("size: %zu\n", sizeof **tp);
 	assert (tp != NULL);
 	assert (fn != NULL);
 
