@@ -27,6 +27,7 @@ struct xhub_entry {
 	struct xheap_entry hent;
 	struct xlist lent;
 	struct xtask *t;
+	void *data;
 	struct xhub *hub;
 	void (*fn)(struct xhub *, void *);
 	int poll_id, poll_type;
@@ -264,11 +265,11 @@ xhub_stop (struct xhub *hub)
 }
 
 static union xvalue
-spawn_fn (void *data, union xvalue val)
+spawn_fn (void *tls, union xvalue val)
 {
 	(void)val;
-	struct xhub_entry *ent = xtask_local (xtask_self ());
-	ent->fn (ent->hub, data);
+	struct xhub_entry *ent = tls;
+	ent->fn (ent->hub, ent->data);
 	return XZERO;
 }
 
@@ -276,28 +277,19 @@ int
 xspawn (struct xhub *hub, 
 		void (*fn)(struct xhub *, void *), void *data)
 {
-	struct xtask_opt opt = { .tls = sizeof (struct xhub_entry) };
-	xtask_get_config (&opt);
-
 	struct xtask *t;
-	int rc = xtask_new_opt (&t, &opt, spawn_fn, data);
+	struct xhub_entry *ent;
+	int rc = xtask_new_tls (&t, NULL, sizeof *ent, spawn_fn);
 	if (rc < 0) {
 		return rc;
 	}
 
-	struct xhub_entry *ent = xtask_local (t);
+	ent = xtask_local (t);
 	memset (ent, 0, sizeof (*ent));
 	ent->t = t;
+	ent->data = data;
 	ent->hub = hub;
 	ent->fn = fn;
-	ent->poll_type = 0;
-
-	ent->hent.key = XHEAP_NONE;
-	xlist_clear (&ent->lent);
-	ent->t = t;
-	ent->hub = hub;
-	ent->fn = fn;
-	ent->poll_type = 0;
 
 	return schedule_immediate (ent);
 }

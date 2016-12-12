@@ -37,55 +37,19 @@
 #define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FENTRY)
 
 /**
+ * @brief  The global stack size for `xtask_new` and `xtask_new_tls`
+ */
+extern uint32_t XTASK_STACK_SIZE;
+
+/**
+ * @brief  The global flags for `xtask_new` and `xtask_new_tls`
+ */
+extern uint32_t XTASK_FLAGS;
+
+/**
  * @brief  Opaque type for task instances
  */
 struct xtask;
-
-struct xtask_opt {
-	uint32_t stack_size; /** minimum stack size for the task */
-	uint32_t flags;      /** construction flags */
-	size_t tls;          /** extra space for task local storage */
-	const char *file;
-	int line;
-};
-
-/**
- * @brief  Updates the configuration for subsequent coroutines
- *
- * Initially, coroutines are created using the `KD_TASK_STACK_DEFAULT` stack
- * size and the in `KD_TASK_FLAGS_DEFAULT` mode. This only needs to be called
- * if the configuration needs to be changed. All threads use the same
- * configuration, and configuration is lock-free and thread-safe.
- *
- * Currently active coroutines will not be changed.
- *
- * @param  stack_size  minimun stack size allocated
- * @param  flags       configuration flags
- */
-extern void
-xtask_configure (uint32_t stack_size, uint32_t flags);
-
-extern void
-xtask_get_config (struct xtask_opt *opt);
-
-/**
- * @brief  Creates a new task with a function for execution context
- *
- * The newly created task will be in a suspended state. Calling
- * `resume` on the returned value will transfer execution context
- * to the function `fn`.
- *
- * @param  tp    reference to the task pointer to create
- * @param  fn    the function to execute in the new context
- * @param  data  user pointer to associate with the task
- * @return  new task or `NULL` on error
- */
-#define xtask_new(tp, fn, data) \
-	xtask_new_loc (tp, __FILE__, __LINE__, fn, data)
-
-extern int
-xtask_new_loc (struct xtask **tp, const char *file, int line,
-		union xvalue (*fn)(void *, union xvalue), void *data);
 
 /**
  * @brief  Creates a new task using per-task configuration options
@@ -93,6 +57,13 @@ xtask_new_loc (struct xtask **tp, const char *file, int line,
  * The newly created task will be in a suspended state. Calling
  * `resume` on the returned value will transfer execution context
  * to the function `fn`.
+ *
+ * Task local storage may optionally be included. This allows an
+ * arbitrarily sized region to be reserved for storing values
+ * associated with the task. The region is guaranteed to be 16-byte
+ * aligned. The `len` parameter defines the number of bytes to reserve.
+ * If `tls` is not `NULL`, the value pointed to will be copied into
+ * this space. This region may be changed at any time, however.
  *
  * The mapping for the task is a single contiguous region with the
  * task state struct stored towards the beginning fo the stack.
@@ -110,15 +81,55 @@ xtask_new_loc (struct xtask **tp, const char *file, int line,
  *     ┃ task ┃ tls ┃ stack                ┃ lock ┃
  *     ┗━━━━━━┻━━━━━┻━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━┛
  *
- * @param  tp          reference to the task pointer to create
- * @param  opt         task options
- * @param  fn          the function to execute in the new context
- * @param  data        user pointer to associate with the task
+ * @param  tp     reference to the task pointer to create
+ * @param  stack  minimum amount of stack space to allocate
+ * @param  flags  task flags
+ * @param  tls    task local storage reference to copy or `NULL`
+ * @param  len    length of `tls` in bytes
+ * @param  fn     the function to execute in the new context
+ * @return  0 on success, -errno on error
+ */
+#define xtask_new_opt(tp, stack, flags, tls, len, fn) __extension__ ({ \
+	struct xtask *__t; \
+	int __rc = xtask__new (&__t, (stack), (flags), (tls), (len), (fn)); \
+	if (__rc == 0) { xtask_file (__t, __FILE__, __LINE__); (*tp) = __t; } \
+	__rc; \
+})
+
+/**
+ * @brief  Creates a new task with a function and local storage
+ *
+ * See xtask_new
+ *
+ * @param  tp    reference to the task pointer to create
+ * @param  tls   task local storage reference to copy or `NULL`
+ * @param  len   length of `tls` in bytes
+ * @param  fn    the function to execute in the new context
  * @return  new task or `NULL` on error
  */
+#define xtask_new_tls(tp, tls, len, fn) \
+	xtask_new_opt (tp, XTASK_STACK_SIZE, XTASK_FLAGS, tls, len, fn)
+
+/**
+ * @brief  Creates a new task with a function for execution context
+ *
+ * See xtask_new
+ *
+ * @param  tp    reference to the task pointer to create
+ * @param  fn    the function to execute in the new context
+ * @return  new task or `NULL` on error
+ */
+#define xtask_new(tp, fn) \
+	xtask_new_tls (tp, 0, 0, fn)
+
 extern int
-xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
-		union xvalue (*fn)(void *, union xvalue), void *data);
+xtask__new (struct xtask **tp,
+		size_t stack, int flags,
+		void *tls, size_t len,
+		union xvalue (*fn)(void *tls, union xvalue));
+
+extern int
+xtask_file (struct xtask *t, const char *file, int line);
 
 /**
  * @brief  Frees an inactive task

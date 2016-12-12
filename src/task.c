@@ -26,6 +26,10 @@
 #endif
 
 
+uint32_t XTASK_STACK_SIZE = XTASK_STACK_DEFAULT;
+uint32_t XTASK_FLAGS = XTASK_FDEFAULT;
+
+
 /**
  * @brief  Stack size in bytes
  *
@@ -37,7 +41,7 @@
  * @return  total size of the stack
  */
 #define STACK_SIZE(t) \
-	((t)->map_size - sizeof (struct xtask) - (t)->tls)
+	((t)->map_size - sizeof (struct xtask) - (t)->tls_size)
 
 /**
  * @brief  Gets the task local storage
@@ -50,7 +54,7 @@
 	((void *t)((t) + 1))
 #else
 # define TLS(t) \
-	((void *)((uint8_t *)(t) - (t)->tls))
+	((void *)((uint8_t *)(t) - (t)->tls_size))
 #endif
 
 
@@ -108,45 +112,28 @@ struct xdefer {
 struct xtask {
 	union xvalue value;            /** the resume or yield value */
 	struct xtask *parent;          /** task that resumed this task */
-	size_t tls;                    /** task locak storage size */
-	void *data;                    /** user data */
 	struct xdefer *defer;          /** defered execution linked list */
 	uintptr_t ctx[XCTX_REG_COUNT]; /** execution registers */
-#if HAS_DLADDR
-	const char *name;              /** entry function name */
-#endif
-	uint32_t flags;                /** flags used to create the task */
 	uint32_t map_size;             /** size of the mapped memory in bytes */
+	uint32_t tls_size;             /** task locak storage size */
+#if HAS_DLADDR
+	const char *entry;             /** entry function name */
+#endif
 	const char *file;              /** allocation source file name */
 	int line;                      /** allocation source line number */
 	int16_t exitcode;              /** code if in EXIT state */
 	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXIT */
+	uint8_t flags;                 /** flags used to create the task */
 } __attribute__ ((aligned (16)));
-
 
 static __thread struct xdefer *pool = NULL;
 static __thread struct xtask *dead = NULL;
 static __thread struct xtask *current = NULL;
 static __thread struct xtask top = {
 #if HAS_DLADDR
-	.name = "main",
+	.entry = "main",
 #endif
 	.state = CURRENT
-};
-
-union xtask_config {
-	int64_t value;
-	struct xtask_opt opt;
-};
-
-static union xtask_config config = {
-	.opt = {
-		.stack_size = XTASK_STACK_DEFAULT,
-		.flags = XTASK_FDEFAULT,
-		.tls = 0,
-		.file = NULL,
-		.line = 0
-	}
 };
 
 /**
@@ -244,7 +231,7 @@ static void
 entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 {
 	struct xtask *parent = t->parent;
-	union xvalue val = fn (t->data, t->value);
+	union xvalue val = fn (xtask_local (t), t->value);
 
 	eol (t, val, 0);
 	current = parent;
@@ -252,55 +239,29 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 	xctx_swap (t->ctx, parent->ctx);
 }
 
-void
-xtask_configure (uint32_t stack_size, uint32_t flags)
-{
-	if (stack_size > XTASK_STACK_MAX) { stack_size = XTASK_STACK_MAX; }
-	else if (stack_size < XTASK_STACK_MIN) { stack_size = XTASK_STACK_MIN; }
-
-	union xtask_config c = { .opt = { .stack_size = stack_size, .flags = flags } };
-	while (!__sync_bool_compare_and_swap (&config.value, config.value, c.value));
-}
-
-void
-xtask_get_config (struct xtask_opt *opt)
-{
-	union xtask_config c;
-
-	__sync_synchronize ();
-	c.value = config.value;
-	opt->stack_size = c.opt.stack_size;
-	opt->flags = c.opt.flags;
-}
-
 int
-xtask_new_loc (struct xtask **tp, const char *file, int line,
-		union xvalue (*fn)(void *, union xvalue), void *data)
+xtask__new (struct xtask **tp,
+		size_t stack, int flags,
+		void *tls, size_t len,
+		union xvalue (*fn)(void *tls, union xvalue))
 {
+	printf ("size: %zu\n", sizeof **tp);
 	assert (tp != NULL);
 	assert (fn != NULL);
 
-	struct xtask_opt opt = { .tls = 0, .file = file, .line = line };
-	xtask_get_config (&opt);
+	if (stack < XTASK_STACK_MIN) {
+		stack = XTASK_STACK_MIN;
+	}
+	else if (stack > XTASK_STACK_MAX) {
+		stack = XTASK_STACK_MAX;
+	}
 
-	return xtask_new_opt (tp, &opt, fn, data);
-}
-
-int
-xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
-		union xvalue (*fn)(void *, union xvalue), void *data)
-{
-	assert (tp != NULL);
-	assert (fn != NULL);
-
-	uint32_t stack_size = opt->stack_size;
-	uint32_t flags = opt->flags;
-	size_t tls = (opt->tls + 15) & ~15;
-	uint8_t *map = NULL, *stack = NULL;
+	size_t align = (len + 15) & ~15;
+	uint8_t *map = NULL, *stack_low = NULL;
 	struct xtask *t = NULL;
 
 	// exact size would be the stack, local storage, and task object
-	uint32_t min_size = stack_size + tls + sizeof (*t);
+	uint32_t min_size = stack + align + sizeof (*t);
 	// round up to nearest page size
 	uint32_t map_size = (((min_size - 1) / PAGESIZE) + 1) * PAGESIZE;
 
@@ -314,10 +275,10 @@ xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
 	}
 
 #if STACK_GROWS_UP
-	stack = map + sizeof (*t) + tls;
+	stack_low = map + sizeof (*t) + align;
 	t = (struct xtask *)map;
 #else
-	stack = map;
+	stack_low = map;
 	t = (struct xtask *)(void *)(map + map_size - sizeof (*t));
 #endif
 
@@ -336,27 +297,31 @@ xtask_new_opt (struct xtask **tp, const struct xtask_opt *opt,
 
 	t->value = XZERO;
 	t->parent = NULL;
-	t->tls = tls;
-	t->data = data;
 	t->defer = NULL;
-	t->flags = flags;
 	t->map_size = map_size;
-	t->file = opt->file;
-	t->line = opt->line;
+	t->tls_size = align;
+	t->file = NULL;
+	t->line = 0;
 	t->exitcode = -1;
 	t->state = SUSPENDED;
+	t->flags = flags;
 
-	xctx_init (t->ctx, stack, STACK_SIZE (t),
+	xctx_init (t->ctx, stack_low, STACK_SIZE (t),
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
 
 #if HAS_DLADDR
 	if (flags & XTASK_FENTRY) {
 		Dl_info info;
 		if (dladdr ((void *)fn, &info) > 0) {
-			t->name = info.dli_sname;
+			t->entry = info.dli_sname;
 		}
 	}
 #endif
+
+	if (len > 0) {
+		if (tls) { memcpy (TLS (t), tls, len); }
+		else     { memset (TLS (t), 0, len); }
+	}
 
 	*tp = t;
 	return 0;
@@ -381,6 +346,15 @@ xtask_free (struct xtask **tp)
 	dead = t;
 }
 
+int
+xtask_file (struct xtask *t, const char *file, int line)
+{
+	assert (t != NULL);
+	t->file = file;
+	t->line = line;
+	return 0;
+}
+
 struct xtask *
 xtask_self (void)
 {
@@ -390,7 +364,7 @@ xtask_self (void)
 void *
 xtask_local (struct xtask *t)
 {
-	return TLS (t);
+	return t->tls_size ? TLS (t) : NULL;
 }
 
 size_t
@@ -459,11 +433,11 @@ print_head (const struct xtask *t, FILE *out)
 		fprintf (out, " %s:%d", t->file, t->line);
 	}
 #if HAS_DLADDR
-	if (t->name != NULL) {
-		fprintf (out, " %s", t->name);
+	if (t->entry != NULL) {
+		fprintf (out, " %s", t->entry);
 	}
 #endif
-	fprintf (out, " %s", state_names[t->state]);
+	fprintf (out, " %s tls=%u", state_names[t->state], t->tls_size);
 	if (t->state == EXIT) {
 		fprintf (out, " exitcode=%d>", t->exitcode);
 	}
@@ -505,7 +479,7 @@ xtask_print (const struct xtask *t, FILE *out)
 
 	fprintf (out, " {\n");
 	xctx_print (t->ctx, out);
-	fprintf (out, "\tdata: %p\n}\n", t->data);
+	fprintf (out, "}\n");
 	fflush (out);
 }
 

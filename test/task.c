@@ -20,13 +20,13 @@ fib (void *data, union xvalue val)
 static union xvalue
 fib3 (void *data, union xvalue val)
 {
-	(void)val;
+	struct xtask **tp = data;
 	while (true) {
-		xresume (data, XZERO);
-		xresume (data, XZERO);
-		xyield (xresume (data, XZERO));
+		xresume (*tp, XZERO);
+		xresume (*tp, XZERO);
+		xyield (xresume (*tp, XZERO));
 	}
-	return XZERO;
+	return val;
 }
 
 static void
@@ -48,11 +48,11 @@ test_fibonacci (void)
 	struct xtask *t1, *t2;
 	uint64_t got[10];
 
-	mu_assert_int_eq (xtask_new (&t1, fib, NULL), 0);
-	mu_assert_int_eq (xtask_new (&t2, fib3, t1), 0);
+	mu_assert_int_eq (xtask_new (&t1, fib), 0);
+	mu_assert_int_eq (xtask_new_tls (&t2, &t1, 8, fib3), 0);
 
 	for (uint64_t n = 0; n < 10; n++) {
-		uint64_t val = xresume (t2, XU64 (n)).u64;
+		uint64_t val = xresume (t2, XZERO).u64;
 		got[n] = val;
 	}
 
@@ -79,12 +79,13 @@ defer_count (void *ptr)
 }
 
 static union xvalue
-defer_coro (void *ptr, union xvalue val)
+defer_coro (void *tls, union xvalue val)
 {
-	xdefer (defer_count, ptr);
-	xdefer (defer_count, ptr);
-	xdefer (defer_count, ptr);
-	return val;
+	(void)tls;
+	xdefer (defer_count, val.ptr);
+	xdefer (defer_count, val.ptr);
+	xdefer (defer_count, val.ptr);
+	return XZERO;
 }
 
 static void
@@ -93,8 +94,8 @@ test_defer (void)
 	int n = 0;
 
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, defer_coro, &n), 0);
-	xresume (t, XZERO);
+	mu_assert_int_eq (xtask_new (&t, defer_coro), 0);
+	xresume (t, XPTR (&n));
 
 	mu_assert (!xtask_alive (t))
 	mu_assert_int_eq (n, 3);
@@ -106,7 +107,7 @@ static void
 defer_fib (void *ptr)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, fib, NULL), 0);
+	mu_assert_int_eq (xtask_new (&t, fib), 0);
 
 	mu_assert_uint_eq (xresume (t, XZERO).u64, 0);
 	mu_assert_uint_eq (xresume (t, XZERO).u64, 1);
@@ -121,10 +122,11 @@ defer_fib (void *ptr)
 }
 
 static union xvalue
-defer_resume_coro (void *ptr, union xvalue val)
+defer_resume_coro (void *tls, union xvalue val)
 {
-	xdefer (defer_fib, ptr);
-	return val;
+	(void)tls;
+	xdefer (defer_fib, val.ptr);
+	return XZERO;
 }
 
 static void
@@ -133,9 +135,9 @@ test_defer_resume (void)
 	struct xtask *t;
 	int n = 0;
 
-	mu_assert_int_eq (xtask_new (&t, defer_resume_coro, &n), 0);
+	mu_assert_int_eq (xtask_new (&t, defer_resume_coro), 0);
 
-	xresume (t, XZERO);
+	xresume (t, XPTR (&n));
 
 	mu_assert (!xtask_alive (t))
 	mu_assert_int_eq (n, 1);
@@ -158,7 +160,7 @@ static void
 test_exit (void)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, doexit, NULL), 0);
+	mu_assert_int_eq (xtask_new (&t, doexit), 0);
 
 	union xvalue val;
 
@@ -184,7 +186,7 @@ static void
 test_exit_external (void)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, doexit, NULL), 0);
+	mu_assert_int_eq (xtask_new (&t, doexit), 0);
 
 	union xvalue val;
 
@@ -205,13 +207,8 @@ static void
 test_tls (void)
 {
 	struct xtask *t;
-	struct xtask_opt opt = {
-		.stack_size = XTASK_STACK_DEFAULT,
-		.flags = XTASK_FDEBUG,
-		.tls = 24
-	};
 
-	mu_assert_int_eq (xtask_new_opt (&t, &opt, doexit, NULL), 0);
+	mu_assert_int_eq (xtask_new_tls (&t, NULL, 24, doexit), 0);
 
 	void *tls = xtask_local (t);
 	mu_assert_ptr_ne (tls, NULL);
@@ -223,7 +220,7 @@ test_tls (void)
 int
 main (void)
 {
-	xtask_configure (XTASK_STACK_DEFAULT, XTASK_FDEBUG);
+	XTASK_FLAGS = XTASK_FDEBUG;
 
 	mu_init ("task");
 	mu_run (test_fibonacci);
