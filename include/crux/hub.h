@@ -53,8 +53,20 @@ xhub_stop (struct xhub *hub);
  * @param  data  user data pointer to pass to `fn`
  * @return  0 on success, -errno on error
  */
+#define xspawn(hub, fn, data) \
+	xspawn_at (hub, __FILE__, __LINE__, fn, data)
+/**
+ * @brief  Spawns a task managed by the hub
+ *
+ * @param  hub   hub pointer
+ * @param  file  file name
+ * @param  line  file line number
+ * @param  fn    function to invoke as the entry point of the task
+ * @param  data  user data pointer to pass to `fn`
+ * @return  0 on success, -errno on error
+ */
 extern int
-xspawn (struct xhub *hub, 
+xspawn_at (struct xhub *hub, const char *file, int line,
 		void (*fn)(struct xhub *, void *), void *data);
 
 #if defined (__BLOCKS__)

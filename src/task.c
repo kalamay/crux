@@ -240,7 +240,7 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 }
 
 int
-xtask__new (struct xtask **tp,
+xtask_new (struct xtask **tp,
 		size_t stack, int flags,
 		void *tls, size_t len,
 		union xvalue (*fn)(void *tls, union xvalue))
@@ -345,13 +345,12 @@ xtask_free (struct xtask **tp)
 	dead = t;
 }
 
-int
-xtask_file (struct xtask *t, const char *file, int line)
+void
+xtask_set_file (struct xtask *t, const char *file, int line)
 {
 	assert (t != NULL);
 	t->file = file;
 	t->line = line;
-	return 0;
 }
 
 struct xtask *

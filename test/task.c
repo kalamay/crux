@@ -48,7 +48,7 @@ test_fibonacci (void)
 	struct xtask *t1, *t2;
 	uint64_t got[10];
 
-	mu_assert_int_eq (xtask_new (&t1, fib), 0);
+	mu_assert_int_eq (xtask_new_fn (&t1, fib), 0);
 	mu_assert_int_eq (xtask_new_tls (&t2, &t1, 8, fib3), 0);
 
 	for (uint64_t n = 0; n < 10; n++) {
@@ -94,7 +94,7 @@ test_defer (void)
 	int n = 0;
 
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, defer_coro), 0);
+	mu_assert_int_eq (xtask_new_fn (&t, defer_coro), 0);
 	xresume (t, XPTR (&n));
 
 	mu_assert (!xtask_alive (t))
@@ -107,7 +107,7 @@ static void
 defer_fib (void *ptr)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, fib), 0);
+	mu_assert_int_eq (xtask_new_fn (&t, fib), 0);
 
 	mu_assert_uint_eq (xresume (t, XZERO).u64, 0);
 	mu_assert_uint_eq (xresume (t, XZERO).u64, 1);
@@ -135,7 +135,7 @@ test_defer_resume (void)
 	struct xtask *t;
 	int n = 0;
 
-	mu_assert_int_eq (xtask_new (&t, defer_resume_coro), 0);
+	mu_assert_int_eq (xtask_new_fn (&t, defer_resume_coro), 0);
 
 	xresume (t, XPTR (&n));
 
@@ -160,7 +160,7 @@ static void
 test_exit (void)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, doexit), 0);
+	mu_assert_int_eq (xtask_new_fn (&t, doexit), 0);
 
 	union xvalue val;
 
@@ -186,7 +186,7 @@ static void
 test_exit_external (void)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new (&t, doexit), 0);
+	mu_assert_int_eq (xtask_new_fn (&t, doexit), 0);
 
 	union xvalue val;
 

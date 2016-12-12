@@ -37,12 +37,12 @@
 #define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FENTRY)
 
 /**
- * @brief  The global stack size for `xtask_new` and `xtask_new_tls`
+ * @brief  The global stack size for `xtask_new_fn` and `xtask_new_tls`
  */
 extern uint32_t XTASK_STACK_SIZE;
 
 /**
- * @brief  The global flags for `xtask_new` and `xtask_new_tls`
+ * @brief  The global flags for `xtask_new_fn` and `xtask_new_tls`
  */
 extern uint32_t XTASK_FLAGS;
 
@@ -50,6 +50,60 @@ extern uint32_t XTASK_FLAGS;
  * @brief  Opaque type for task instances
  */
 struct xtask;
+
+/**
+ * @brief  Creates a new task with a function for execution context
+ *
+ * This will also capture the file and line where the task was created.
+ *
+ * @see  `xtask_new` for more information. This variant uses the global
+ * stack size and flags, and the local storage space is not used.
+ *
+ * @param  tp    reference to the task pointer to create
+ * @param  fn    the function to execute in the new context
+ * @return  0 on succes, -errno on error
+ */
+#define xtask_new_fn(tp, fn) \
+	xtask_new_tls (tp, 0, 0, fn)
+
+/**
+ * @brief  Creates a new task with a function and local storage
+ *
+ * This will also capture the file and line where the task was created.
+ *
+ * @see  `xtask_new` for more information. This variant uses the global
+ * stack size and flags.
+ *
+ * @param  tp    reference to the task pointer to create
+ * @param  tls   task local storage reference to copy or `NULL`
+ * @param  len   length of `tls` in bytes
+ * @param  fn    the function to execute in the new context
+ * @return  0 on succes, -errno on error
+ */
+#define xtask_new_tls(tp, tls, len, fn) \
+	xtask_new_opt (tp, XTASK_STACK_SIZE, XTASK_FLAGS, tls, len, fn)
+
+/**
+ * @brief  Creates a new task using per-task configuration options
+ *
+ * This will also capture the file and line where the task was created.
+ *
+ * @see  `xtask_new` for more information.
+ *
+ * @param  tp     reference to the task pointer to create
+ * @param  stack  minimum amount of stack space to allocate
+ * @param  flags  task flags
+ * @param  tls    task local storage reference to copy or `NULL`
+ * @param  len    length of `tls` in bytes
+ * @param  fn     the function to execute in the new context
+ * @return  0 on success, -errno on error
+ */
+#define xtask_new_opt(tp, stack, flags, tls, len, fn) __extension__ ({ \
+	struct xtask *__t; \
+	int __rc = xtask_new (&__t, (stack), (flags), (tls), (len), (fn)); \
+	if (__rc == 0) { xtask_set_file (__t, __FILE__, __LINE__); (*tp) = __t; } \
+	__rc; \
+})
 
 /**
  * @brief  Creates a new task using per-task configuration options
@@ -89,47 +143,26 @@ struct xtask;
  * @param  fn     the function to execute in the new context
  * @return  0 on success, -errno on error
  */
-#define xtask_new_opt(tp, stack, flags, tls, len, fn) __extension__ ({ \
-	struct xtask *__t; \
-	int __rc = xtask__new (&__t, (stack), (flags), (tls), (len), (fn)); \
-	if (__rc == 0) { xtask_file (__t, __FILE__, __LINE__); (*tp) = __t; } \
-	__rc; \
-})
-
-/**
- * @brief  Creates a new task with a function and local storage
- *
- * See xtask_new
- *
- * @param  tp    reference to the task pointer to create
- * @param  tls   task local storage reference to copy or `NULL`
- * @param  len   length of `tls` in bytes
- * @param  fn    the function to execute in the new context
- * @return  new task or `NULL` on error
- */
-#define xtask_new_tls(tp, tls, len, fn) \
-	xtask_new_opt (tp, XTASK_STACK_SIZE, XTASK_FLAGS, tls, len, fn)
-
-/**
- * @brief  Creates a new task with a function for execution context
- *
- * See xtask_new
- *
- * @param  tp    reference to the task pointer to create
- * @param  fn    the function to execute in the new context
- * @return  new task or `NULL` on error
- */
-#define xtask_new(tp, fn) \
-	xtask_new_tls (tp, 0, 0, fn)
-
 extern int
-xtask__new (struct xtask **tp,
+xtask_new (struct xtask **tp,
 		size_t stack, int flags,
 		void *tls, size_t len,
 		union xvalue (*fn)(void *tls, union xvalue));
 
-extern int
-xtask_file (struct xtask *t, const char *file, int line);
+/**
+ * @brief  Sets file and line information for the task
+ *
+ * This is intended to help with debugging. This information is only used
+ * when printing a representation of the task.
+ *
+ * The `file` parameter is NOT copied.
+ *
+ * @param  t     task pointer
+ * @Param  file  file name string
+ * @param  line  file line number
+ */
+extern void
+xtask_set_file (struct xtask *t, const char *file, int line);
 
 /**
  * @brief  Frees an inactive task

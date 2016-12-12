@@ -274,15 +274,18 @@ spawn_fn (void *tls, union xvalue val)
 }
 
 int
-xspawn (struct xhub *hub, 
+xspawn_at (struct xhub *hub, const char *file, int line,
 		void (*fn)(struct xhub *, void *), void *data)
 {
 	struct xtask *t;
 	struct xhub_entry *ent;
-	int rc = xtask_new_tls (&t, NULL, sizeof *ent, spawn_fn);
+	int rc = xtask_new (&t, XTASK_STACK_SIZE, XTASK_FLAGS, NULL, sizeof *ent,
+			spawn_fn);
 	if (rc < 0) {
 		return rc;
 	}
+
+	xtask_set_file (t, file, line);
 
 	ent = xtask_local (t);
 	memset (ent, 0, sizeof (*ent));
@@ -311,7 +314,7 @@ int
 xspawn_b (struct xhub *hub, void (^block)(void))
 {
 	void (^copy)(void) = Block_copy (block);
-	int rc = xspawn (hub, spawn_block, copy);
+	int rc = xspawn_at (hub, NULL, 0, spawn_block, copy);
 	if (rc < 0) {
 		Block_release (copy);
 	}

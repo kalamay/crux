@@ -40,8 +40,8 @@ test_concurrent_sleep (void)
 
 	int64_t nsec = XCLOCK_NSEC (&end) - XCLOCK_NSEC (&start);
 	int ms = round ((double)nsec / X_NSEC_PER_MSEC);
-	mu_assert_int_ge (ms, 20-1);
-	mu_assert_int_le (ms, 20+1);
+	mu_assert_int_ge (ms, 20-5);
+	mu_assert_int_le (ms, 20+5);
 
 	mu_assert_int_eq (sleep_count, 3);
 
@@ -200,8 +200,8 @@ dorecv_timeout (struct xhub *h, void *data)
 	int ms = round ((double)nsec / X_NSEC_PER_MSEC);
 
 	mu_assert_int_eq (rc, -ETIMEDOUT);
-	mu_assert_int_ge (ms, 20-1);
-	mu_assert_int_le (ms, 20+1);
+	mu_assert_int_ge (ms, 20-5);
+	mu_assert_int_le (ms, 20+5);
 
 	rc = xrecvfrom (s, buf, 4, 0, (struct sockaddr *)&src, &len, 30);
 	mu_assert_int_eq (rc, 4);
