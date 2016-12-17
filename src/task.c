@@ -365,15 +365,6 @@ xtask_local (struct xtask *t)
 	return t->tls_size ? TLS (t) : NULL;
 }
 
-size_t
-xtask_stack_used (const struct xtask *t)
-{
-	if (t == NULL || t == &top) {
-		return 0;
-	}
-	return xctx_stack_size (t->ctx, MAP_BEGIN (t), STACK_SIZE (t), t == current);
-}
-
 bool
 xtask_alive (const struct xtask *t)
 {
@@ -440,7 +431,7 @@ print_head (const struct xtask *t, FILE *out)
 		fprintf (out, " exitcode=%d>", t->exitcode);
 	}
 	else {
-		fprintf (out, " stack=%zd>", xtask_stack_used (t));
+		fprintf (out, ">");
 	}
 }
 
@@ -470,14 +461,10 @@ xtask_print (const struct xtask *t, FILE *out)
 	if (t == NULL) {
 		print_head (t, out);
 		fputc ('\n', out);
-		return;
 	}
-
-	print_tree (t, out);
-
-	fprintf (out, " {\n");
-	xctx_print (t->ctx, out);
-	fprintf (out, "}\n");
+	else {
+		print_tree (t, out);
+	}
 	fflush (out);
 }
 

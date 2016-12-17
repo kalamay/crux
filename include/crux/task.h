@@ -195,15 +195,6 @@ extern void *
 xtask_local (struct xtask *t);
 
 /**
- * @brief  Gets the current stack space used
- *
- * @param  t  the task to access
- * @return  number of bytes used
- */
-extern size_t
-xtask_stack_used (const struct xtask *t);
-
-/**
  * @brief  Checks if a task is not dead
  *
  * This returns `true` if the state is suspended, current, or active. In

@@ -8,53 +8,18 @@
 #define ESP 5
 #define ECX 6
 
-static uintptr_t *
-start (uint8_t *stack, size_t len)
-{
-	uintptr_t *s = (uintptr_t *)(void *)(stack + len - sizeof (uintptr_t)*2);
-	s = (void *)((uintptr_t)s - (uintptr_t)s%16);
-	return s - 1;
-}
-
 void
 xctx_init (uintptr_t *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2)
 {
-	uintptr_t *s = start (stack, len);
+	uintptr_t *s = (uintptr_t *)(void *)((uint8_t *)stack + len - sizeof (uintptr_t)*2);
+	s = (uintptr_t *)((uintptr_t)s - (uintptr_t)s%16) - 1;
 	*s = 0;
 
 	s[1] = a1;
 	s[2] = a2;
 	ctx[EIP] = ip;
 	ctx[ESP] = (uintptr_t)s;
-}
-
-size_t
-xctx_stack_size (const uintptr_t *ctx, void *stack, size_t len, bool current)
-{
-	register uintptr_t *s = start (stack, len);
-	register uintptr_t sp;
-	if (current) {
-		__asm__ ("movl %%esp, %0" : "=r" (sp));
-	}
-	else {
-		sp = ctx[ESP];
-	}
-	return (uintptr_t)s - sp;
-}
-
-void
-xctx_print (const uintptr_t *ctx, FILE *out)
-{
-	fprintf (out,
-		"\tebx: 0x%08" PRIxPTR "\n"
-		"\tesi: 0x%08" PRIxPTR "\n"
-		"\tedi: 0x%08" PRIxPTR "\n"
-		"\tebp: 0x%08" PRIxPTR "\n"
-		"\teip: 0x%08" PRIxPTR "\n"
-		"\tesp: 0x%08" PRIxPTR "\n"
-		"\tecx: 0x%08" PRIxPTR "\n",
-		ctx[EBX], ctx[ESI], ctx[EDI], ctx[EBP], ctx[EIP], ctx[ESP], ctx[ECX]);
 }
 
 __asm__ (
