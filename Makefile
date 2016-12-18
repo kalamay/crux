@@ -12,6 +12,7 @@
 #   BUILD: either "release" (default) or "debug"
 #   BUILD_ROOT: directory to build in (default "build")
 #   
+#   FLAGS_COMMON: common compiler and linker flags for release and debug builds
 #   CFLAGS_COMMON: compiler flags for release and debug builds
 #   CFLAGS_DEBUG: debug only compiler flags
 #   CFLAGS_RELEASE: release only compiler flags
@@ -35,12 +36,11 @@ else
  endif
 endif
 
-CFLAGS_COMMON?= \
-	-DHAS_EXECINFO=$(EXECINFO) \
-	-march=native -std=gnu11
+FLAGS_COMMON?= -march=native
+CFLAGS_COMMON?= $(FLAGS_COMMON) -DHAS_EXECINFO=$(EXECINFO) -std=gnu11
 CFLAGS_DEBUG?= $(CFLAGS_COMMON) -g -Wall -Wextra -Wcast-align -pedantic -Werror
 CFLAGS_RELEASE?= $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
-LDFLAGS_COMMON?= $(LDFLAGS_EXECINFO)
+LDFLAGS_COMMON?= $(FLAGS_COMMON) $(LDFLAGS_EXECINFO)
 LDFLAGS_DEBUG?= $(LDFLAGS_COMMON)
 LDFLAGS_RELEASE?= $(LDFLAGS_COMMON)
 
