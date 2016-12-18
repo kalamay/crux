@@ -6,6 +6,7 @@
 # Build Configuration Options:
 #   NAME: name of the target (default "crux")
 #   PREFIX: install prefix for shared libraries (default "/usr/local")
+#   DESTDIR: install target directory (default "")
 #
 #   BUILD: either "release" (default) or "debug"
 #   BUILD_ROOT: directory to build in (default "build")
@@ -30,6 +31,7 @@
 
 NAME?=crux
 PREFIX?=/usr/local
+DESTDIR?=
 VERSION_MAJOR:= 0
 VERSION_MINOR:= 1
 VERSION_PATCH:= 0
@@ -90,7 +92,7 @@ SRC_OBJ:= $(SRC:src/%.c=$(BUILD_OBJ)/$(NAME)-%.o)
 TEST_OBJ:= $(TEST:test/%.c=$(BUILD_OBJ)/$(NAME)-test-%.o)
 TEST_BIN:= $(TEST:test/%.c=$(BUILD_TEST)/%)
 
-all: test static dynamic
+all: static dynamic
 
 test: $(TEST_BIN)
 	@for t in $^; do ./$$t; done
@@ -98,6 +100,22 @@ test: $(TEST_BIN)
 static: $(BUILD_LIB)/$(LIB)
 
 dynamic: $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
+
+install: $(BUILD_LIB)/$(LIB) $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/include/crux
+	cp $(BUILD_LIB)/$(LIB) $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY) $(DESTDIR)$(PREFIX)/lib
+	cp include/crux.h $(DESTDIR)$(PREFIX)/include
+	cp include/crux/*.h $(DESTDIR)$(PREFIX)/include/crux
+
+uninstall:
+	rm -r \
+		$(DESTDIR)$(PREFIX)/include/crux \
+		$(DESTDIR)$(PREFIX)/include/crux.h \
+		$(DESTDIR)$(PREFIX)/lib/$(LIB) \
+		$(DESTDIR)$(PREFIX)/lib/$(SO) \
+		$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
+		$(DESTDIR)$(PREFIX)/lib/$(SO_ANY)
 
 test-%: $(BUILD_TEST)/%
 	./$<
@@ -131,7 +149,7 @@ $(BUILD_BIN) $(BUILD_LIB) $(BUILD_TEST) $(BUILD_OBJ) $(BUILD_TMP):
 clean:
 	rm -rf $(BUILD_ROOT)
 
-.PHONY: all test static dynamic clean
+.PHONY: all test static dynamic install uninstall clean
 .PRECIOUS: $(SRC_OBJ) $(TEST_OBJ)
 
 -include $(SRC_OBJ:.o=.d)
