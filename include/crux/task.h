@@ -37,14 +37,34 @@
 #define XTASK_FDEBUG (XTASK_FPROTECT|XTASK_FENTRY)
 
 /**
- * @brief  The global stack size for `xtask_new_fn` and `xtask_new_tls`
+ * @brief  Opaque type for task manager instance
  */
-extern uint32_t XTASK_STACK_SIZE;
+struct xmgr;
 
 /**
- * @brief  The global flags for `xtask_new_fn` and `xtask_new_tls`
+ * @brief  Creates a new task manager for constructing and using tasks
+ *
+ * @param[out]  mgrp   reference to the manager pointer to create
+ * @param  stack  minimum amount of stack space for each task
+ * @param  tls    task local storage space for each task
+ * @param  flags  flags for task flags
+ * @return  0 on succes, -errno on error
  */
-extern uint32_t XTASK_FLAGS;
+extern int
+xmgr_new (struct xmgr **mgrp, size_t stack, size_t tls, int flags);
+
+/**
+ * @brief  Frees a task manager
+ *
+ * `mgrp` cannot be `NULL`, but `*mgrp` may be.
+ *
+ * @param  mgrp  reference to the manager pointer to free
+ */
+extern void
+xmgr_free (struct xmgr **mgrp);
+
+extern struct xmgr *
+xmgr_self (void);
 
 /**
  * @brief  Opaque type for task instances
@@ -52,72 +72,34 @@ extern uint32_t XTASK_FLAGS;
 struct xtask;
 
 /**
- * @brief  Creates a new task with a function for execution context
+ * @brief  Creates a new task with optional initial local storage
  *
  * This will also capture the file and line where the task was created.
  *
- * @see  `xtask_new` for more information. This variant uses the global
- * stack size and flags, and the local storage space is not used.
+ * @see  `xtask_newf` for more information.
  *
  * @param  tp    reference to the task pointer to create
- * @param  fn    the function to execute in the new context
- * @return  0 on succes, -errno on error
- */
-#define xtask_new_fn(tp, fn) \
-	xtask_new_tls (tp, 0, 0, fn)
-
-/**
- * @brief  Creates a new task with a function and local storage
- *
- * This will also capture the file and line where the task was created.
- *
- * @see  `xtask_new` for more information. This variant uses the global
- * stack size and flags.
- *
- * @param  tp    reference to the task pointer to create
+ * @param  mgr   task manager pointer
  * @param  tls   task local storage reference to copy or `NULL`
- * @param  len   length of `tls` in bytes
  * @param  fn    the function to execute in the new context
- * @return  0 on succes, -errno on error
- */
-#define xtask_new_tls(tp, tls, len, fn) \
-	xtask_new_opt (tp, XTASK_STACK_SIZE, XTASK_FLAGS, tls, len, fn)
-
-/**
- * @brief  Creates a new task using per-task configuration options
- *
- * This will also capture the file and line where the task was created.
- *
- * @see  `xtask_new` for more information.
- *
- * @param  tp     reference to the task pointer to create
- * @param  stack  minimum amount of stack space to allocate
- * @param  flags  task flags
- * @param  tls    task local storage reference to copy or `NULL`
- * @param  len    length of `tls` in bytes
- * @param  fn     the function to execute in the new context
  * @return  0 on success, -errno on error
  */
-#define xtask_new_opt(tp, stack, flags, tls, len, fn) __extension__ ({ \
-	struct xtask *__t; \
-	int __rc = xtask_new (&__t, (stack), (flags), (tls), (len), (fn)); \
-	if (__rc == 0) { xtask_set_file (__t, __FILE__, __LINE__); (*tp) = __t; } \
-	__rc; \
-})
+#define xtask_new(tp, mgr, tls, fn) \
+	xtask_newf (tp, mgr, tls, __FILE__, __LINE__, fn)
 
 /**
- * @brief  Creates a new task using per-task configuration options
+ * @brief  Creates a new task with optional initial local storage
  *
  * The newly created task will be in a suspended state. Calling
  * `resume` on the returned value will transfer execution context
  * to the function `fn`.
  *
- * Task local storage may optionally be included. This allows an
- * arbitrarily sized region to be reserved for storing values
- * associated with the task. The region is guaranteed to be 16-byte
- * aligned. The `len` parameter defines the number of bytes to reserve.
- * If `tls` is not `NULL`, the value pointed to will be copied into
- * this space. This region may be changed at any time, however.
+ * Task local storage may optionally be included. This size of the
+ * the local storage area is specified by the task mananger. The
+ * region is guaranteed to be 16-byte aligned. If a `tls` value is
+ * provided during task construction, the value pointed at by `tls`
+ * will be copied into this storage. This region may be changed at
+ * any time, however.
  *
  * The mapping for the task is a single contiguous region with the
  * task state struct stored towards the beginning fo the stack.
@@ -135,34 +117,18 @@ struct xtask;
  *     ┃ task ┃ tls ┃ stack                ┃ lock ┃
  *     ┗━━━━━━┻━━━━━┻━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━┛
  *
- * @param  tp     reference to the task pointer to create
- * @param  stack  minimum amount of stack space to allocate
- * @param  flags  task flags
- * @param  tls    task local storage reference to copy or `NULL`
- * @param  len    length of `tls` in bytes
- * @param  fn     the function to execute in the new context
+ * @param  tp    reference to the task pointer to create
+ * @param  mgr   task manager pointer
+ * @param  tls   task local storage reference to copy or `NULL`
+ * @param  file  source file path
+ * @param  line  source file line number
+ * @param  fn    the function to execute in the new context
  * @return  0 on success, -errno on error
  */
 extern int
-xtask_new (struct xtask **tp,
-		size_t stack, int flags,
-		void *tls, size_t len,
+xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
+		const char *file, int line,
 		union xvalue (*fn)(void *tls, union xvalue));
-
-/**
- * @brief  Sets file and line information for the task
- *
- * This is intended to help with debugging. This information is only used
- * when printing a representation of the task.
- *
- * The `file` parameter is NOT copied.
- *
- * @param  t     task pointer
- * @Param  file  file name string
- * @param  line  file line number
- */
-extern void
-xtask_set_file (struct xtask *t, const char *file, int line);
 
 /**
  * @brief  Frees an inactive task

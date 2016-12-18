@@ -26,10 +26,6 @@
 #endif
 
 
-uint32_t XTASK_STACK_SIZE = XTASK_STACK_DEFAULT;
-uint32_t XTASK_FLAGS = XTASK_FDEFAULT;
-
-
 /**
  * @brief  Stack size in bytes
  *
@@ -38,38 +34,42 @@ uint32_t XTASK_FLAGS = XTASK_FDEFAULT;
  * but it does not include the task local storage.
  *
  * @param  t  task pointer
+ * @param  msz  map size
+ * @param  tsz  tls size
  * @return  total size of the stack
  */
-#define STACK_SIZE(t) \
-	((t)->map_size - sizeof (struct xtask) - (t)->tls_size)
+#define STACK_SIZE(t, msz, tsz) \
+	((msz) - sizeof (struct xtask) - (tsz))
 
 /**
  * @brief  Gets the task local storage
  *
  * @param  t  task pointer
+ * @param  tsz  tls size
  * @return  local storage pointer
  */
 #if STACK_GROWS_UP
-# define TLS(t) \
+# define TLS(t, tsz) \
 	((void *t)((t) + 1))
 #else
-# define TLS(t) \
-	((void *)((uint8_t *)(t) - (t)->tls_size))
+# define TLS(t, tsz) \
+	((void *)((uint8_t *)(t) - (tsz)))
 #endif
 
 
 /**
  * @brief  Get the mapped address from a task
  *
- * @param  t  task pointer
+ * @param  t    task pointer
+ * @param  msz  map size
  * @return  mapped address
  */
 #if STACK_GROWS_UP
-# define MAP_BEGIN(t) \
+# define MAP_BEGIN(t, msz) \
 	((uint8_t *)(t))
 #else
-# define MAP_BEGIN(t) \
-	((uint8_t *)(t) + sizeof (struct xtask) - (t)->map_size)
+# define MAP_BEGIN(t, msz) \
+	((uint8_t *)(t) + sizeof (struct xtask) - (msz))
 #endif
 
 #define SUSPENDED 0  /** new created or yielded */
@@ -112,10 +112,9 @@ struct xdefer {
 struct xtask {
 	union xvalue value;            /** the resume or yield value */
 	struct xtask *parent;          /** task that resumed this task */
+	struct xmgr *mgr;              /** task manager for this task */
 	struct xdefer *defer;          /** defered execution linked list */
 	uintptr_t ctx[XCTX_REG_COUNT]; /** execution registers */
-	uint32_t map_size;             /** size of the mapped memory in bytes */
-	uint32_t tls_size;             /** task locak storage size */
 #if HAS_DLADDR
 	const char *entry;             /** entry function name */
 #endif
@@ -123,65 +122,91 @@ struct xtask {
 	int line;                      /** allocation source line number */
 	int16_t exitcode;              /** code if in EXIT state */
 	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXIT */
-	uint8_t flags;                 /** flags used to create the task */
 } __attribute__ ((aligned (16)));
 
-static __thread struct xdefer *pool = NULL;
-static __thread struct xtask *dead = NULL;
-static __thread struct xtask *current = NULL;
-static __thread struct xtask top = {
-#if HAS_DLADDR
-	.entry = "main",
-#endif
-	.state = CURRENT
+struct xmgr {
+	uint32_t map_size;
+	uint32_t stack_size;
+	uint32_t tls_size;
+	int flags;
+	struct xdefer *pool;
+	struct xtask *dead;
+	struct xtask *current;
+	struct xtask top;
 };
 
-/**
- * @brief  Reclaims a "freed" mapping
- *
- * If the map size doesn't meet needs it is unmapped and `NULL` is
- * returned. This will not iterate through the dead list as that could be
- * too costly. Perhaps trying a few at a time would be preferrable though?
- *
- * @param  map_size  minimum size requirement for the entire mapping
- * @return  pointer to mapped region or `NULL` if nothing to revive
- */
-static uint8_t *
-map_revive (uint32_t map_size)
+static __thread struct xmgr *thrd_mgr = NULL;
+
+int
+xmgr_new (struct xmgr **mgrp, size_t stack, size_t tls, int flags)
 {
-	struct xtask *t = dead;
-	if (t == NULL) {
-		return NULL;
+	struct xmgr *mgr = calloc (1, sizeof *mgr);
+	if (mgr == NULL) { return -XERRNO; }
+
+	if (stack < XTASK_STACK_MIN) {
+		stack = XTASK_STACK_MIN;
+	}
+	else if (stack > XTASK_STACK_MAX) {
+		stack = XTASK_STACK_MAX;
 	}
 
-	uint8_t *map = MAP_BEGIN (t);
+	size_t map_size;
 
-	dead = t->parent;
-	if (t->map_size < map_size) {
-		munmap (map, t->map_size);
-		map = NULL;
-	}
+	// round task size up to nearest multiple of 16
+	tls = (tls + 15) & ~15;
+	// exact size would be the stack, local storage, and task object
+	map_size = stack + tls + sizeof (struct xtask);
+	// round up to nearest page size
+	map_size = (((map_size - 1) / PAGESIZE) + 1) * PAGESIZE;
+	// add extra locked page if requested
+	if (flags & XTASK_FPROTECT) { map_size += PAGESIZE; }
 
-	return map;
+	mgr->map_size = map_size;
+	mgr->stack_size = stack;
+	mgr->tls_size = tls;
+	mgr->flags = flags;
+	mgr->current = &mgr->top;
+	mgr->top.mgr = mgr;
+#if HAS_DLADDR
+	mgr->top.entry = "main";
+#endif
+	mgr->top.state = CURRENT;
+
+	*mgrp = mgr;
+	return 0;
 }
 
-/**
- * @brief  Reclaims or creates a new mapping
- *
- * @param  map_size  minimum size requirement for the entire mapping
- * @return  pointer to mapped region or `NULL` on error
- */
-static uint8_t *
-map_alloc (uint32_t map_size)
+void
+xmgr_free (struct xmgr **mgrp)
 {
-	uint8_t *map = map_revive (map_size);
-	if (map == NULL) {
-		map = mmap (NULL, map_size, PROT_READ|PROT_WRITE, MAP_FLAGS, -1, 0);
-		if (map == MAP_FAILED) {
-			map = NULL;
-		}
+	assert (mgrp != NULL);
+
+	struct xmgr *mgr = *mgrp;
+	if (mgr == NULL) { return; }
+
+	*mgrp = NULL;
+
+	struct xdefer *pool = mgr->pool;
+	while (pool != NULL) {
+		struct xdefer *next = pool->next;
+		free (pool);
+		pool = next;
 	}
-	return map;
+
+	struct xtask *dead = mgr->dead;
+	while (dead != NULL) {
+		struct xtask *next = dead->parent;
+		munmap (dead, mgr->map_size);
+		dead = next;
+	}
+
+	free (mgr);
+}
+
+struct xmgr *
+xmgr_self (void)
+{
+	return thrd_mgr;
 }
 
 /**
@@ -194,6 +219,7 @@ map_alloc (uint32_t map_size)
 static void
 eol (struct xtask *t, union xvalue val, int ec)
 {
+	struct xmgr *mgr = t->mgr;
 	struct xdefer *def = t->defer;
 	t->defer = NULL;
 
@@ -201,11 +227,11 @@ eol (struct xtask *t, union xvalue val, int ec)
 	t->exitcode = ec;
 	t->state = EXIT;
 
-	while (def) {
+	while (def != NULL) {
 		struct xdefer *next = def->next;
 		def->fn (def->data);
-		def->next = pool;
-		pool = def;
+		def->next = mgr->pool;
+		mgr->pool = def;
 		def = next;
 
 		// mark exit status again in case defer resumed a separate task
@@ -230,86 +256,73 @@ eol (struct xtask *t, union xvalue val, int ec)
 static void
 entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 {
-	struct xtask *parent = t->parent;
+	struct xtask *p = t->parent;
 	union xvalue val = fn (xtask_local (t), t->value);
 
 	eol (t, val, 0);
-	current = parent;
-	parent->state = CURRENT;
-	xctx_swap (t->ctx, parent->ctx);
+	t->mgr->current = p;
+	p->state = CURRENT;
+	xctx_swap (t->ctx, p->ctx);
 }
 
 int
-xtask_new (struct xtask **tp,
-		size_t stack, int flags,
-		void *tls, size_t len,
+xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
+		const char *file, int line,
 		union xvalue (*fn)(void *tls, union xvalue))
 {
 	assert (tp != NULL);
+	assert (mgr != NULL);
 	assert (fn != NULL);
 
-	if (stack < XTASK_STACK_MIN) {
-		stack = XTASK_STACK_MIN;
-	}
-	else if (stack > XTASK_STACK_MAX) {
-		stack = XTASK_STACK_MAX;
-	}
+	struct xtask *t = mgr->dead;
+	size_t map_size = mgr->map_size;
+	size_t tls_size = mgr->tls_size;
+	uint8_t *map;
 
-	size_t align = (len + 15) & ~15;
-	uint8_t *map = NULL, *stack_low = NULL;
-	struct xtask *t = NULL;
-
-	// exact size would be the stack, local storage, and task object
-	uint32_t min_size = stack + align + sizeof (*t);
-	// round up to nearest page size
-	uint32_t map_size = (((min_size - 1) / PAGESIZE) + 1) * PAGESIZE;
-
-	if (flags & XTASK_FPROTECT) {
-		map_size += PAGESIZE;
+	if (t != NULL) {
+		mgr->dead = t->parent;
+		map = MAP_BEGIN (t, map_size);
 	}
-	
-	map = map_alloc (map_size);
-	if (map == NULL) {
-		return XERRNO;
-	}
-
+	else {
+		map = mmap (NULL, map_size, PROT_READ|PROT_WRITE, MAP_FLAGS, -1, 0);
+		if (map == MAP_FAILED) { return -XERRNO; }
+		if (mgr->flags & XTASK_FPROTECT) {
 #if STACK_GROWS_UP
-	stack_low = map + sizeof (*t) + align;
-	t = (struct xtask *)map;
+			int rc = mprotect (map+map_size-PAGESIZE, PAGESIZE, PROT_NONE);
 #else
-	stack_low = map;
-	t = (struct xtask *)(void *)(map + map_size - sizeof (*t));
+			int rc = mprotect (map, PAGESIZE, PROT_NONE);
 #endif
-
-	if ((flags & XTASK_FPROTECT) && !(t->flags & XTASK_FPROTECT)) {
-#if STACK_GROWS_UP
-		int rc = mprotect (map+map_size-PAGESIZE, PAGESIZE, PROT_NONE);
-#else
-		int rc = mprotect (map, PAGESIZE, PROT_NONE);
-#endif
-		if (rc < 0) {
-			int rc = XERRNO;
-			munmap (map, map_size);
-			return rc;
+			if (rc < 0) {
+				rc = XERRNO;
+				munmap (map, map_size);
+				return rc;
+			}
 		}
+#if STACK_GROWS_UP
+		t = (struct xtask *)map;
+#else
+		t = (struct xtask *)(void *)(map + map_size - sizeof (*t));
+#endif
 	}
 
 	t->value = XZERO;
 	t->parent = NULL;
+	t->mgr = mgr;
 	t->defer = NULL;
-	t->map_size = map_size;
-	t->tls_size = align;
-	t->file = NULL;
-	t->line = 0;
+	t->file = file;
+	t->line = line;
 	t->exitcode = -1;
 	t->state = SUSPENDED;
-	t->flags = flags;
 
-	xctx_init (t->ctx, stack_low, STACK_SIZE (t),
+#if STACK_GROWS_UP
+	map += sizeof (*t) + tls_size;
+#endif
+
+	xctx_init (t->ctx, map, STACK_SIZE (t, map_size, tls_size),
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
 
 #if HAS_DLADDR
-	if (flags & XTASK_FENTRY) {
+	if (mgr->flags & XTASK_FENTRY) {
 		Dl_info info;
 		if (dladdr ((void *)fn, &info) > 0) {
 			t->entry = info.dli_sname;
@@ -317,9 +330,9 @@ xtask_new (struct xtask **tp,
 	}
 #endif
 
-	if (len > 0) {
-		if (tls) { memcpy (TLS (t), tls, len); }
-		else     { memset (TLS (t), 0, len); }
+	if (tls_size > 0) {
+		if (tls) { memcpy (TLS (t, tls_size), tls, tls_size); }
+		else     { memset (TLS (t, tls_size), 0, tls_size); }
 	}
 
 	*tp = t;
@@ -336,33 +349,28 @@ xtask_free (struct xtask **tp)
 
 	ensure (t, t->state != CURRENT, "attempting to free current task");
 	ensure (t, t->state != ACTIVE, "attempting to free an active task");
+	ensure (t, t != &t->mgr->top, "attempting to free main task");
 
 	*tp = NULL;
 
 	eol (t, XZERO, t->exitcode);
 
-	t->parent = dead;
-	dead = t;
-}
-
-void
-xtask_set_file (struct xtask *t, const char *file, int line)
-{
-	assert (t != NULL);
-	t->file = file;
-	t->line = line;
+	t->parent = t->mgr->dead;
+	t->mgr->dead = t;
 }
 
 struct xtask *
 xtask_self (void)
 {
-	return current;
+	struct xmgr *mgr = xmgr_self ();
+	return mgr ? mgr->current : NULL;
 }
 
 void *
 xtask_local (struct xtask *t)
 {
-	return t->tls_size ? TLS (t) : NULL;
+	size_t tls_size = t->mgr->tls_size;
+	return tls_size ? TLS (t, tls_size) : NULL;
 }
 
 bool
@@ -384,14 +392,17 @@ xtask_exitcode (const struct xtask *t)
 int
 xtask_exit (struct xtask *t, int ec)
 {
+	struct xmgr *mgr = xmgr_self ();
+	if (mgr == NULL) { return -ENOENT; }
+
 	bool yield;
 	if (t == NULL) {
-		t = current;
+		t = mgr->current;
 		if (t == NULL) { return -EINVAL; }
 		yield = true;
 	}
 	else {
-		yield = t == current;
+		yield = t == mgr->current;
 	}
 
 	if (t->state == EXIT) { return -EALREADY; }
@@ -399,7 +410,7 @@ xtask_exit (struct xtask *t, int ec)
 	struct xtask *parent = t->parent;
 	eol (t, XZERO, ec);
 	if (yield) {
-		current = parent;
+		mgr->current = parent;
 		parent->state = CURRENT;
 		xctx_swap (t->ctx, parent->ctx);
 	}
@@ -426,7 +437,7 @@ print_head (const struct xtask *t, FILE *out)
 		fprintf (out, " %s", t->entry);
 	}
 #endif
-	fprintf (out, " %s tls=%u", state_names[t->state], t->tls_size);
+	fprintf (out, " %s tls=%u", state_names[t->state], t->mgr->tls_size);
 	if (t->state == EXIT) {
 		fprintf (out, " exitcode=%d>", t->exitcode);
 	}
@@ -471,12 +482,18 @@ xtask_print (const struct xtask *t, FILE *out)
 union xvalue
 xyield (union xvalue val)
 {
-	struct xtask *t = current, *p = t->parent;
+	struct xmgr *mgr = xmgr_self ();
+	ensure (NULL, mgr != NULL, "yield attempted outside of task");
 
-	ensure (t, p != NULL, "yield attempted outside of task");
+	struct xtask *t = mgr->current;
+	ensure (t, t != NULL, "yield attempted outside of task");
 	ensure (t, t->state != EXIT, "attempting to yield from exiting task");
 
-	current = p;
+	struct xtask *p = t->parent;
+	ensure (t, p != NULL, "yield attempted outside of task");
+
+	p->mgr->current = p;
+	thrd_mgr = p->mgr;
 
 	t->parent = NULL;
 	t->value = val;
@@ -496,12 +513,11 @@ xresume (struct xtask *t, union xvalue val)
 	ensure (t, t->state != ACTIVE, "attempting to resume an active task");
 	ensure (t, t->state < EXIT, "attempting to resume an exited task");
 
-	struct xtask *p = current;
-	if (p == NULL) {
-		p = &top;
-	}
+	struct xmgr *mgr = t->mgr;
+	struct xtask *p = mgr->current;
 
-	current = t;
+	mgr->current = t;
+	thrd_mgr = mgr;
 
 	t->parent = p;
 	t->value = val;
@@ -519,9 +535,12 @@ xdefer (void (*fn) (void *), void *data)
 {
 	assert (fn != NULL);
 
-	struct xdefer *def = pool;
+	struct xmgr *mgr = xmgr_self ();
+	ensure (NULL, mgr != NULL, "defer attempted outside of task");
+
+	struct xdefer *def = mgr->pool;
 	if (def != NULL) {
-		pool = def->next;
+		mgr->pool = def->next;
 	}
 	else {
 		def = malloc (sizeof (*def));
@@ -530,10 +549,10 @@ xdefer (void (*fn) (void *), void *data)
 		}
 	}
 
-	def->next = current->defer;
+	def->next = mgr->current->defer;
 	def->fn = fn;
 	def->data = data;
-	current->defer = def;
+	mgr->current->defer = def;
 
 	return 0;
 }

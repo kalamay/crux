@@ -16,6 +16,7 @@
 #include <assert.h>
 
 struct xhub {
+	struct xmgr *mgr;
 	struct xpoll poll;
 	struct xheap timeout;
 	struct xlist immediate;
@@ -111,6 +112,11 @@ xhub_new (struct xhub **hubp)
 
 	int rc;
 
+	rc = xmgr_new (&hub->mgr, XTASK_STACK_DEFAULT, sizeof (struct xhub_entry), XTASK_FDEFAULT);
+	if (rc < 0) {
+		goto err_mgr;
+	}
+
 	rc = xpoll_init (&hub->poll);
 	if (rc < 0) {
 		goto err_poll;
@@ -131,6 +137,8 @@ xhub_new (struct xhub **hubp)
 err_heap:
 	xpoll_final (&hub->poll);
 err_poll:
+	xmgr_free (&hub->mgr);
+err_mgr:
 	free (hub);
 	return rc;
 }
@@ -170,9 +178,8 @@ xhub_free (struct xhub **hubp)
 
 		xheap_clear (&hub->timeout, free_hent, NULL);
 		xheap_final (&hub->timeout);
-
 		xpoll_final (&hub->poll);
-
+		xmgr_free (&hub->mgr);
 		free (hub);
 	}
 }
@@ -279,16 +286,12 @@ xspawn_at (struct xhub *hub, const char *file, int line,
 {
 	struct xtask *t;
 	struct xhub_entry *ent;
-	int rc = xtask_new (&t, XTASK_STACK_SIZE, XTASK_FLAGS, NULL, sizeof *ent,
-			spawn_fn);
+	int rc = xtask_newf (&t, hub->mgr, NULL, file, line, spawn_fn);
 	if (rc < 0) {
 		return rc;
 	}
 
-	xtask_set_file (t, file, line);
-
 	ent = xtask_local (t);
-	memset (ent, 0, sizeof (*ent));
 	ent->t = t;
 	ent->data = data;
 	ent->hub = hub;

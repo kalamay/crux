@@ -45,11 +45,14 @@ test_fibonacci (void)
 		514229
 	};
 
+	struct xmgr *mgr;
+	mu_assert_int_eq (xmgr_new (&mgr, XTASK_STACK_DEFAULT, sizeof (void *), XTASK_FDEBUG), 0);
+
 	struct xtask *t1, *t2;
 	uint64_t got[10];
 
-	mu_assert_int_eq (xtask_new_fn (&t1, fib), 0);
-	mu_assert_int_eq (xtask_new_tls (&t2, &t1, 8, fib3), 0);
+	mu_assert_int_eq (xtask_new (&t1, mgr, NULL, fib), 0);
+	mu_assert_int_eq (xtask_new (&t2, mgr, &t1, fib3), 0);
 
 	for (uint64_t n = 0; n < 10; n++) {
 		uint64_t val = xresume (t2, XZERO).u64;
@@ -69,6 +72,8 @@ test_fibonacci (void)
 	mu_assert_uint_eq (expect[7], got[7]);
 	mu_assert_uint_eq (expect[8], got[8]);
 	mu_assert_uint_eq (expect[9], got[9]);
+
+	xmgr_free (&mgr);
 }
 
 static void
@@ -93,21 +98,25 @@ test_defer (void)
 {
 	int n = 0;
 
+	struct xmgr *mgr;
+	mu_assert_int_eq (xmgr_new (&mgr, XTASK_STACK_DEFAULT, 0, XTASK_FDEBUG), 0);
+
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new_fn (&t, defer_coro), 0);
+	mu_assert_int_eq (xtask_new (&t, mgr, NULL, defer_coro), 0);
 	xresume (t, XPTR (&n));
 
 	mu_assert (!xtask_alive (t))
 	mu_assert_int_eq (n, 3);
 
 	xtask_free (&t);
+	xmgr_free (&mgr);
 }
 
 static void
 defer_fib (void *ptr)
 {
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new_fn (&t, fib), 0);
+	mu_assert_int_eq (xtask_new (&t, xmgr_self (), NULL, fib), 0);
 
 	mu_assert_uint_eq (xresume (t, XZERO).u64, 0);
 	mu_assert_uint_eq (xresume (t, XZERO).u64, 1);
@@ -132,10 +141,13 @@ defer_resume_coro (void *tls, union xvalue val)
 static void
 test_defer_resume (void)
 {
+	struct xmgr *mgr;
+	mu_assert_int_eq (xmgr_new (&mgr, XTASK_STACK_DEFAULT, 0, XTASK_FDEBUG), 0);
+
 	struct xtask *t;
 	int n = 0;
 
-	mu_assert_int_eq (xtask_new_fn (&t, defer_resume_coro), 0);
+	mu_assert_int_eq (xtask_new (&t, mgr, NULL, defer_resume_coro), 0);
 
 	xresume (t, XPTR (&n));
 
@@ -143,6 +155,7 @@ test_defer_resume (void)
 	mu_assert_int_eq (n, 1);
 
 	xtask_free (&t);
+	xmgr_free (&mgr);
 }
 
 static union xvalue
@@ -159,8 +172,11 @@ doexit (void *ptr, union xvalue v)
 static void
 test_exit (void)
 {
+	struct xmgr *mgr;
+	mu_assert_int_eq (xmgr_new (&mgr, XTASK_STACK_DEFAULT, 0, XTASK_FDEBUG), 0);
+
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new_fn (&t, doexit), 0);
+	mu_assert_int_eq (xtask_new (&t, mgr, NULL, doexit), 0);
 
 	union xvalue val;
 
@@ -180,13 +196,17 @@ test_exit (void)
 	mu_assert_int_eq (val.i, 0);
 
 	xtask_free (&t);
+	xmgr_free (&mgr);
 }
 
 static void
 test_exit_external (void)
 {
+	struct xmgr *mgr;
+	mu_assert_int_eq (xmgr_new (&mgr, XTASK_STACK_DEFAULT, 0, XTASK_FDEBUG), 0);
+
 	struct xtask *t;
-	mu_assert_int_eq (xtask_new_fn (&t, doexit), 0);
+	mu_assert_int_eq (xtask_new (&t, mgr, NULL, doexit), 0);
 
 	union xvalue val;
 
@@ -201,27 +221,30 @@ test_exit_external (void)
 	mu_assert_int_eq (xtask_exitcode (t), 2);
 
 	xtask_free (&t);
+	xmgr_free (&mgr);
 }
 
 static void
 test_tls (void)
 {
+	struct xmgr *mgr;
+	mu_assert_int_eq (xmgr_new (&mgr, XTASK_STACK_DEFAULT, 24, XTASK_FDEBUG), 0);
+
 	struct xtask *t;
 
-	mu_assert_int_eq (xtask_new_tls (&t, NULL, 24, doexit), 0);
+	mu_assert_int_eq (xtask_new (&t, mgr, NULL, doexit), 0);
 
 	void *tls = xtask_local (t);
 	mu_assert_ptr_ne (tls, NULL);
 	mu_assert_uint_eq ((uintptr_t)tls % 16, 0);
 
 	xtask_free (&t);
+	xmgr_free (&mgr);
 }
 
 int
 main (void)
 {
-	XTASK_FLAGS = XTASK_FDEBUG;
-
 	mu_init ("task");
 	mu_run (test_fibonacci);
 	mu_run (test_defer);
