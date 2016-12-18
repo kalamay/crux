@@ -111,6 +111,12 @@ TEST:= \
 	test/task.c \
 	test/poll.c \
 	test/hub.c
+INSTALL:= \
+	$(DESTDIR)$(PREFIX)/lib/$(SO) \
+	$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
+	$(DESTDIR)$(PREFIX)/lib/$(SO_ANY) \
+	$(DESTDIR)$(PREFIX)/lib/$(LIB) \
+	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%)
 
 SRC_OBJ:= $(SRC:src/%.c=$(BUILD_TMP)/crux-%.o)
 TEST_OBJ:= $(TEST:test/%.c=$(BUILD_TMP)/crux-test-%.o)
@@ -127,12 +133,7 @@ dynamic: $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
 
 include: $(INCLUDE:%=$(BUILD_TYPE)/%)
 
-install: \
-	$(DESTDIR)$(PREFIX)/lib/$(SO) \
-	$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
-	$(DESTDIR)$(PREFIX)/lib/$(SO_ANY) \
-	$(DESTDIR)$(PREFIX)/lib/$(LIB) \
-	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%)
+install: $(INSTALL)
 
 $(DESTDIR)$(PREFIX)/%: $(BUILD_TYPE)/%
 	@mkdir -p $(dir $@)
