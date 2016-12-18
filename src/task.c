@@ -1,4 +1,4 @@
-#include "../include/crux/task.h"
+#include "task.h"
 #include "../include/crux/ctx.h"
 #include "../include/crux/err.h"
 #include "../include/crux/def.h"
@@ -122,27 +122,32 @@ struct xtask {
 	int line;                      /** allocation source line number */
 	int16_t exitcode;              /** code if in EXIT state */
 	uint8_t state;                 /** SUSPENDED, CURRENT, ACTIVE, or EXIT */
+	bool istop;
 } __attribute__ ((aligned (16)));
 
-struct xmgr {
-	uint32_t map_size;
-	uint32_t stack_size;
-	uint32_t tls_size;
-	int flags;
-	struct xdefer *pool;
-	struct xtask *dead;
-	struct xtask *current;
-	struct xtask top;
+static __thread struct xtask *current = NULL;
+static __thread struct xtask top = {
+#if HAS_DLADDR
+	.entry = "main",
+#endif
+	.state = CURRENT,
+	.istop = true
 };
-
-static __thread struct xmgr *thrd_mgr = NULL;
 
 int
 xmgr_new (struct xmgr **mgrp, size_t stack, size_t tls, int flags)
 {
 	struct xmgr *mgr = calloc (1, sizeof *mgr);
 	if (mgr == NULL) { return -XERRNO; }
+	int rc = xmgr_init (mgr, stack, tls, flags);
+	if (rc < 0) { free (mgr); }
+	else { *mgrp = mgr; }
+	return rc;
+}
 
+int
+xmgr_init (struct xmgr *mgr, size_t stack, size_t tls, int flags)
+{
 	if (stack < XTASK_STACK_MIN) {
 		stack = XTASK_STACK_MIN;
 	}
@@ -165,14 +170,7 @@ xmgr_new (struct xmgr **mgrp, size_t stack, size_t tls, int flags)
 	mgr->stack_size = stack;
 	mgr->tls_size = tls;
 	mgr->flags = flags;
-	mgr->current = &mgr->top;
-	mgr->top.mgr = mgr;
-#if HAS_DLADDR
-	mgr->top.entry = "main";
-#endif
-	mgr->top.state = CURRENT;
 
-	*mgrp = mgr;
 	return 0;
 }
 
@@ -183,9 +181,14 @@ xmgr_free (struct xmgr **mgrp)
 
 	struct xmgr *mgr = *mgrp;
 	if (mgr == NULL) { return; }
-
 	*mgrp = NULL;
+	xmgr_final (mgr);
+	free (mgr);
+}
 
+void
+xmgr_final (struct xmgr *mgr)
+{
 	struct xdefer *pool = mgr->pool;
 	while (pool != NULL) {
 		struct xdefer *next = pool->next;
@@ -199,14 +202,13 @@ xmgr_free (struct xmgr **mgrp)
 		munmap (dead, mgr->map_size);
 		dead = next;
 	}
-
-	free (mgr);
 }
 
 struct xmgr *
 xmgr_self (void)
 {
-	return thrd_mgr;
+	struct xtask *t = current;
+	return t ? t->mgr : NULL;
 }
 
 /**
@@ -260,7 +262,7 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 	union xvalue val = fn (xtask_local (t), t->value);
 
 	eol (t, val, 0);
-	t->mgr->current = p;
+	current = p;
 	p->state = CURRENT;
 	xctx_swap (t->ctx, p->ctx);
 }
@@ -313,6 +315,7 @@ xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
 	t->line = line;
 	t->exitcode = -1;
 	t->state = SUSPENDED;
+	t->istop = false;
 
 #if STACK_GROWS_UP
 	map += sizeof (*t) + tls_size;
@@ -349,7 +352,7 @@ xtask_free (struct xtask **tp)
 
 	ensure (t, t->state != CURRENT, "attempting to free current task");
 	ensure (t, t->state != ACTIVE, "attempting to free an active task");
-	ensure (t, t != &t->mgr->top, "attempting to free main task");
+	ensure (t, !t->istop, "attempting to free main task");
 
 	*tp = NULL;
 
@@ -362,8 +365,7 @@ xtask_free (struct xtask **tp)
 struct xtask *
 xtask_self (void)
 {
-	struct xmgr *mgr = xmgr_self ();
-	return mgr ? mgr->current : NULL;
+	return current;
 }
 
 void *
@@ -392,27 +394,25 @@ xtask_exitcode (const struct xtask *t)
 int
 xtask_exit (struct xtask *t, int ec)
 {
-	struct xmgr *mgr = xmgr_self ();
-	if (mgr == NULL) { return -ENOENT; }
-
 	bool yield;
 	if (t == NULL) {
-		t = mgr->current;
+		t = current;
 		if (t == NULL) { return -EINVAL; }
 		yield = true;
 	}
 	else {
-		yield = t == mgr->current;
+		yield = t == current;
 	}
 
+	if (t->istop) { return -EINVAL; }
 	if (t->state == EXIT) { return -EALREADY; }
 
-	struct xtask *parent = t->parent;
+	struct xtask *p = t->parent;
 	eol (t, XZERO, ec);
 	if (yield) {
-		mgr->current = parent;
-		parent->state = CURRENT;
-		xctx_swap (t->ctx, parent->ctx);
+		current = p;
+		p->state = CURRENT;
+		xctx_swap (t->ctx, p->ctx);
 	}
 
 	return 0;
@@ -482,18 +482,14 @@ xtask_print (const struct xtask *t, FILE *out)
 union xvalue
 xyield (union xvalue val)
 {
-	struct xmgr *mgr = xmgr_self ();
-	ensure (NULL, mgr != NULL, "yield attempted outside of task");
-
-	struct xtask *t = mgr->current;
+	struct xtask *t = current;
 	ensure (t, t != NULL, "yield attempted outside of task");
 	ensure (t, t->state != EXIT, "attempting to yield from exiting task");
 
 	struct xtask *p = t->parent;
 	ensure (t, p != NULL, "yield attempted outside of task");
 
-	p->mgr->current = p;
-	thrd_mgr = p->mgr;
+	current = p;
 
 	t->parent = NULL;
 	t->value = val;
@@ -513,11 +509,10 @@ xresume (struct xtask *t, union xvalue val)
 	ensure (t, t->state != ACTIVE, "attempting to resume an active task");
 	ensure (t, t->state < EXIT, "attempting to resume an exited task");
 
-	struct xmgr *mgr = t->mgr;
-	struct xtask *p = mgr->current;
+	struct xtask *p = current;
+	if (p == NULL) { p = &top; }
 
-	mgr->current = t;
-	thrd_mgr = mgr;
+	current = t;
 
 	t->parent = p;
 	t->value = val;
@@ -535,24 +530,23 @@ xdefer (void (*fn) (void *), void *data)
 {
 	assert (fn != NULL);
 
-	struct xmgr *mgr = xmgr_self ();
-	ensure (NULL, mgr != NULL, "defer attempted outside of task");
+	struct xtask *t = current;
+	ensure (NULL, t != NULL && !t->istop, "defer attempted outside of task");
 
+	struct xmgr *mgr = t->mgr;
 	struct xdefer *def = mgr->pool;
 	if (def != NULL) {
 		mgr->pool = def->next;
 	}
 	else {
 		def = malloc (sizeof (*def));
-		if (def == NULL) {
-			return XERRNO;
-		}
+		if (def == NULL) { return XERRNO; }
 	}
 
-	def->next = mgr->current->defer;
+	def->next = t->defer;
 	def->fn = fn;
 	def->data = data;
-	mgr->current->defer = def;
+	t->defer = def;
 
 	return 0;
 }

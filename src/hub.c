@@ -1,9 +1,9 @@
 #include "../include/crux/hub.h"
 #include "../include/crux/err.h"
-#include "../include/crux/task.h"
 #include "../include/crux/list.h"
 #include "../include/crux/common.h"
 
+#include "task.h"
 #include "heap.h"
 #include "poll.h"
 
@@ -16,7 +16,7 @@
 #include <assert.h>
 
 struct xhub {
-	struct xmgr *mgr;
+	struct xmgr mgr;
 	struct xpoll poll;
 	struct xheap timeout;
 	struct xlist immediate;
@@ -112,7 +112,7 @@ xhub_new (struct xhub **hubp)
 
 	int rc;
 
-	rc = xmgr_new (&hub->mgr, XTASK_STACK_DEFAULT, sizeof (struct xhub_entry), XTASK_FDEFAULT);
+	rc = xmgr_init (&hub->mgr, XTASK_STACK_DEFAULT, sizeof (struct xhub_entry), XTASK_FDEFAULT);
 	if (rc < 0) {
 		goto err_mgr;
 	}
@@ -137,7 +137,7 @@ xhub_new (struct xhub **hubp)
 err_heap:
 	xpoll_final (&hub->poll);
 err_poll:
-	xmgr_free (&hub->mgr);
+	xmgr_final (&hub->mgr);
 err_mgr:
 	free (hub);
 	return rc;
@@ -179,7 +179,7 @@ xhub_free (struct xhub **hubp)
 		xheap_clear (&hub->timeout, free_hent, NULL);
 		xheap_final (&hub->timeout);
 		xpoll_final (&hub->poll);
-		xmgr_free (&hub->mgr);
+		xmgr_final (&hub->mgr);
 		free (hub);
 	}
 }
@@ -286,7 +286,7 @@ xspawn_at (struct xhub *hub, const char *file, int line,
 {
 	struct xtask *t;
 	struct xhub_entry *ent;
-	int rc = xtask_newf (&t, hub->mgr, NULL, file, line, spawn_fn);
+	int rc = xtask_newf (&t, &hub->mgr, NULL, file, line, spawn_fn);
 	if (rc < 0) {
 		return rc;
 	}
