@@ -49,6 +49,7 @@ static const char *mu_name = "test";
 static int mu_register = 0;
 static struct mu_counts mu_counts_start = { 0, 0 };
 static struct mu_counts *mu_counts = &mu_counts_start;
+static bool mu_fork = true;
 
 #define MU_CAT2(n, v) n##v
 #define MU_CAT(n, v) MU_CAT2(n, v)
@@ -189,6 +190,7 @@ mu_setup (void)
 			fprintf (stderr, "failed mmap: %s\n", strerror (errno));
 			exit (1);
 		}
+		if (getenv ("MU_NOFORK") != NULL) { mu_fork = false; }
 		memcpy (mu_counts, &mu_counts_start, sizeof mu_counts_start);
 		atexit (mu_exit);
 	}
@@ -207,6 +209,10 @@ static void __attribute__ ((unused))
 mu_run (void (*fn) (void))
 {
 	mu_setup ();
+	if (!mu_fork) {
+		fn ();
+		return;
+	}
 	int rc = fork ();
 	if (rc < 0) {
 		fprintf (stderr, "failed fork: %s\n", strerror (errno));
@@ -227,17 +233,17 @@ mu_run (void (*fn) (void))
 			}
 		} while (WIFSTOPPED (stat) || WIFCONTINUED (stat));
 		if (WIFEXITED (stat)) {
+			__sync_fetch_and_add (&mu_counts->asserts, 1);
 			int exit_status = WEXITSTATUS (stat);
 			if (exit_status != 0) {
-				__sync_fetch_and_add (&mu_counts->asserts, 1);
 				__sync_fetch_and_add (&mu_counts->failures, 1);
 				fprintf (stderr, "test has non-zero exit: %d\n", exit_status);
 			}
 		}
 		if (WIFSIGNALED (stat)) {
+			__sync_fetch_and_add (&mu_counts->asserts, 1);
 			int exit_signal = WTERMSIG (stat);
 			if (exit_signal != 0) {
-				__sync_fetch_and_add (&mu_counts->asserts, 1);
 				__sync_fetch_and_add (&mu_counts->failures, 1);
 				fprintf (stderr, "test recieved signal: %d\n", exit_signal);
 			}
