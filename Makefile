@@ -59,8 +59,8 @@ LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 
 SRC:= src/err.c src/heap.c src/clock.c src/task.c src/poll.c src/hub.c
 TEST:= test/heap.c test/clock.c test/task.c test/poll.c test/hub.c
-SRC_OBJ:= $(SRC:src/%.c=$(BUILD_OBJ)/hub-%.o)
-TEST_OBJ:= $(TEST:test/%.c=$(BUILD_OBJ)/hub-test-%.o)
+SRC_OBJ:= $(SRC:src/%.c=$(BUILD_OBJ)/crux-%.o)
+TEST_OBJ:= $(TEST:test/%.c=$(BUILD_OBJ)/crux-test-%.o)
 TEST_BIN:= $(TEST:test/%.c=$(BUILD_TEST)/%)
 
 test: $(TEST_BIN)
@@ -74,13 +74,13 @@ $(SRC): $(BUILD_TMP)/config.h
 $(BUILD_TMP)/config.h: bin/config.py | $(BUILD_TMP)
 	python $< > $@
 
-$(BUILD_TEST)/%: $(BUILD_OBJ)/hub-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
+$(BUILD_TEST)/%: $(BUILD_OBJ)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
 	$(CC) $(LDFLAGS) $^ -o $@
 
-$(BUILD_OBJ)/hub-%.o: src/%.c Makefile | $(BUILD_OBJ)
+$(BUILD_OBJ)/crux-%.o: src/%.c Makefile | $(BUILD_OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_OBJ)/hub-test-%.o: test/%.c Makefile | $(BUILD_OBJ)
+$(BUILD_OBJ)/crux-test-%.o: test/%.c Makefile | $(BUILD_OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_BIN) $(BUILD_TEST) $(BUILD_OBJ) $(BUILD_TMP):
