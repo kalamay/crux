@@ -4,7 +4,6 @@
 # command line and/or placed in a file named "Custom.mk" next to the Makefile.
 #
 # Build Configuration Options:
-#   NAME: name of the target (default "crux")
 #   PREFIX: install prefix for shared libraries (default "/usr/local")
 #   DESTDIR: install target directory (default "")
 #
@@ -29,7 +28,6 @@
 
 -include Custom.mk
 
-NAME?=crux
 PREFIX?=/usr/local
 DESTDIR?=
 VERSION_MAJOR:= 0
@@ -59,16 +57,16 @@ LDFLAGS_COMMON?= $(FLAGS_COMMON) $(LDFLAGS_EXECINFO)
 LDFLAGS_DEBUG?= $(LDFLAGS_COMMON)
 LDFLAGS_RELEASE?= $(LDFLAGS_COMMON)
 
-LIB:= lib$(NAME).a
+LIB:= libcrux.a
 ifeq ($(shell uname),Darwin)
-  SO:=lib$(NAME).$(VERSION).dylib
-  SO_COMPAT:=lib$(NAME).$(VERSION_COMPAT).dylib
-  SO_ANY:=lib$(NAME).dylib
+  SO:=libcrux.$(VERSION).dylib
+  SO_COMPAT:=libcrux.$(VERSION_COMPAT).dylib
+  SO_ANY:=libcrux.dylib
   SOFLAGS:= -dynamiclib -install_name $(PREFIX)/lib/$(SO) -compatibility_version $(VERSION_COMPAT) -current_version $(VERSION)
 else
-  SO:=lib$(NAME).so.$(VERSION)
-  SO_COMPAT:=lib$(NAME).so.$(VERSION_MAJOR)
-  SO_ANY:=lib$(NAME).so
+  SO:=libcrux.so.$(VERSION)
+  SO_COMPAT:=libcrux.so.$(VERSION_MAJOR)
+  SO_ANY:=libcrux.so
   SOFLAGS:= -shared -Wl,-rpath=$(PREFIX)/lib
 endif
 
@@ -76,23 +74,49 @@ BUILD?= release
 BUILD_ROOT?= build
 BUILD_UPPER:= $(shell echo $(BUILD) | tr a-z A-Z)
 BUILD_TYPE:= $(BUILD_ROOT)/$(BUILD)
-BUILD_BIN:= $(BUILD_TYPE)/bin
 BUILD_LIB:= $(BUILD_TYPE)/lib
+BUILD_INCLUDE:= $(BUILD_TYPE)/include
 BUILD_TEST:= $(BUILD_TYPE)/test
-BUILD_OBJ:= $(BUILD_TYPE)/obj
-BUILD_TMP:= $(BUILD_TYPE)/tmp
+BUILD_TMP:= $(BUILD_ROOT)/tmp/$(BUILD)
 
 CFLAGS?= $(CFLAGS_$(BUILD_UPPER))
 CFLAGS:= $(CFLAGS) -fno-omit-frame-pointer -MMD -MP -Iinclude -I$(BUILD_TMP)
 LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 
-SRC:= src/version.c src/err.c src/heap.c src/clock.c src/task.c src/poll.c src/hub.c
-TEST:= test/heap.c test/clock.c test/task.c test/poll.c test/hub.c
-SRC_OBJ:= $(SRC:src/%.c=$(BUILD_OBJ)/$(NAME)-%.o)
-TEST_OBJ:= $(TEST:test/%.c=$(BUILD_OBJ)/$(NAME)-test-%.o)
+SRC:= \
+	src/version.c \
+	src/err.c \
+	src/heap.c \
+	src/clock.c \
+	src/task.c \
+	src/poll.c \
+	src/hub.c
+INCLUDE:= \
+	include/crux.h \
+	include/crux/clock.h \
+	include/crux/common.h \
+	include/crux/ctx.h \
+	include/crux/def.h \
+	include/crux/err.h \
+	include/crux/heap.h \
+	include/crux/hub.h \
+	include/crux/list.h \
+	include/crux/poll.h \
+	include/crux/task.h \
+	include/crux/value.h \
+	include/crux/version.h
+TEST:= \
+	test/heap.c \
+	test/clock.c \
+	test/task.c \
+	test/poll.c \
+	test/hub.c
+
+SRC_OBJ:= $(SRC:src/%.c=$(BUILD_TMP)/crux-%.o)
+TEST_OBJ:= $(TEST:test/%.c=$(BUILD_TMP)/crux-test-%.o)
 TEST_BIN:= $(TEST:test/%.c=$(BUILD_TEST)/%)
 
-all: static dynamic
+all: static dynamic include
 
 test: $(TEST_BIN)
 	@for t in $^; do ./$$t; done
@@ -101,16 +125,23 @@ static: $(BUILD_LIB)/$(LIB)
 
 dynamic: $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
 
-install: $(BUILD_LIB)/$(LIB) $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
-	mkdir -p $(DESTDIR)$(PREFIX)/include/crux
-	cp $(BUILD_LIB)/$(LIB) $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY) $(DESTDIR)$(PREFIX)/lib
-	cp include/crux.h $(DESTDIR)$(PREFIX)/include
-	cp include/crux/*.h $(DESTDIR)$(PREFIX)/include/crux
+include: $(INCLUDE:%=$(BUILD_TYPE)/%)
+
+install: \
+	$(DESTDIR)$(PREFIX)/lib/$(SO) \
+	$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
+	$(DESTDIR)$(PREFIX)/lib/$(SO_ANY) \
+	$(DESTDIR)$(PREFIX)/lib/$(LIB) \
+	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%)
+
+$(DESTDIR)$(PREFIX)/%: $(BUILD_TYPE)/%
+	@mkdir -p $(dir $@)
+	cp -R $< $@
 
 uninstall:
-	rm -r \
-		$(DESTDIR)$(PREFIX)/include/crux \
+	rm -rf \
+		$(DESTDIR)$(PREFIX)/include/crux
+	rm -f \
 		$(DESTDIR)$(PREFIX)/include/crux.h \
 		$(DESTDIR)$(PREFIX)/lib/$(LIB) \
 		$(DESTDIR)$(PREFIX)/lib/$(SO) \
@@ -131,19 +162,22 @@ $(BUILD_LIB)/$(LIB): $(SRC_OBJ) | $(BUILD_LIB)
 $(BUILD_LIB)/$(SO): $(SRC_OBJ) | $(BUILD_LIB)
 	$(CC) $(LDFLAGS) $(SOFLAGS) $^ -o $@
 
-$(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY): $(BUILD_LIB)/$(SO)
+$(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY):
 	cd $(BUILD_LIB) && ln -s $(SO) $(notdir $@)
 
-$(BUILD_TEST)/%: $(BUILD_OBJ)/$(NAME)-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
+$(BUILD_INCLUDE)/%: include/% | $(BUILD_INCLUDE)/crux
+	cp $< $@
+
+$(BUILD_TEST)/%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
 	$(CC) $(LDFLAGS) $^ -o $@
 
-$(BUILD_OBJ)/$(NAME)-%.o: src/%.c Makefile | $(BUILD_OBJ)
+$(BUILD_TMP)/crux-%.o: src/%.c Makefile | $(BUILD_TMP)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_OBJ)/$(NAME)-test-%.o: test/%.c Makefile | $(BUILD_OBJ)
+$(BUILD_TMP)/crux-test-%.o: test/%.c Makefile | $(BUILD_TMP)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_BIN) $(BUILD_LIB) $(BUILD_TEST) $(BUILD_OBJ) $(BUILD_TMP):
+$(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_TEST) $(BUILD_TMP):
 	mkdir -p $@
 
 clean:
