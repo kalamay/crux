@@ -135,18 +135,18 @@ static __thread struct xtask top = {
 };
 
 int
-xmgr_new (struct xmgr **mgrp, size_t stack, size_t tls, int flags)
+xmgr_new (struct xmgr **mgrp, size_t tls, size_t stack, int flags)
 {
 	struct xmgr *mgr = calloc (1, sizeof *mgr);
 	if (mgr == NULL) { return -XERRNO; }
-	int rc = xmgr_init (mgr, stack, tls, flags);
+	int rc = xmgr_init (mgr, tls, stack, flags);
 	if (rc < 0) { free (mgr); }
 	else { *mgrp = mgr; }
 	return rc;
 }
 
 int
-xmgr_init (struct xmgr *mgr, size_t stack, size_t tls, int flags)
+xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags)
 {
 	if (stack < XTASK_STACK_MIN) {
 		stack = XTASK_STACK_MIN;

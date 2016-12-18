@@ -45,13 +45,13 @@ struct xmgr;
  * @brief  Creates a new task manager for constructing and using tasks
  *
  * @param[out]  mgrp   reference to the manager pointer to create
- * @param  stack  minimum amount of stack space for each task
  * @param  tls    task local storage space for each task
+ * @param  stack  minimum amount of stack space for each task
  * @param  flags  flags for task flags
  * @return  0 on succes, -errno on error
  */
 extern int
-xmgr_new (struct xmgr **mgrp, size_t stack, size_t tls, int flags);
+xmgr_new (struct xmgr **mgrp, size_t tls, size_t stack, int flags);
 
 /**
  * @brief  Frees a task manager
