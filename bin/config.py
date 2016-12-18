@@ -92,3 +92,10 @@ print(("""
 """).strip())
 print("# define HAS_%s 1" % arch())
 print("#endif")
+
+print(("""
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+# include <unistd.h>
+# define HAS_POSIX _POSIX_VERSION
+#endif
+""").strip())
