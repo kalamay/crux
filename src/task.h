@@ -5,8 +5,8 @@ struct xmgr {
 	uint32_t stack_size;
 	uint32_t tls_size;
 	int flags;
-	struct xdefer *pool;
-	struct xtask *dead;
+	struct xdefer *free_defer;
+	struct xtask *free_task;
 };
 
 extern int

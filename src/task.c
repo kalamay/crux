@@ -189,18 +189,18 @@ xmgr_free (struct xmgr **mgrp)
 void
 xmgr_final (struct xmgr *mgr)
 {
-	struct xdefer *pool = mgr->pool;
-	while (pool != NULL) {
-		struct xdefer *next = pool->next;
-		free (pool);
-		pool = next;
+	struct xdefer *free_defer = mgr->free_defer;
+	while (free_defer != NULL) {
+		struct xdefer *next = free_defer->next;
+		free (free_defer);
+		free_defer = next;
 	}
 
-	struct xtask *dead = mgr->dead;
-	while (dead != NULL) {
-		struct xtask *next = dead->parent;
-		munmap (dead, mgr->map_size);
-		dead = next;
+	struct xtask *free_task = mgr->free_task;
+	while (free_task != NULL) {
+		struct xtask *next = free_task->parent;
+		munmap (free_task, mgr->map_size);
+		free_task = next;
 	}
 }
 
@@ -232,8 +232,8 @@ eol (struct xtask *t, union xvalue val, int ec)
 	while (def != NULL) {
 		struct xdefer *next = def->next;
 		def->fn (def->data);
-		def->next = mgr->pool;
-		mgr->pool = def;
+		def->next = mgr->free_defer;
+		mgr->free_defer = def;
 		def = next;
 
 		// mark exit status again in case defer resumed a separate task
@@ -276,13 +276,13 @@ xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
 	assert (mgr != NULL);
 	assert (fn != NULL);
 
-	struct xtask *t = mgr->dead;
+	struct xtask *t = mgr->free_task;
 	size_t map_size = mgr->map_size;
 	size_t tls_size = mgr->tls_size;
 	uint8_t *map;
 
 	if (t != NULL) {
-		mgr->dead = t->parent;
+		mgr->free_task = t->parent;
 		map = MAP_BEGIN (t, map_size);
 	}
 	else {
@@ -358,8 +358,8 @@ xtask_free (struct xtask **tp)
 
 	eol (t, XZERO, t->exitcode);
 
-	t->parent = t->mgr->dead;
-	t->mgr->dead = t;
+	t->parent = t->mgr->free_task;
+	t->mgr->free_task = t;
 }
 
 struct xtask *
@@ -534,9 +534,9 @@ xdefer (void (*fn) (void *), void *data)
 	ensure (NULL, t != NULL && !t->istop, "defer attempted outside of task");
 
 	struct xmgr *mgr = t->mgr;
-	struct xdefer *def = mgr->pool;
+	struct xdefer *def = mgr->free_defer;
 	if (def != NULL) {
-		mgr->pool = def->next;
+		mgr->free_defer = def->next;
 	}
 	else {
 		def = malloc (sizeof (*def));
