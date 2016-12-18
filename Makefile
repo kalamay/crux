@@ -36,6 +36,7 @@ VERSION_PATCH:= 0
 VERSION:=$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
 VERSION_COMPAT:=$(VERSION_MAJOR).$(VERSION_MINOR)
 
+# detect execinfo and update build flags
 EXECINFO_H?= $(wildcard /usr/include/execinfo.h /usr/local/include/execinfo.h)
 ifeq ($(EXECINFO_H),)
  EXECINFO?=0
@@ -47,6 +48,7 @@ else
  endif
 endif
 
+# set default compiler and linker flags
 FLAGS_COMMON?= -march=native
 CFLAGS_COMMON?= $(FLAGS_COMMON) \
 	-DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_PATCH=$(VERSION_PATCH) \
@@ -57,6 +59,7 @@ LDFLAGS_COMMON?= $(FLAGS_COMMON) $(LDFLAGS_EXECINFO)
 LDFLAGS_DEBUG?= $(LDFLAGS_COMMON)
 LDFLAGS_RELEASE?= $(LDFLAGS_COMMON)
 
+# define static and dynamic library names and set platform library flags
 LIB:= libcrux.a
 ifeq ($(shell uname),Darwin)
   SO:=libcrux.$(VERSION).dylib
@@ -70,6 +73,7 @@ else
   SOFLAGS:= -shared -Wl,-rpath=$(PREFIX)/lib
 endif
 
+# set build directory variables
 BUILD?= release
 BUILD_ROOT?= build
 BUILD_UPPER:= $(shell echo $(BUILD) | tr a-z A-Z)
@@ -79,10 +83,12 @@ BUILD_INCLUDE:= $(BUILD_TYPE)/include
 BUILD_TEST:= $(BUILD_TYPE)/test
 BUILD_TMP:= $(BUILD_ROOT)/tmp/$(BUILD)
 
+# update final build flags
 CFLAGS?= $(CFLAGS_$(BUILD_UPPER))
 CFLAGS:= $(CFLAGS) -fno-omit-frame-pointer -MMD -MP -Iinclude -I$(BUILD_TMP)
 LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 
+# list of souce files to include in build
 SRC:= \
 	src/version.c \
 	src/err.c \
@@ -91,6 +97,8 @@ SRC:= \
 	src/task.c \
 	src/poll.c \
 	src/hub.c
+
+# list of header files to include in build
 INCLUDE:= \
 	include/crux.h \
 	include/crux/clock.h \
@@ -105,12 +113,16 @@ INCLUDE:= \
 	include/crux/task.h \
 	include/crux/value.h \
 	include/crux/version.h
+
+# list of source files for testing
 TEST:= \
 	test/heap.c \
 	test/clock.c \
 	test/task.c \
 	test/poll.c \
 	test/hub.c
+
+# list of files to install
 INSTALL:= \
 	$(DESTDIR)$(PREFIX)/lib/$(SO) \
 	$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
@@ -118,69 +130,94 @@ INSTALL:= \
 	$(DESTDIR)$(PREFIX)/lib/$(LIB) \
 	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%)
 
+# object files mapped from source files
 SRC_OBJ:= $(SRC:src/%.c=$(BUILD_TMP)/crux-%.o)
+# object files mapped from test files
 TEST_OBJ:= $(TEST:test/%.c=$(BUILD_TMP)/crux-test-%.o)
+# executable files mapped from test files
 TEST_BIN:= $(TEST:test/%.c=$(BUILD_TEST)/%)
+# build header files mapped from include files
+INCLUDE_BUILD:=$(INCLUDE:%=$(BUILD_TYPE)/%)
 
 all: static dynamic include
 
+# compile and run all tests
 test: $(TEST_BIN)
 	@for t in $^; do ./$$t; done
 
+# create static library
 static: $(BUILD_LIB)/$(LIB)
 
+# compile and link shared library
 dynamic: $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
 
-include: $(INCLUDE:%=$(BUILD_TYPE)/%)
+# copy all header files into build directory
+include: $(INCLUDE_BUILD)
 
+# install all build files into destination
 install: $(INSTALL)
 
+# copy file from build directory into install destination
 $(DESTDIR)$(PREFIX)/%: $(BUILD_TYPE)/%
 	@mkdir -p $(dir $@)
 	cp -R $< $@
 
+# remove installed files for the current version
 uninstall:
 	rm -f $(INSTALL)
 	@if [ -d $(DESTDIR)$(PREFIX)/include/crux ]; then rmdir $(DESTDIR)$(PREFIX)/include/crux; fi
 
+# build and execute test
 test-%: $(BUILD_TEST)/%
 	./$<
 
+# set config.h as a dependency for all source files
 $(SRC): $(BUILD_TMP)/config.h
 
+# generate config.h
 $(BUILD_TMP)/config.h: bin/config.py | $(BUILD_TMP)
 	python $< > $@
 
+# create static library archive
 $(BUILD_LIB)/$(LIB): $(SRC_OBJ) | $(BUILD_LIB)
 	$(AR) rcus $@ $^
-			
+
+# link shared library
 $(BUILD_LIB)/$(SO): $(SRC_OBJ) | $(BUILD_LIB)
 	$(CC) $(LDFLAGS) $(SOFLAGS) $^ -o $@
 
+# create symbolic link for shared library
 $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY):
 	cd $(BUILD_LIB) && ln -s $(SO) $(notdir $@)
 
+# copy source headers into build directory
 $(BUILD_INCLUDE)/%: include/% | $(BUILD_INCLUDE)/crux
 	cp $< $@
 
+# link test executables
 $(BUILD_TEST)/%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
 	$(CC) $(LDFLAGS) $^ -o $@
 
+# compile main object files
 $(BUILD_TMP)/crux-%.o: src/%.c Makefile | $(BUILD_TMP)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# compile test object files
 $(BUILD_TMP)/crux-test-%.o: test/%.c Makefile | $(BUILD_TMP)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# create directory paths
 $(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_TEST) $(BUILD_TMP):
 	mkdir -p $@
 
+# removes the build directory
 clean:
 	rm -rf $(BUILD_ROOT)
 
 .PHONY: all test static dynamic install uninstall clean
-.PRECIOUS: $(SRC_OBJ) $(TEST_OBJ)
+.PRECIOUS: $(SRC_OBJ) $(TEST_OBJ) $(INCLUDE_BUILD)
 
+# include compiler-build dependency files
 -include $(SRC_OBJ:.o=.d)
 -include $(TEST_OBJ:.o=.d)
 
