@@ -114,7 +114,7 @@ struct xtask {
 	struct xtask *parent;          /** task that resumed this task */
 	struct xmgr *mgr;              /** task manager for this task */
 	struct xdefer *defer;          /** defered execution linked list */
-	uintptr_t ctx[XCTX_REG_COUNT]; /** execution registers */
+	struct xctx ctx;               /** execution registers */
 #if HAS_DLADDR
 	const char *entry;             /** entry function name */
 #endif
@@ -264,7 +264,7 @@ entry (struct xtask *t, union xvalue (*fn)(void *, union xvalue))
 	eol (t, val, 0);
 	current = p;
 	p->state = CURRENT;
-	xctx_swap (t->ctx, p->ctx);
+	xctx_swap (&t->ctx, &p->ctx);
 }
 
 int
@@ -321,7 +321,7 @@ xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
 	map += sizeof (*t) + tls_size;
 #endif
 
-	xctx_init (t->ctx, map, STACK_SIZE (t, map_size, tls_size),
+	xctx_init (&t->ctx, map, STACK_SIZE (t, map_size, tls_size),
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
 
 #if HAS_DLADDR
@@ -412,7 +412,7 @@ xtask_exit (struct xtask *t, int ec)
 	if (yield) {
 		current = p;
 		p->state = CURRENT;
-		xctx_swap (t->ctx, p->ctx);
+		xctx_swap (&t->ctx, &p->ctx);
 	}
 
 	return 0;
@@ -497,7 +497,7 @@ xyield (union xvalue val)
 	if (p->state != EXIT) {
 		p->state = CURRENT;
 	}
-	xctx_swap (t->ctx, p->ctx);
+	xctx_swap (&t->ctx, &p->ctx);
 	return t->value;
 }
 
@@ -520,7 +520,7 @@ xresume (struct xtask *t, union xvalue val)
 	if (p->state != EXIT) {
 		p->state = ACTIVE;
 	}
-	xctx_swap (p->ctx, t->ctx);
+	xctx_swap (&p->ctx, &t->ctx);
 
 	return t->value;
 }

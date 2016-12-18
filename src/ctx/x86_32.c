@@ -1,25 +1,24 @@
-#define XCTX_REG_COUNT 7
-
-#define EBX 0
-#define ESI 1
-#define EDI 2
-#define EBP 3
-#define EIP 4
-#define ESP 5
-#define ECX 6
+struct xctx {
+	uintptr_t ebx;
+	uintptr_t esi;
+	uintptr_t edi;
+	uintptr_t ebp;
+	uintptr_t eip;
+	uintptr_t esp;
+	uintptr_t ecx;
+};
 
 void
-xctx_init (uintptr_t *ctx, void *stack, size_t len,
+xctx_init (struct xctx *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2)
 {
 	uintptr_t *s = (uintptr_t *)(void *)((uint8_t *)stack + len - sizeof (uintptr_t)*2);
 	s = (uintptr_t *)((uintptr_t)s - (uintptr_t)s%16) - 1;
-	*s = 0;
-
+	s[0] = 0;
 	s[1] = a1;
 	s[2] = a2;
-	ctx[EIP] = ip;
-	ctx[ESP] = (uintptr_t)s;
+	ctx->eip = ip;
+	ctx->esp = (uintptr_t)s;
 }
 
 __asm__ (

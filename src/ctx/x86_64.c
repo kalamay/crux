@@ -1,28 +1,27 @@
-#define XCTX_REG_COUNT 10
-
-#define RBX 0
-#define RBP 1
-#define R12 2
-#define R13 3
-#define R14 4
-#define R15 5
-#define RDI 6
-#define RSI 7
-#define RIP 8
-#define RSP 9
+struct xctx {
+	uintptr_t rbx;
+	uintptr_t rbp;
+	uintptr_t r12;
+	uintptr_t r13;
+	uintptr_t r14;
+	uintptr_t r15;
+	uintptr_t rdi;
+	uintptr_t rsi;
+	uintptr_t rip;
+	uintptr_t rsp;
+};
 
 void
-xctx_init (uintptr_t *ctx, void *stack, size_t len,
+xctx_init (struct xctx *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2)
 {
 	uintptr_t *s = (uintptr_t *)(void *)((uint8_t *)stack + len);
 	s = (uintptr_t *)((uintptr_t)s - (uintptr_t)s%16) - 1;
-	*s = 0;
-
-	ctx[RDI] = a1;
-	ctx[RSI] = a2;
-	ctx[RIP] = ip;
-	ctx[RSP] = (uintptr_t)s;
+	s[0] = 0;
+	ctx->rdi = a1;
+	ctx->rsi = a2;
+	ctx->rip = ip;
+	ctx->rsp = (uintptr_t)s;
 }
 
 __asm__ (

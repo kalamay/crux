@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+struct xctx;
+
 /**
  * @brief  Configures the context to invoke a function with 2 arguments
  *
@@ -16,7 +18,7 @@
  * @param  a2     second argument to `ip`
  */
 extern void
-xctx_init (uintptr_t *ctx, void *stack, size_t len,
+xctx_init (struct xctx *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2);
 
 /**
@@ -26,7 +28,7 @@ xctx_init (uintptr_t *ctx, void *stack, size_t len,
  * @param  load  context to activate
  */
 extern void
-xctx_swap (uintptr_t *save, const uintptr_t *load);
+xctx_swap (struct xctx *save, const struct xctx *load);
 
 #endif
 
