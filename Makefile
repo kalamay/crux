@@ -140,14 +140,8 @@ $(DESTDIR)$(PREFIX)/%: $(BUILD_TYPE)/%
 	cp -R $< $@
 
 uninstall:
-	rm -rf \
-		$(DESTDIR)$(PREFIX)/include/crux
-	rm -f \
-		$(DESTDIR)$(PREFIX)/include/crux.h \
-		$(DESTDIR)$(PREFIX)/lib/$(LIB) \
-		$(DESTDIR)$(PREFIX)/lib/$(SO) \
-		$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
-		$(DESTDIR)$(PREFIX)/lib/$(SO_ANY)
+	rm -f $(INSTALL)
+	@if [ -d $(DESTDIR)$(PREFIX)/include/crux ]; then rmdir $(DESTDIR)$(PREFIX)/include/crux; fi
 
 test-%: $(BUILD_TEST)/%
 	./$<
