@@ -351,7 +351,8 @@ Prints a representation of the task. This will include a task stack of all
 parent tasks.
 .TP
 \fIt\fR
-The task object or \fBNULL\fR for the task that currently has context.
+The task object or \fBNULL\fR. If\fBNULL\fR, the representation will indicate
+it ias such. That is, \fBNULL\fR is not substituted for the current task.
 .TP
 \fIout\fR
 File pointer to write the representation to. If this is \fBNULL\fR, \fBstdout\fR
@@ -456,3 +457,66 @@ A \fBint\fR value.
 .RS
 Declares a value containing zero
 .RE
+
+
+.SH "EXAMPLE"
+.nf
+#include <crux.h>
+#include <stdio.h>
+
+struct msg {
+	struct xtask *fib;
+};
+
+static union xvalue
+fib (void *data, union xvalue val)
+{
+	xtask_print (xtask_self (), stdout);
+	int a = 0, b = 1;
+	while (true) {
+		int r = a;
+		a = b;
+		b += r;
+		xyield (XINT (r));
+	}
+	return XZERO;
+}
+
+static union xvalue
+fib3 (void *data, union xvalue val)
+{
+	struct msg *msg = data;
+	int i = 0;
+	while (true) {
+		xresume (msg->fib, XZERO);
+		xresume (msg->fib, XZERO);
+		val = xresume (msg->fib, XZERO);
+		if (++i < 10) { xyield (val); }
+		else          { return val; }
+	}
+}
+
+int
+main (void)
+{
+	struct xmgr *mgr;
+	xcheck (xmgr_new (&mgr,
+				sizeof (struct msg), XTASK_STACK_DEFAULT, XTASK_FDEBUG));
+
+	struct xtask *t1, *t2;
+	xcheck (xtask_new (&t1, mgr, NULL, fib));
+
+	struct msg msg = { t1 };
+	xcheck (xtask_new (&t2, mgr, &msg, fib3));
+
+	while (xtask_alive (t2)) {
+		union xvalue val = xresume (t2, XZERO);
+		printf ("%d\n", val.i);
+	}
+
+	xtask_free (&t1);
+	xtask_free (&t2);
+	xmgr_free (&mgr);
+}
+
+.fi
