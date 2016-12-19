@@ -149,12 +149,12 @@ xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags)
 		return -EINVAL;
 	}
 
-	size_t map_size;
+	size_t tls_size, map_size;
 
 	// round task size up to nearest multiple of 16
-	tls = (tls + 15) & ~15;
+	tls_size = (tls + 15) & ~15;
 	// exact size would be the stack, local storage, and task object
-	map_size = stack + tls + sizeof (struct xtask);
+	map_size = stack + tls_size + sizeof (struct xtask);
 	// round up to nearest page size
 	map_size = (((map_size - 1) / PAGESIZE) + 1) * PAGESIZE;
 	// add extra locked page if requested
@@ -162,7 +162,8 @@ xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags)
 
 	mgr->map_size = map_size;
 	mgr->stack_size = stack;
-	mgr->tls_size = tls;
+	mgr->tls_size = tls_size;
+	mgr->tls_user = tls;
 	mgr->flags = flags;
 
 	return 0;
@@ -433,7 +434,7 @@ print_head (const struct xtask *t, FILE *out)
 #endif
 	fprintf (out, " %s tls=%u",
 			state_names[t->state],
-			t->istop ? 0 : t->mgr->tls_size);
+			t->istop ? 0 : t->mgr->tls_user);
 	if (t->state == EXIT) {
 		fprintf (out, " exitcode=%d>", t->exitcode);
 	}

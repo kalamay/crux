@@ -9,7 +9,7 @@ struct xdefer {
 struct xmgr {
 	uint32_t map_size;
 	uint32_t stack_size;
-	uint32_t tls_size;
+	uint16_t tls_size, tls_user;
 	int flags;
 	struct xdefer *free_defer;
 	struct xtask *free_task;
