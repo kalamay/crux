@@ -431,7 +431,9 @@ print_head (const struct xtask *t, FILE *out)
 		fprintf (out, " %s", t->entry);
 	}
 #endif
-	fprintf (out, " %s tls=%u", state_names[t->state], t->mgr->tls_size);
+	fprintf (out, " %s tls=%u",
+			state_names[t->state],
+			t->istop ? 0 : t->mgr->tls_size);
 	if (t->state == EXIT) {
 		fprintf (out, " exitcode=%d>", t->exitcode);
 	}
