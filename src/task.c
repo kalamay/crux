@@ -465,13 +465,9 @@ void
 xtask_print (const struct xtask *t, FILE *out)
 {
 	if (out == NULL) { out = stdout; }
-	if (t == NULL) {
-		print_head (t, out);
-		fputc ('\n', out);
-	}
-	else {
-		print_tree (t, out);
-	}
+	if (t == NULL) { print_head (t, out); }
+	else           { print_tree (t, out); }
+	fputc ('\n', out);
 	fflush (out);
 }
 
