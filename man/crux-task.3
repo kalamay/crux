@@ -1,0 +1,458 @@
+.TH CRUX-TASK 3 2016-12-18 libcrux "Crux Programmer's Manual"
+.SH "NAME"
+\fBcrux\-task\fR \- Low-level coroutines
+
+
+.SH "SYNOPSIS"
+.P
+The task module implements light-weight nonpreemptive subroutines for
+implementing cooperative tasks. While these tasks are used within the hub,
+they may be used independantly or with in the hub tasks. Each task is given
+an independant stack, optional local storage, and a context for saveing and
+restoring execution state. This enables the task to yield values through a
+non-local jump, yet still resume operation at a later time.
+.P
+This context relationship is expressed as a parent-child model. That is, the
+context that call \fBxresume\fR on a task becomes the parent of the task. The
+child may then \fByield\fR context back to the parent.
+.P
+Each task is a single allocation using \fBmmap(3)\fR. This single mapping
+contains the space for the task object, the local storage, the stack, and the
+optional stack protector lock. The stack size will be at least as the size
+defined by the task manager. The entire allocation size (stack size, tls, task
+object, and lock) will be rounded up to the nearest multiple of the system page
+size. Any extra space caused by this will be given to the stack segment.
+Additionally, the task locak storage will be guaranteed to reside at a 16-byte
+aligned region.
+.P
+For downward growing stacks, the mapping layout looks like:
+.RS
+.nf
++------+----------------------+-----+------+
+| lock |                stack | tls | task |
++------+----------------------+-----+------+
+.fi
+.RE
+.P
+For upward growing stack, the mapping looks like:
+.RS
+.nf
++------+-----+----------------------+------+
+| task | tls | stack                | lock |
++------+-----+----------------------+------+
+.fi
+.RE
+
+
+.SH "USAGE"
+.P
+\fB#include <crux.h>\fR
+
+.SS \fIManager\fR
+.P
+A task manager instance is required for creating tasks. This type maintains
+information about the tasks such as stack size, task-local storage size, and
+allocation and runtime flags for the tasks. That is, all tasks created from
+the same manager will all have these propererties in common. As a result, the
+manager maintains a free list of task allocations so that subsequent tasks
+may allocate quicker.
+
+.P
+\fBstruct xmgr;\fR
+.RS
+Opaque type for the task manager instance.
+.RE
+
+.P
+\fBint\fR
+.br
+\fBxmgr_new\fR (\fBstruct xmgr **\fImgrp\fR, \fBsize_t \fItls\fR, \fBsize_t \fIstack\fR, \fBint \fIflags\fR);
+.RS
+Create a new task manager for use in creating tasks.
+.TP
+\fImgrp\fR
+Indireect reference to the task manager. Upon return, the dereferenced pointer
+will contain the newly allocated task manager if successful. On failure, this
+value will be unmodified.
+.TP
+\fItls\fR
+Space in bytes allocated for task local storage.
+.TP
+\fIstack\fR
+Miminum stack size in bytes allocated for each task.
+.TP
+\fIflags\fR
+Flags used for the task manager and each task create using it.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The manager was created successfully.
+.TP
+\fI-ENOMEM\fR
+There was insufficient memory to allocate the object.
+.TP
+\fI-EINVAL\fR
+The requested stack size outside the allowed range.
+.TP
+\fI-EINVAL\fR
+The requested task local storage size is larger than allowed.
+.RE
+
+.P
+\fBvoid\fR
+.br
+\fBxmgr_free\fR (\fBstruct xmgr **\fImgrp\fR);
+.RS
+Frees the task manager and \fBNULL\fRs the reference. This must only be called
+after all tasks created by the manager are freed.
+.TP
+\fImgrp\fR
+Indireect reference to the task manager. This value must not be \fBNULL\fR,
+however, the referenced value may be \fBNULL\fR. Upon return, the dereferenced
+pointer will be \fBNULL\fR.
+.RE
+
+.P
+\fBstruct xmgr *\fR
+.br
+\fBxmgr_self\fR (\fBvoid\fR);
+.RS
+Gets the task manager that created the currently active task. If no task is
+active, \fBNULL\fR will be returned.
+.RE
+
+.P \fB#define XTASK_STACK_MIN\fR
+.RS
+The minimum allowed stack size for tasks.
+.RE
+
+.P
+\fB#define XTASK_STACK_MAX\fR
+.RS
+The maximum allowed stack size for tasks.
+.RE
+
+.P
+\fB#define XTASK_STACK_DEFAULT\fR
+.RS
+The default stack size. This should be large enough to all off glibc functions.
+.RE
+
+.P
+\fB#define XTASK_TLS_MAX\fR
+.RS
+The maximum allowed task locak storage size.
+.RE
+
+.P
+\fB#define XTASK_FPROTECT\fR
+.RS
+Protect the end of the stack. Enabling this will cause the process to segfault
+if the stack overflows. This is highly recommended. This does require an
+additional page to be allocated for the stack. However, this is \fBmmap(3)\fRed
+in most cases, so it should place additional memory pressue on the system.
+.RE
+
+.P
+\fB#define XTASK_FENTRY\fR
+.RS
+Flag to enable capturing the symbol name of the entry function. This is only
+available if \fBdladdr(3)\fR is available on the system.
+.RE
+
+.P
+\fB#define XTASK_FDEFAULT\fR
+.RS
+A default set of flage for typical usage scenarios.
+.RE
+
+.P
+\fB#define XTASK_FDEBUG\fR
+.RS
+A set of flags for maximizing debuggability of the tasks.
+.RE
+
+.SS \fITask\fR
+.P
+Tasks implement the nonpremptive subroutine given a function as an entry point.
+A task is created in a "suspended" state. It becomes active when explicitly
+resumed. The context that resumes the task becomes the parent context of the
+task. The task may then yield a value back to the parent context. Yielding
+causes the current execution context to be captured, put back into a suspended
+state, and the parent context to regain context. This sequence may be completed
+repeatedly. When the task function returns (rather than yields), the task will
+be marked as exited, and the parent is given back context. Once in an exited
+state, the task may no longer be resumed.
+
+.P
+\fBstruct xmgr;\fR
+.RS
+Opaque type for the task instance.
+.RE
+
+.P
+\fB#define xtask_new(tp, mgr, tls, fn)\fR
+.RS
+The is the preffered way to construct a new task object. It works identically
+to \fBxtask_newf\fR, however it uses the compiler provided \fB__FILE__\fR and
+\fB__LINE__\fR values to capture the allocation debugging information.
+.RE
+
+.P
+.P
+\fBint\fR
+.br
+.nf
+\fBxtask_newf\fR (\fBstruct xtask **\fItp\fR, \fBstruct xmgr *\fImgr\fR, \fBvoid *\fItls\fR,
+            \fBconst char *\fIfile\fR, \fBint \fIline\fR,
+            \fBunion xvalue\fR (\fI*fn)(\fBvoid *\fItls\fR, \fBunion xvalue\fR));
+.fi
+.RS
+Creates a new task with optional initial local storage. The newly created task
+will be in a suspended state. Calling \fBxresume\fR on the returned value will
+transfer execution context to the function \fBfn\fR.
+.TP
+\fItp\fR
+Indireect reference to the task. Upon return, the dereferenced pointer will
+contain the newly allocated task manager if successful. On failure, this
+value will be unmodified.
+.TP
+\fImgr\fR
+Task manager pointer.
+.TP
+\fItls\fR
+Task local storage reference to copy or \fBNULL\fR. If a non-zero storage space
+was specified for the manager, this number of bytes will be copied from the
+value pointed at by \fItls\fR unless it is \fBNULL\fR, in which case, the task
+local storage will be zero-filled. If a 0-length storage space was specified
+for the task manager, this value will be ignored.
+.TP
+\fIfile\fR
+Source file path for debugging information.
+.TP
+\fIline\fR
+Source file line number for debugging information.
+.TP
+\fIfn\fR
+The function to execute in the new context.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The manager was created successfully.
+.TP
+\fI-ENOMEM\fR
+No memory is available, or the process's maximum number of mappings would have been exceeded.
+.TP
+\fI-EINVAL\fR
+The requested stack size outside the allowed range.
+.RE
+
+.P
+\fBvoid\fR
+.br
+\fBxtask_free\fR (\fBstruct xtask **\fItp\fR);
+.RS
+Frees the task and \fBNULL\fRs the reference.
+.TP
+\fImgrp\fR
+Indireect reference to the task. This value must not be \fBNULL\fR, however,
+the referenced value may be \fBNULL\fR. Upon return, the dereferenced
+pointer will be \fBNULL\fR.
+.RE
+
+.P
+\fBstruct xtask *\fR
+.br
+\fBxtask_self\fR (\fBvoid\fR);
+.RS
+Gets the task currently executing or \fBNULL\fR no task has been started.
+.RE
+
+.P
+\fBvoid *\fR
+.br
+\fBxtask_local\fR (\fBstruct xtask *\fIt\fR);
+.RS
+Gets task local storage for the task.
+.TP
+\fIt\fR
+The task object.
+.P
+This returns \fBNULL\fR if the local storage space is zero-length.
+.RE
+
+.P
+\fBbool\fR
+.br
+\fBxtask_alive\fR (\fBconst struct xtask *\fIt\fR);
+.RS
+Test if the task is either in a suspended or active state. That is, it has not
+yet exited.
+.TP
+\fIt\fR
+The task object.
+.RE
+
+.P
+\fBint\fR
+.br
+\fBxtask_exitcode\fR (\fBconst struct xtask *\fIt\fR);
+.RS
+Gets the exit code for the task.
+.TP
+\fIt\fR
+The task object.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The task exited normally or was forcefully exited with no exit code.
+.TP
+\fI1-255\fR
+Lower 8 bits of the exit code sent by \fBxtask_exit\fR.
+.TP
+\fI-1\fR
+The task has not yet exited.
+.RE
+
+.P
+\fBint\fR
+.br
+\fBxtask_exit\fR (\fBstruct xtask *\fIt\fR, \fBint \fIec\fR);
+.RS
+Forces a task to exit.
+.TP
+\fIt\fR
+The task object or \fBNULL\fR for the task that currently has context.
+.TP
+\fIec\fR
+The exit code. Only the lower 8 bits will be exposed.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The task has successfully exited.
+.TP
+\fI-EPERM\fR
+The current context is not a task.
+.TP
+\fI-EALREADY\fR
+The task has already exited.
+.RE
+
+.P
+\fBvoid\fR
+.br
+\fBxtask_print\fR (\fBconst struct xtask *\fIt\fR, \fBFILE *\fIout\fR);
+.RS
+Prints a representation of the task. This will include a task stack of all
+parent tasks.
+.TP
+\fIt\fR
+The task object or \fBNULL\fR for the task that currently has context.
+.TP
+\fIout\fR
+File pointer to write the representation to. If this is \fBNULL\fR, \fBstdout\fR
+will be used.
+.RE
+
+.P
+\fBunion xvalue\fR
+.br
+\fBxyield\fR (\fBunion xvalue \fIval\fR);
+.RS
+Transfers the current context to the parent context. The \fIval\fR passed in will
+be returned from the companion \fBxresume\fR in the parent. If the task regains
+context, the value returned will be that which was passed to the \fBxresume\fR.
+.P
+This will abort the process if the current context is not a task.
+.TP
+\fIval\fR
+Value to yield to the parent.
+.RE
+
+.P
+\fBunion xvalue\fR
+.br
+\fBxresume\fR (\fBstruct xtask *\fIt\fR, \fBunion xvalue \fIval\fR);
+.RS
+Transfers the current context to the task, making it the child of the current
+context. The \fIval\fR passed in will be returned from the companion \fBxyield\fR
+in the child. When the child yields again (or exits), the value returned by
+\fBxresume\fR will be this yielded value.
+.P
+This will abort the process if the task is not suspended.
+.TP
+\fIt\fR
+The task object.
+.TP
+\fIval\fR
+Value to resume the child task with.
+.RE
+
+.SS \fIValue\fR
+.P
+The type used for passing values between \fBxresume\fR and \fBxyield\fR:
+.P
+.nf
+\fBunion xvalue\fR {
+.RS
+\fBuint64_t \fIu64\fR;
+\fBint64_t \fIi64\fR;
+\fBvoid *\fIptr\fR;
+\fBint \fIi\fR;
+.RE
+};
+
+.P
+\fB#define XPTR\fR(\fIv\fR)\fR
+.RS
+Declares a value holding a pointer.
+.TP
+\fIv\fR
+A \fBvoid *\fR value.
+.RE
+
+.P
+\fB#define XU64\fR(\fIv\fR)\fR
+.RS
+Declares a value holding an unsigned 64-bit integer
+.TP
+\fIv\fR
+A \fBuint64_t\fR value.
+.RE
+
+.P
+\fB#define XI64\fR(\fIv\fR)\fR
+.RS
+Declares a value holding a signed 64-bit integer
+.TP
+\fIv\fR
+A \fBint64_t\fR value.
+.RE
+
+.P
+\fB#define XDBL\fR(\fIv\fR)\fR
+.RS
+Declares a value holding a double length floating point number.
+.TP
+\fIv\fR
+A \fBdouble\fR value.
+.RE
+
+.P
+\fB#define XINT\fR(\fIv\fR)\fR
+.RS
+Declares a value holding a platform-specific integer.
+.TP
+\fIv\fR
+A \fBint\fR value.
+.RE
+
+.P
+\fB#define XZERO\fR
+.RS
+Declares a value containing zero
+.RE

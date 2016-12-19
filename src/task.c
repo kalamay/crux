@@ -142,11 +142,11 @@ xmgr_new (struct xmgr **mgrp, size_t tls, size_t stack, int flags)
 int
 xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags)
 {
-	if (stack < XTASK_STACK_MIN) {
-		stack = XTASK_STACK_MIN;
+	if (stack < XTASK_STACK_MIN || stack > XTASK_STACK_MAX) {
+		return -EINVAL;
 	}
-	else if (stack > XTASK_STACK_MAX) {
-		stack = XTASK_STACK_MAX;
+	if (tls > XTASK_TLS_MAX) {
+		return -EINVAL;
 	}
 
 	size_t map_size;
@@ -231,7 +231,7 @@ eol (struct xtask *t, union xvalue val, int ec)
 		def = next;
 
 		// mark exit status again in case defer resumed a separate task
-		t->exitcode = ec;
+		t->exitcode = ec & 0xFF;
 		t->state = EXIT;
 	}
 
@@ -391,14 +391,14 @@ xtask_exit (struct xtask *t, int ec)
 	bool yield;
 	if (t == NULL) {
 		t = current;
-		if (t == NULL) { return -EINVAL; }
+		if (t == NULL) { return -EPERM; }
 		yield = true;
 	}
 	else {
 		yield = t == current;
 	}
 
-	if (t->istop) { return -EINVAL; }
+	if (t->istop) { return -EPERM; }
 	if (t->state == EXIT) { return -EALREADY; }
 
 	struct xtask *p = t->parent;
