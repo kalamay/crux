@@ -586,7 +586,7 @@ main (void)
 
 	while (xtask_alive (t2)) {
 		union xvalue val = xresume (t2, XZERO);
-		printf ("%d\n", val.i);
+		printf ("%d\\n", val.i);
 	}
 
 	xtask_free (&t1);
