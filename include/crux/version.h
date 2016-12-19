@@ -1,5 +1,5 @@
-#ifndef CRUX_COMMON_H
-#define CRUX_COMMON_H
+#ifndef CRUX_VERSION_H
+#define CRUX_VERSION_H
 
 #include <stdint.h>
 
