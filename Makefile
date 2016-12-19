@@ -35,6 +35,9 @@ VERSION_MINOR:= 1
 VERSION_PATCH:= 0
 VERSION:=$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
 VERSION_COMPAT:=$(VERSION_MAJOR).$(VERSION_MINOR)
+VERSION_DEF_MAJOR:=\#define XVERSION_MAJOR $(VERSION_MAJOR)
+VERSION_DEF_MINOR:=\#define XVERSION_MINOR $(VERSION_MINOR)
+VERSION_DEF_PATCH:=\#define XVERSION_PATCH $(VERSION_PATCH)
 
 # detect execinfo and update build flags
 EXECINFO_H?= $(wildcard /usr/include/execinfo.h /usr/local/include/execinfo.h)
@@ -206,6 +209,10 @@ $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY):
 # copy source headers into build directory
 $(BUILD_INCLUDE)/%: include/% | $(BUILD_INCLUDE)/crux
 	cp $< $@
+
+# override rule for version.h
+$(BUILD_INCLUDE)/crux/version.h: include/crux/version.h Makefile | $(BUILD_INCLUDE)/crux
+	awk 'NR==4{print "$(VERSION_DEF_MAJOR)\n$(VERSION_DEF_MINOR)\n$(VERSION_DEF_PATCH)\n"}1' $< > $@
 
 # copy source headers into build directory
 $(BUILD_MAN)/%: man/% | $(BUILD_MAN)
