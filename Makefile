@@ -73,6 +73,9 @@ else
   SOFLAGS:= -shared -Wl,-rpath=$(PREFIX)/lib
 endif
 
+# directory segment for man pages
+MANDIR:= share/man/man3
+
 # set build directory variables
 BUILD?= release
 BUILD_ROOT?= build
@@ -80,6 +83,7 @@ BUILD_UPPER:= $(shell echo $(BUILD) | tr a-z A-Z)
 BUILD_TYPE:= $(BUILD_ROOT)/$(BUILD)
 BUILD_LIB:= $(BUILD_TYPE)/lib
 BUILD_INCLUDE:= $(BUILD_TYPE)/include
+BUILD_MAN:= $(BUILD_TYPE)/$(MANDIR)
 BUILD_TEST:= $(BUILD_TYPE)/test
 BUILD_TMP:= $(BUILD_ROOT)/tmp/$(BUILD)
 
@@ -113,6 +117,10 @@ INCLUDE:= \
 	include/crux/task.h \
 	include/crux/version.h
 
+# list of manual pages
+MAN:= \
+	man/crux-task.3
+
 # list of source files for testing
 TEST:= \
 	test/heap.c \
@@ -127,7 +135,8 @@ INSTALL:= \
 	$(DESTDIR)$(PREFIX)/lib/$(SO_COMPAT) \
 	$(DESTDIR)$(PREFIX)/lib/$(SO_ANY) \
 	$(DESTDIR)$(PREFIX)/lib/$(LIB) \
-	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%)
+	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%) \
+	$(MAN:man/%=$(DESTDIR)$(PREFIX)/$(MANDIR)/%)
 
 # object files mapped from source files
 SRC_OBJ:= $(SRC:src/%.c=$(BUILD_TMP)/crux-%.o)
@@ -136,9 +145,11 @@ TEST_OBJ:= $(TEST:test/%.c=$(BUILD_TMP)/crux-test-%.o)
 # executable files mapped from test files
 TEST_BIN:= $(TEST:test/%.c=$(BUILD_TEST)/%)
 # build header files mapped from include files
-INCLUDE_BUILD:=$(INCLUDE:%=$(BUILD_TYPE)/%)
+INCLUDE_OUT:=$(INCLUDE:%=$(BUILD_TYPE)/%)
+# build man pages mapped from man source files
+MAN_OUT:=$(MAN:man/%=$(BUILD_MAN)/%)
 
-all: static dynamic include
+all: static dynamic include man
 
 # compile and run all tests
 test: $(TEST_BIN)
@@ -151,7 +162,10 @@ static: $(BUILD_LIB)/$(LIB)
 dynamic: $(BUILD_LIB)/$(SO) $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY)
 
 # copy all header files into build directory
-include: $(INCLUDE_BUILD)
+include: $(INCLUDE_OUT)
+
+# copy all header files into build directory
+man: $(MAN_OUT)
 
 # install all build files into destination
 install: $(INSTALL)
@@ -193,6 +207,10 @@ $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY):
 $(BUILD_INCLUDE)/%: include/% | $(BUILD_INCLUDE)/crux
 	cp $< $@
 
+# copy source headers into build directory
+$(BUILD_MAN)/%: man/% | $(BUILD_MAN)
+	cp $< $@
+
 # link test executables
 $(BUILD_TEST)/%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
 	$(CC) $(LDFLAGS) $^ -o $@
@@ -206,15 +224,15 @@ $(BUILD_TMP)/crux-test-%.o: test/%.c Makefile | $(BUILD_TMP)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # create directory paths
-$(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_TEST) $(BUILD_TMP):
+$(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_MAN) $(BUILD_TEST) $(BUILD_TMP):
 	mkdir -p $@
 
 # removes the build directory
 clean:
 	rm -rf $(BUILD_ROOT)
 
-.PHONY: all test static dynamic install uninstall clean
-.PRECIOUS: $(SRC_OBJ) $(TEST_OBJ) $(INCLUDE_BUILD)
+.PHONY: all test static dynamic include man install uninstall clean
+.PRECIOUS: $(SRC_OBJ) $(TEST_OBJ) $(INCLUDE_OUT) $(MAN_OUT)
 
 # include compiler-build dependency files
 -include $(SRC_OBJ:.o=.d)
