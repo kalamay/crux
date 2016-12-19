@@ -103,12 +103,6 @@ static const char *state_names[] = {
 	} \
 } while (0)
 
-struct xdefer {
-	struct xdefer *next;
-	void (*fn) (void *);
-	void *data;
-};
-
 struct xtask {
 	union xvalue value;            /** the resume or yield value */
 	struct xtask *parent;          /** task that resumed this task */
