@@ -142,7 +142,7 @@ xmgr_new (struct xmgr **mgrp, size_t tls, size_t stack, int flags)
 int
 xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags)
 {
-	if (stack < XTASK_STACK_MIN || stack > XTASK_STACK_MAX) {
+	if (stack < XSTACK_MIN || stack > XSTACK_MAX) {
 		return -EINVAL;
 	}
 	if (tls > XTASK_TLS_MAX) {

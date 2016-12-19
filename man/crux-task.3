@@ -131,7 +131,7 @@ active, \fBNULL\fR will be returned.
 
 .P
 .fn
-\fB#define XTASK_STACK_MIN\fR
+\fB#define XSTACK_MIN\fR
 .fi
 .RS
 The minimum allowed stack size for tasks.
@@ -139,7 +139,7 @@ The minimum allowed stack size for tasks.
 
 .P
 .nf
-\fB#define XTASK_STACK_MAX\fR
+\fB#define XSTACK_MAX\fR
 .fi
 .RS
 The maximum allowed stack size for tasks.
@@ -147,7 +147,7 @@ The maximum allowed stack size for tasks.
 
 .P
 .nf
-\fB#define XTASK_STACK_DEFAULT\fR
+\fB#define XSTACK_DEFAULT\fR
 .fi
 .RS
 The default stack size. This should be large enough to all off glibc functions.
@@ -576,8 +576,7 @@ int
 main (void)
 {
 	struct xmgr *mgr;
-	xcheck (xmgr_new (&mgr,
-				sizeof (struct msg), XTASK_STACK_DEFAULT, XTASK_FDEBUG));
+	xcheck (xmgr_new (&mgr, sizeof (struct msg), XSTACK_DEFAULT, XTASK_FDEBUG));
 
 	struct xtask *t1, *t2;
 	xcheck (xtask_new (&t1, mgr, NULL, fib));

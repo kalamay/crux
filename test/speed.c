@@ -18,7 +18,7 @@ main (void)
 	struct xmgr *mgr;
 	struct xtask *t;
 
-	xcheck (xmgr_new (&mgr, 0, XTASK_STACK_DEFAULT, XTASK_FDEFAULT));
+	xcheck (xmgr_new (&mgr, 0, XSTACK_DEFAULT, XTASK_FDEFAULT));
 	xcheck (xtask_new (&t, mgr, NULL, fn));
 
 	union xvalue val = XU64 (1<<24);

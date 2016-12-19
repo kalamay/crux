@@ -112,7 +112,7 @@ xhub_new (struct xhub **hubp)
 
 	int rc;
 
-	rc = xmgr_init (&hub->mgr, sizeof (struct xhub_entry), XTASK_STACK_DEFAULT, XTASK_FDEFAULT);
+	rc = xmgr_init (&hub->mgr, sizeof (struct xhub_entry), XSTACK_DEFAULT, XTASK_FDEFAULT);
 	if (rc < 0) {
 		goto err_mgr;
 	}
