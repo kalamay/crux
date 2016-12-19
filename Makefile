@@ -111,7 +111,6 @@ INCLUDE:= \
 	include/crux/list.h \
 	include/crux/poll.h \
 	include/crux/task.h \
-	include/crux/value.h \
 	include/crux/version.h
 
 # list of source files for testing
