@@ -1,0 +1,291 @@
+.TH CRUX-HUB 3 2016-12-18 libcrux "Crux Programmer's Manual"
+.SH "NAME"
+\fBcrux-hub\fR - Task-based event-driven concurrency
+
+
+.SH "SYNOPSIS"
+.P
+TODO
+
+
+.SH "USAGE"
+.P
+.nf
+\fB#include <crux.h>\fR
+.fi
+
+.SS \fIHub\fR
+.P
+The hub is the central coordinator for task scheduling.
+
+.P
+.nf
+\fBstruct xhub;\fR
+.fi
+.RS
+Opaque type for the hub instance.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxhub_new\fR (\fBstruct xhub \fR**\fIhubp\fR);
+.fi
+.RS
+Create a new hub for spawing and scheduling new tasks.
+.TP
+\fIhubp\fR
+Indireect reference to the hub. Upon return, the dereferenced pointer will
+contain the newly allocated hub if successful. On failure, this value will
+be unmodified.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The hub was created successfully.
+.TP
+\fI-ENOMEM\fR
+There was insufficient memory to allocate the object.
+.TP
+\fI-EINVAL\fR
+The requested stack size outside the allowed range.
+.TP
+\fI-EMFILE\fR
+The per-process file descriptor table is full.
+.TP
+\fI-ENFILE\fR
+The system file descriptor table is full.
+.RE
+
+.P
+.nf
+\fBvoid\fR
+\fBxhub_free\fR (\fBstruct xhub \fR**\fIhubp\fR);
+.fi
+.RS
+Frees the hub and \fBNULL\fRs the reference. This must only be called after
+the hub has stopped.
+.TP
+\fIhubp\fR
+Indireect reference to the hub. This value must not be \fBNULL\fR, however,
+the referenced value may be \fBNULL\fR. Upon return, the dereferenced pointer
+will be \fBNULL\fR.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxhub_run\fR (\fBstruct xhub \fR**\fIhup\fR);
+.fi
+.RS
+Runs the hub until all task are complete.
+.TP
+\fIhub\fR
+Hub to start processing scheduled tasks.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The hub ran successfully and completed all tasks.
+.TP
+\fI-EPERM\fR
+The hub is already running.
+.P
+Other error codes may be returned by the system polling function. These errors
+will be returned as -\fIerrno\fR.
+.RE
+
+.P
+.nf
+\fBvoid\fR
+\fBxhub_stop\fR (\fBstruct xhub \fR**\fIhup\fR);
+.fi
+.RS
+Schedules the hub to stop after regaining context from the active task. All
+scheduled tasks will be skipped.
+.TP
+\fIhub\fR
+Hub to stop processing scheduled tasks.
+.RE
+
+.P
+.nf
+\fB#define xspawn\fR(\fIhup\fR, \fIfn\fR, \fIdata\fR)
+.fi
+.RS
+The is the preffered way to spawn a new task object. It works identically
+to \fBxspawnf\fR, however it uses the compiler provided \fB__FILE__\fR and
+\fB__LINE__\fR values to capture the allocation debugging information.
+.P
+The function signature for \fIfn\fR is:
+.RS
+.nf
+\fBvoid\fR (*\fIfn\fR)(\fBstruct xhub\fR *, \fBvoid\fR *)
+.fi
+.RE
+.TP
+\fIhub\fR
+Hub to schedule the task on.
+.TP
+\fIfn\fR
+Function pointer for the entry point to the task.
+.TP
+\fIdata\fR
+User data pointer. This gets passed to \fIfn\fR.
+.P
+Return values from this may be:
+.TP
+\fI0\fR
+The task was created and scheduled successfully.
+.TP
+\fI-ENOMEM\fR
+No memory is available, or the process's maximum number of mappings would have been exceeded.
+.TP
+\fI-EINVAL\fR
+The requested stack size outside the allowed range.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxspawnf\fR (\fBstruct xhub \fR*\fIhub\fR, \fBconst char \fR*\fIfile\fR, \fBint \fIline\fR,
+         \fBvoid\fR (*\fIfn\fR)(\fBstruct xhub\fR *, \fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
+.fi
+.RS
+Creates a new task managed by the hub. This task will be scheduled for
+immediate execution. It may then be scheduled for other events or simply
+return to complete. The task memory will be reclaimed when the task either
+yields without scheduling or exits.
+.TP
+\fIhub\fR
+Hub to schedule the task on.
+.TP
+\fIfn\fR
+Function pointer for the entry point to the task.
+.TP
+\fIdata\fR
+User data pointer. This gets passed to \fIfn\fR.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The task was created and scheduled successfully.
+.TP
+\fI-ENOMEM\fR
+No memory is available, or the process's maximum number of mappings would have been exceeded.
+.TP
+\fI-EINVAL\fR
+The requested stack size outside the allowed range.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxspawn_b\fR (\fBstruct xhub \fR*\fIhub\fR, \fBvoid\fR (^\fIblock\fR)(\fBvoid\fR));
+.fi
+.RS
+Where blocks are supported, this allows spawning blocks as a task.
+.TP
+\fIhub\fR
+Hub to schedule the task on.
+.TP
+\fIblock\fR
+Block for the entry point to the task. This block will be copied and released
+on completion.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The task was created and scheduled successfully.
+.TP
+\fI-ENOMEM\fR
+No memory is available, or the process's maximum number of mappings would have been exceeded.
+.TP
+\fI-EINVAL\fR
+The requested stack size outside the allowed range.
+.RE
+
+
+.SH "SEE ALSO"
+\fBcrux-task\fR(3), \fBcrux-common\fR(3)
+
+
+.SH "EXAMPLE"
+.nf
+#include <stdio.h>
+#include <unistd.h>
+#include <crux.h>
+
+static void
+doclose (void *data)
+{
+	close ((int)(intptr_t)data);
+}
+
+static void
+connection (struct xhub *h, void *data)
+{
+	int fd = (int)(uintptr_t)data;
+	xdefer (doclose, data);
+
+	char buf[1024];
+	ssize_t len;
+	while ((len = xread (fd, buf, sizeof buf, -1)) > 0) {
+		fwrite (buf, 1, len, stdout);
+	}
+}
+
+static void
+server (struct xhub *h, void *data)
+{
+	struct sockaddr_in dest = {
+		.sin_family = AF_INET,
+		.sin_port = htons (3333),
+		.sin_addr.s_addr = 0
+	};
+
+	int s = xcheck (xsocket (AF_INET, SOCK_STREAM, IPPROTO_TCP));
+	xcheck_errno (bind (s, (struct sockaddr *)&dest, sizeof dest));
+	xcheck_errno (listen (s, 1024));
+	xdefer (doclose, (void *)(uintptr_t)s);
+
+	printf ("[%d] listening on stream://%s:%d\n",
+			getpid (), inet_ntoa (dest.sin_addr), ntohs (dest.sin_port));
+
+	while (1) {
+		struct sockaddr_in addr;
+		socklen_t len = sizeof addr;
+		int fd = xaccept (s, (struct sockaddr *)&addr, &len, -1);
+		if (fd >= 0) {
+			printf ("[%d] accepted from stream://%s:%d\n",
+					getpid (), inet_ntoa (addr.sin_addr), ntohs (addr.sin_port));
+			xspawn (h, connection, (void *)(uintptr_t)fd);
+		}
+		else {
+			printf ("[%d] failed to accept: %s\n", getpid (), xerr_str (fd));
+			xhub_stop (h);
+			break;
+		}
+	}
+}
+
+static void
+stop (struct xhub *h, void *data)
+{
+	xsignal (SIGINT, -1);
+	xhub_stop (h);
+}
+
+int
+main (void)
+{
+	struct xhub *hub;
+	xcheck (xhub_new (&hub));
+	xspawn (hub, stop, NULL);
+	xspawn (hub, server, NULL);
+	xhub_run (hub);
+	xhub_free (&hub);
+	return 0;
+}
+
+.fi

@@ -1,6 +1,6 @@
 .TH CRUX-TASK 3 2016-12-18 libcrux "Crux Programmer's Manual"
 .SH "NAME"
-\fBcrux\-task\fR \- Low-level coroutines
+\fBcrux-task\fR - Coroutine-based cooperative concurrency
 
 
 .SH "SYNOPSIS"
@@ -168,8 +168,8 @@ The maximum allowed task locak storage size.
 .RS
 Protect the end of the stack. Enabling this will cause the process to segfault
 if the stack overflows. This is highly recommended. This does require an
-additional page to be allocated for the stack. However, this is \fBmmap(3)\fRed
-in most cases, so it should place additional memory pressue on the system.
+additional page to be allocated for the stack. However, this is an \fBmmap\fR(3)
+in most cases, so it should place little additional memory pressue on the system.
 .RE
 
 .P
@@ -178,7 +178,7 @@ in most cases, so it should place additional memory pressue on the system.
 .fi
 .RS
 Flag to enable capturing the symbol name of the entry function. This is only
-available if \fBdladdr(3)\fR is available on the system.
+available if \fBdladdr\fR(3) is available on the system.
 .RE
 
 .P
@@ -225,6 +225,13 @@ Opaque type for the task instance.
 The is the preffered way to construct a new task object. It works identically
 to \fBxtask_newf\fR, however it uses the compiler provided \fB__FILE__\fR and
 \fB__LINE__\fR values to capture the allocation debugging information.
+.P
+The function signature for \fIfn\fR is:
+.RS
+.nf
+\fBunion xvalue\fR (*\fIfn\fR)(\fBvoid \fR*\fItls\fR, \fBunion xvalue\fR)
+.fi
+.RE
 .TP
 \fItp\fR
 Indireect reference to the task. Upon return, the dereferenced pointer will
@@ -261,7 +268,7 @@ The requested stack size outside the allowed range.
 \fBint\fR
 \fBxtask_newf\fR (\fBstruct xtask \fR**\fItp\fR, \fBstruct xmgr \fR*\fImgr\fR, \fBvoid \fR*\fItls\fR,
             \fBconst char \fR*\fIfile\fR, \fBint \fIline\fR,
-            \fBunion xvalue\fR (\fI*fn)(\fBvoid \fR*\fItls\fR, \fBunion xvalue\fR));
+            \fBunion xvalue\fR (*\fIfn\fR)(\fBvoid \fR*\fItls\fR, \fBunion xvalue\fR));
 .fi
 .RS
 Creates a new task with optional initial local storage. The newly created task
@@ -302,6 +309,7 @@ No memory is available, or the process's maximum number of mappings would have b
 .TP
 \fI-EINVAL\fR
 The requested stack size outside the allowed range.
+\" these error codes go into xspawnf in crux-hub(3)
 .RE
 
 .P
@@ -533,6 +541,10 @@ An \fBint\fR value.
 .RS
 Declares a value containing zero
 .RE
+
+
+.SH "SEE ALSO"
+\fBcrux-common\fR(3)
 
 
 .SH "EXAMPLE"

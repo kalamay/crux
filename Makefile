@@ -122,7 +122,8 @@ INCLUDE:= \
 
 # list of manual pages
 MAN:= \
-	man/crux-task.3
+	man/crux-task.3 \
+	man/crux-hub.3
 
 # list of source files for testing
 TEST:= \

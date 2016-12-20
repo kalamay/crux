@@ -237,7 +237,7 @@ timeout:
 invoke:
 	unschedule (ent);
 	rc = xresume (ent->t, XINT (val)).i;
-	if (!is_scheduled (ent)) {
+	if (!is_scheduled (ent) || !xtask_alive (ent->t)) {
 		xtask_free (&ent->t);
 		if (rc < 0) {
 			return rc;
@@ -281,7 +281,7 @@ spawn_fn (void *tls, union xvalue val)
 }
 
 int
-xspawn_at (struct xhub *hub, const char *file, int line,
+xspawnf (struct xhub *hub, const char *file, int line,
 		void (*fn)(struct xhub *, void *), void *data)
 {
 	struct xtask *t;
@@ -317,7 +317,7 @@ int
 xspawn_b (struct xhub *hub, void (^block)(void))
 {
 	void (^copy)(void) = Block_copy (block);
-	int rc = xspawn_at (hub, NULL, 0, spawn_block, copy);
+	int rc = xspawnf (hub, NULL, 0, spawn_block, copy);
 	if (rc < 0) {
 		Block_release (copy);
 	}
