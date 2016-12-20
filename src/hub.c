@@ -25,6 +25,8 @@ struct xhub {
 };
 
 struct xhub_entry {
+	uint64_t magic;
+#define MAGIC UINT64_C(0x989b369eac2205a3)
 	struct xheap_entry hent;
 	struct xlist lent;
 	struct xtask *t;
@@ -33,6 +35,17 @@ struct xhub_entry {
 	void (*fn)(struct xhub *, void *);
 	int poll_id, poll_type;
 };
+
+static struct xhub_entry *
+current_entry (void)
+{
+	struct xtask *t = xtask_self ();
+	if (t == NULL) { return NULL; }
+	struct xhub_entry *ent = xtask_local (t);
+	if (ent == NULL) { return NULL; }
+	if (ent->magic != MAGIC) { return NULL; }
+	return ent;
+}
 
 static bool
 is_scheduled (struct xhub_entry *ent)
@@ -292,6 +305,7 @@ xspawnf (struct xhub *hub, const char *file, int line,
 	}
 
 	ent = xtask_local (t);
+	ent->magic = MAGIC;
 	ent->t = t;
 	ent->data = data;
 	ent->hub = hub;
@@ -329,20 +343,16 @@ xspawn_b (struct xhub *hub, void (^block)(void))
 const struct xclock *
 xclock (void)
 {
-	struct xtask *t = xtask_self ();
-	if (t == NULL) { return NULL; }
-
-	struct xhub_entry *ent = xtask_local (t);
+	struct xhub_entry *ent = current_entry ();
 	if (ent == NULL) { return NULL; }
-
 	return &ent->hub->poll.clock;
 }
 
 int
 xsleep (unsigned ms)
 {
-	struct xtask *t = xtask_self ();
-	if (t == NULL) {
+	struct xhub_entry *ent = current_entry ();
+	if (ent == NULL) {
 		struct xclock c = XCLOCK_MAKE_MSEC (ms);
 		int rc;
 		do {
@@ -352,7 +362,7 @@ xsleep (unsigned ms)
 		return rc;
 	}
 
-	int rc = schedule_timeout (xtask_local (t), ms);
+	int rc = schedule_timeout (ent, ms);
 	if (rc == 0) {
 		xyield (XZERO);
 	}
@@ -362,20 +372,18 @@ xsleep (unsigned ms)
 void
 xexit (int ec)
 {
-	struct xtask *t = xtask_self ();
-	if (t == NULL) { exit (ec); }
-
-	unschedule (xtask_local (t));
-	xtask_exit (t, ec);
+	struct xhub_entry *ent = current_entry ();
+	if (ent == NULL) { exit (ec); }
+	unschedule (ent);
+	xtask_exit (ent->t, ec);
 }
 
 int
 xsignal (int signum, int timeoutms)
 {
-	struct xtask *t = xtask_self ();
-	if (t == NULL) { return -EPERM; }
-
-	int rc = schedule_poll (xtask_local (t), signum, XPOLL_SIG, timeoutms);
+	struct xhub_entry *ent = current_entry ();
+	if (ent == NULL) { return -EPERM; }
+	int rc = schedule_poll (ent, signum, XPOLL_SIG, timeoutms);
 	if (rc == 0) {
 		int val = xyield (XZERO).i;
 		return val ? val : signum;
@@ -390,9 +398,9 @@ again: \
 	if (rc >= 0) { return rc; } \
 	rc = XERRNO; \
 	if (rc != -EAGAIN) { return rc; } \
-	struct xtask *t = xtask_self (); \
-	if (t == NULL) { return rc; } \
-	rc = schedule_poll (xtask_local (t), fd, XPOLL_IN, ms); \
+	struct xhub_entry *ent = current_entry (); \
+	if (ent == NULL) { return rc; } \
+	rc = schedule_poll (ent, fd, XPOLL_IN, ms); \
 	if (rc < 0) { return rc; } \
 	int val = xyield (XZERO).i; \
 	if (val < 0) { return (ssize_t)val; } \
@@ -406,9 +414,9 @@ again: \
 	if (rc >= 0) { return rc; } \
 	rc = XERRNO; \
 	if (rc != -EAGAIN) { return rc; } \
-	struct xtask *t = xtask_self (); \
-	if (t == NULL) { return rc; } \
-	rc = schedule_poll (xtask_local (t), fd, XPOLL_OUT, ms); \
+	struct xhub_entry *ent = current_entry (); \
+	if (ent == NULL) { return rc; } \
+	rc = schedule_poll (ent, fd, XPOLL_OUT, ms); \
 	if (rc < 0) { return rc; } \
 	int val = xyield (XZERO).i; \
 	if (val < 0) { return (ssize_t)val; } \
@@ -574,9 +582,9 @@ again:
 
 	fd = XERRNO;
 	if (fd == -EAGAIN) {
-		struct xtask *t = xtask_self ();
-		if (t != NULL) {
-			fd = schedule_poll (xtask_local (t), s, XPOLL_IN, timeoutms);
+		struct xhub_entry *ent = current_entry ();
+		if (ent != NULL) {
+			fd = schedule_poll (ent, s, XPOLL_IN, timeoutms);
 			if (fd == 0) {
 				int val = xyield (XZERO).i;
 				if (val < 0) { return (ssize_t)val; }
