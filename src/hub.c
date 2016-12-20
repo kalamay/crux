@@ -372,10 +372,11 @@ xsleep (unsigned ms)
 void
 xexit (int ec)
 {
-	struct xhub_entry *ent = current_entry ();
-	if (ent == NULL) { exit (ec); }
-	unschedule (ent);
-	xtask_exit (ent->t, ec);
+	struct xtask *t = xtask_self ();
+	if (t == NULL) { exit (ec); }
+	struct xhub_entry *ent = xtask_local (t);
+	if (ent && ent->magic == MAGIC) { unschedule (ent); }
+	xtask_exit (t, ec);
 }
 
 int
