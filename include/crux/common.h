@@ -9,37 +9,6 @@
 typedef ssize_t (*xio_fn) (int fd, void *buf, size_t len, int timeoutms);
 
 /**
- * @brief  Schedules a function to execute when the task terminates
- *
- * This will be called after the return of the coroutine function but before
- * yielding back to the parent context. Deferred calls occur in LIFO order.
- *
- * @param  fn    function to call
- * @param  data  data to pass to `fn`
- */
-extern int
-xdefer (void (*fn) (void *), void *data);
-
-/**
- * @brief  Creates an allocation with a deferred free
- *
- * @param  size  number of bytes to allocate
- * @return  point or `NULL` on error
- */
-extern void *
-xmalloc (size_t size);
-
-/**
- * @brief  Creates a zeroed allocation with a deferred free
- *
- * @param  count  number of contiguous objects
- * @param  size   number of bytes for each object
- * @return  point or `NULL` on error
- */
-extern void *
-xcalloc (size_t count, size_t size);
-
-/**
  * @brief  Exits the current running task or process
  *
  * @param  ec  exit code

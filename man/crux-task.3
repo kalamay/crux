@@ -465,6 +465,66 @@ The task object.
 Value to resume the child task with.
 .RE
 
+.SS \fITask Functions\fR
+.P
+These are functions that may be called when a task has context.
+
+.P
+.nf
+\fBint\fR
+\fBxdefer\fR (\fBvoid\fR (*\fIfn\fR) (\fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
+.fi
+.RS
+.P
+Schedules a function to execute when the task terminates or is freed. Deferred
+functions will be called after the exit of the coroutine function but before
+yielding back to the parent context. Deferred calls occur in LIFO order and may
+resume other tasks.
+.TP
+\fIfn\fR
+The function pointer to call.
+.TP
+\fIdata\fR
+User pointer to pass to the function.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The manager was created successfully.
+.TP
+\fI-ENOMEM\fR
+There was insufficient memory to allocate the object.
+.RE
+
+.P
+.nf
+\fBvoid *\fR
+\fBxmalloc\fR (\fBsize_t\fR \fIsize\fR);
+.fi
+.RS
+.P
+Creates an allocation with a deferred free.
+.TP
+\fIsize\fR
+The number of bytes to allocate.
+.RE
+
+.P
+.nf
+\fBvoid *\fR
+\fBxcalloc\fR (\fBsize_t\fR \fIcount\fR, \fBsize_t\fR \fIsize\fR);
+.fi
+.RS
+.P
+Creates a zeroed allocation with a deferred free.
+.TP
+\fIcount\fR
+The number of contiguous objects.
+.TP
+\fIsize\fR
+The number of bytes for each object.
+.RE
+
 .SS \fIValue\fR
 .P
 The type used for passing values between \fBxresume\fR and \fBxyield\fR:
@@ -541,10 +601,6 @@ An \fBint\fR value.
 .RS
 Declares a value containing zero
 .RE
-
-
-.SH "SEE ALSO"
-\fBcrux-common\fR(3)
 
 
 .SH "EXAMPLE"

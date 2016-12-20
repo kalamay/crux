@@ -85,5 +85,14 @@ xyield (union xvalue val);
 extern union xvalue
 xresume (struct xtask *t, union xvalue val);
 
+extern int
+xdefer (void (*fn) (void *), void *data);
+
+extern void *
+xmalloc (size_t size);
+
+extern void *
+xcalloc (size_t count, size_t size);
+
 #endif
 
