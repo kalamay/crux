@@ -16,7 +16,7 @@ This context relationship is expressed as a parent-child model. That is, the
 context that call \fBxresume\fR on a task becomes the parent of the task. The
 child may then \fByield\fR context back to the parent.
 .P
-Each task is a single allocation using \fBmmap(3)\fR. This single mapping
+Each task is a single allocation using \fBmmap\fR(2). This single mapping
 contains the space for the task object, the local storage, the stack, and the
 optional stack protector lock. The stack size will be at least as the size
 defined by the task manager. The entire allocation size (stack size, tls, task
@@ -168,7 +168,7 @@ The maximum allowed task locak storage size.
 .RS
 Protect the end of the stack. Enabling this will cause the process to segfault
 if the stack overflows. This is highly recommended. This does require an
-additional page to be allocated for the stack. However, this is an \fBmmap\fR(3)
+additional page to be allocated for the stack. However, this is an \fBmmap\fR(2)
 in most cases, so it should place little additional memory pressue on the system.
 .RE
 

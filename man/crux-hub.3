@@ -90,9 +90,9 @@ The hub ran successfully and completed all tasks.
 .TP
 \fI-EPERM\fR
 The hub is already running.
-.P
-Other error codes may be returned by the system polling function. These errors
-will be returned as -\fIerrno\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned by the system polling functon.
 .RE
 
 .P
@@ -205,9 +205,639 @@ No memory is available, or the process's maximum number of mappings would have b
 The requested stack size outside the allowed range.
 .RE
 
+.SS \fIHub Task Functions\fR
+.P
+These are functions that may be called when a spawned hub task has context.
+
+.P
+.nf
+\fBvoid\fR
+\fBxexit\fR (\fBint\fR \fIec\fR);
+.fi
+.RS
+.P
+Exits the current running task or the entire process if no task context. This
+will properly unschedule the currently spawned task. Unlike other functions in
+this section, this will work with non-hub spawned tasks. In this case, this is
+equivalent to calling:
+.P
+.nf
+
+    xtask_exit (xtask_self (), ec);
+.fi
+.P
+If no task has context, this is the equivalent to calling:
+.P
+.nf
+
+    exit (ec);
+.fi
+.TP
+\fIec\fR
+The exit code.
+.RE
+
+.P
+.nf
+\fBconst struct xclock\fR *
+\fBxclock\fR (\fBvoid\fR);
+.fi
+.RS
+.P
+Gets the monotonic clock used for scheduling the spawned task that currently
+has context. This clock is updated just prior to the task regaining context.
+This is useful for planning timed events the need to run at a somewhat constant
+interval regardless of time taken by the task itself.
+.P
+This returns the clock or \fBNULL\fR if the current context is not a hub task.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxsleep\fR (\fBunsigned \fIms\fR);
+.fi
+.RS
+Sleeps for the specified number of milliseconds. If the current context is a
+hub tasks, this will be scheduled in the hub, yielding context to other tasks.
+For non-hub tasks, this will sleep the process in the kernel, however, this
+will continue to sleep after an \fBEINTR\fR.
+.TP
+\fIms\fR
+The number of milliseconds to sleep for.
+.P
+Return values from this function may be:
+.TP
+\fI0\fR
+The sleep completed successfully.
+.TP
+\fI-ENOMEM\fR
+There was insufficient memory to allocate the object.
+.TP
+\fI-EFAULT\fR
+Problem with copying information from user space.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxsignal\fR (\fBint \fIsignum\fR, \fBint \fIms\fR);
+.fi
+.RS
+.P
+Yields the current hub-scheduled context until the specified signal is
+delivered to the process or the timeout is reached.
+.TP
+\fIsignum\fR
+Signal number to wait for.
+.TP
+\fIms\fR
+Number of milliseconds to wait for the signal, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fIsignum\fR
+This signal was delivered successfully.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without receiving the signal.
+.TP
+\fI-EINVAL\fR
+The \fIsignum\fR is not valid.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxread\fR (\fBint \fIfd\fR, \fBvoid \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+.fi
+.RS
+Reads upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
+\fBread\fR(2). If this results in an \fBEAGAIN\fR, the current hub task will
+yield context until the file descriptor becomes readable, the timeout is
+reached, or the file descriptor is closed.
+.TP
+\fIfd\fR
+The file descriptor to read from.
+.TP
+\fIbuf\fR
+The buffer to read bytes into.
+.TP
+\fIlen\fR
+The maximum number of bytes to read.
+.TP
+\fIms\fR
+The number of milliseconds to wait for data to become available, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully read from \fIfd\fR into \fIbuf\fR.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data becoming readable on \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBread\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxreadv\fR (\fBint \fIfd\fR, \fBstruct iovec \fR*\fIiov\fR, \fBint \fIiovcnt\fR, \fBint \fIms\fR);
+.fi
+.RS
+Reads upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
+\fBreadv\fR(2). If this results in an \fBEAGAIN\fR, the current hub task will
+yield context until the file descriptor becomes readable, the timeout is
+reached, or the file descriptor is closed.
+.TP
+\fIfd\fR
+The file descriptor to read from.
+.TP
+\fIiov\fR
+The \fBstruct iovec\fR buffers to read into.
+.TP
+\fIiovcnt\fR
+The maximum number of \fBstruct iovec\fR buffers to read into.
+.TP
+\fIms\fR
+The number of milliseconds to wait for data to become available, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully read from \fIfd\fR into the \fIiov\fR buffers.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data becoming readable on \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBreadv\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxreadn\fR (\fBint \fIfd\fR, \fBvoid \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+.fi
+.RS
+Reads exactly \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
+\fBread\fR(2) successively. If any read results in an \fBEAGAIN\fR, the current
+hub task will yield context until the file descriptor becomes readable. This
+continues until \fIlen\fR bytes have been read, the timeout is reached, or the
+file descriptor is closed.
+.TP
+\fIfd\fR
+The file descriptor to read from.
+.TP
+\fIbuf\fR
+The buffer to read bytes into.
+.TP
+\fIlen\fR
+The exact number of bytes to read.
+.TP
+\fIms\fR
+The number of milliseconds to wait for all data to get read, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully read from \fIfd\fR into \fIbuf\fR. This should
+always equal \fIlen\fR when successful.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without all data getting read from \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBread\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxwrite\fR (\fBint \fIfd\fR, \fBconst void \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+.fi
+.RS
+Writes upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
+\fBwrite\fR(2). If this results in an \fBEAGAIN\fR, the current hub task will
+yield context until the file descriptor becomes writeable, the timeout is
+reached, or the file descriptor is closed.
+.TP
+\fIfd\fR
+The file descriptor to write to.
+.TP
+\fIbuf\fR
+The buffer to write bytes from.
+.TP
+\fIlen\fR
+The maximum number of bytes to write.
+.TP
+\fIms\fR
+The number of milliseconds to wait for any data to get written, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully written from \fIfd\fR into \fIbuf\fR.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data being written to \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBwrite\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxwritev\fR (\fBint \fIfd\fR, \fBconst struct iovec \fR*\fIiov\fR, \fBint \fIiovcnt\fR, \fBint \fIms\fR);
+.fi
+.RS
+Writes upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
+\fBwritev\fR(2). If this results in an \fBEAGAIN\fR, the current hub task will
+yield context until the file descriptor becomes writeable, the timeout is
+reached, or the file descriptor is closed.
+.TP
+\fIfd\fR
+The file descriptor to write to.
+.TP
+\fIiov\fR
+The \fBstruct iovec\fR buffers to write from.
+.TP
+\fIiovcnt\fR
+The maximum number of \fBstruct iovec\fR buffers to write from.
+.TP
+\fIms\fR
+The number of milliseconds to wait for any data to get written, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully written from the \fIiov\fR buffers into \fIfd\fR.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data being written to \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBwritev\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxwriten\fR (\fBint \fIfd\fR, \fBconst void \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+.fi
+.RS
+Writes exactly \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
+\fBwrite\fR(2) successively. If any write results in an \fBEAGAIN\fR, the current
+hub task will yield context until the file descriptor becomes writeable. This
+continues until \fIlen\fR bytes have been written, the timeout is reached, or the
+file descriptor is closed.
+.TP
+\fIfd\fR
+The file descriptor to write to.
+.TP
+\fIbuf\fR
+The buffer to write bytes from.
+.TP
+\fIlen\fR
+The exact number of bytes to write.
+.TP
+\fIms\fR
+The number of milliseconds to wait for all the data to get written, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully written to \fIfd\fR from \fIbuf\fR. This should
+always equal \fIlen\fR when successful.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data becoming writeable on \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBwrite\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxrecvfrom\fR (\fBint \fIs\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIflags\fR,
+           \fBstruct sockaddr\fR *\fIsrc_addr\fR, \fBsocklen_t\fR *\fIsrc_len\fR, \fBint \fIms\fR);
+.fi
+.RS
+Recieves a message from a socket using \fBrecvfrom\fR(2). If this results in
+an `EAGAIN`, the current task will yield context until either the file
+descriptor becomes readable or the timeout is reached.
+.TP
+\fIs\fR
+The socket file descriptor to read from.
+.TP
+\fIbuf\fR
+The buffer to read bytes into.
+.TP
+\fIlen\fR
+The maximum number of bytes to read.
+.TP
+\fIflags\fR
+The flags to pass to \fBrecvfrom\fR(2).
+.TP
+\fIsrc_addr\fR
+Captures the source address if not \fBNULL\fR.
+.TP
+\fIsrc_len\fR
+On input this is the maximum size of \fIsrc_addr\fR in bytes. On output this is
+updated to reflect the output size of \fIsrc_addr\fR.
+.TP
+\fIms\fR
+The number of milliseconds to wait for all the data to get written, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully read from \fIs\fR into \fIbuf\fR.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data becoming readable on \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBrecvfrom\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxsendto\fR (\fBint \fIs\fR, \fBconst void\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIflags\fR,
+           \fBstruct sockaddr\fR *\fIdest_addr\fR, \fBsocklen_t \fIdest_len\fR, \fBint \fIms\fR);
+.fi
+.RS
+Sends a message to a socket using \fBsendto\fR(2). If this results in
+an `EAGAIN`, the current task will yield context until either the file
+descriptor becomes writable or the timeout is reached.
+.TP
+\fIs\fR
+The socket file descriptor to write to.
+.TP
+\fIbuf\fR
+The buffer to read write from.
+.TP
+\fIlen\fR
+The maximum number of bytes to write.
+.TP
+\fIflags\fR
+The flags to pass to \fBsendto\fR(2).
+.TP
+\fIdest_addr\fR
+The destination address to send the message unless \fIs\fR is a stream-oriented
+socket.
+.TP
+\fIdest_len\fR
+The size in bytes of \fIdest_addr\fR.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully written to \fIs\fR from \fIbuf\fR.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without any data becoming writeable on \fIfd\fR.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBsendto\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBtypedef ssize_t\fR (*\fBxio_fn\fR) (\fBint \fIfd\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBinta \fIms\fR);
+.fi
+.RS
+The callback function type for \fBxio\fR. Functions matching this type are
+expected to exclusively either read from or write to the file descriptor
+\fIfd\fR and return the total number of bytes. It is also expected to use the
+timeout provided to limit the time until completion.
+.TP
+\fIfd\fR
+The file descriptor to perform IO on.
+.TP
+\fIbuf\fR
+The buffer to read into or write from.
+.TP
+\fIlen\fR
+The maximum number of bytes to read or write.
+.TP
+\fIms\fR
+The number of milliseconds to wait for data to become readable or writable, or -1 for infinite.
+.P
+This must return the number of bytes handled by the call, or the error code
+(-\fBerrno\fR).
+.RE
+
+.P
+.nf
+\fBssize_t\fR
+\fBxio\fR (\fBint \fIfd\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR, \fBxio_fn \fIfn\fR);
+.fi
+.RS
+This function is used to aid in writing IO operations that must handle an exact
+number of bytes. This calls \fIfn\fR until \fIlen\fR bytes have been reported by
+the callback function. For each successive call, the byte counts returned will
+be tallyed, and the \fIbuf\fR, \fIlen\fR, and \fIms\fR values will be adjusted
+to account for the number of bytes currently processed and the time remaining
+to complete all operaionts.
+.P
+This function is used to implement \fBxreadn\fR, and \fBxwriten\fR.
+.TP
+\fIfd\fR
+The file descriptor to perform IO on.
+.TP
+\fIbuf\fR
+The buffer to read into or write from.
+.TP
+\fIlen\fR
+The maximum number of bytes to read or write.
+.TP
+\fIms\fR
+The number of milliseconds to wait for data to become readable or writable, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>0\fR
+The number of bytes successfully handled by \fIfn\fR. This should always equal
+\fIlen\fR when successful.
+.TP
+\fI0\fR
+The peer on \fIfd\fR has performed an orderly shutdown.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without all data getting handled by \fIfn\fR.
+.TP
+\fI<0\fR
+Any other error returned by \fIfn\fR.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxpipe\fR (\fBint \fIfds\fR[\fBstatic 2\fR]);
+.fi
+.RS
+Creates a non-blocking pipe pair. This will alse set the \fBFD_CLOEXEC\fR flag on the
+resuling file descriptors. If either of the pipe file descriptors need to be
+shared with a child process, they should either be eplicitly duplicated or have
+the flag removed.
+.P
+See \fBpipe\fR(2) for more details.
+.P
+0 will be returned on success, and -\fBerrno\fR will be returned on error.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxsocket\fR (\fBint \fIdomain\fR, \fBint \fItype\fR, \fBint \fIprotocol\fR);
+.fi
+.RS
+Opens a non-blocking socket. This will alse set the \fBFD_CLOEXEC\fR flag on the
+resuling file descriptors. If either of the pipe file descriptors need to be
+shared with a child process, they should either be eplicitly duplicated or have
+the flag removed.
+.P
+See \fBsocket\fR(2) for more details.
+.P
+0 will be returned on success, and -\fBerrno\fR will be returned on error.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxaccept\fR (\fBint \fIs\fR, \fBstruct sockaddr\fR *\fIaddr\fR, \fBsocklen_t \fIaddrlen\fR, \fIint \fIms\fR);
+.fi
+.RS
+Accepts a connection off of the stream socket. If the socket has no pending
+connections, the task will yield until one becomes available or the timeout
+is reached. When successful, the returned file discriptor will have both
+\fBO_NONBLOCK\fR and \fBFD_CLOEXEC\fR flags sets.
+.P
+0 will be returned on success, and -\fBerrno\fR will be returned on error.
+.TP
+\fIs\fR
+Listening socket file descriptor.
+.TP
+\fIaddr\fR
+On success, this will contain the address of the connecting entity. This may
+be \fBNULL\fR.
+.TP
+\fIaddrlen\fR
+On input this is the maximum size of \fIaddr\fR in bytes. On output this is
+updated to reflect the output size of \fIaddr\fR.
+.TP
+\fIms\fR
+Number of milliseconds to wait for the accepted connection, or -1 for infinite.
+.P
+Return values from this function may be:
+.TP
+\fI>=0\fR
+The successfully accepted file descriptor.
+.TP
+\fI-ETIMEDOUT\fR
+The timeout period was reached without accepting a connection.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBaccept\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxunblock\fR (\fBint \fIfd\fR);
+.fi
+.RS
+Sets the \fBO_NONBLOCK\fR flag on the file descriptor. When successful, reads
+and writes to this file descriptor will return \fBEAGAIN\fR when doing so would
+block. Given that most of the concurrency primatives rely on non-blocking IO,
+the socket creation functions will have already set this flag.
+.P
+This function will pass through \fIfd\fR as-is if either \fIfd\fR is less than
+zero (i.e. already an error), or the flag is applied successfully. 
+.TP
+\fIfd\fR
+The file descriptor to make non-blocking.
+.P
+Return values from this function may be:
+.TP
+\fIfd\fR
+If the input \fIfd\fR is less than zero or the flag is applied successfully.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBfcntl\fR(2) for
+possible errors.
+.RE
+
+.P
+.nf
+\fBint\fR
+\fBxcloexec\fR (\fBint \fIfd\fR);
+.fi
+.RS
+Sets the \fBFD_CLOEXEC\fR flag on the file descriptor. When successful, this file
+descriptor will not be duplicated in exec-ed child processes. It is generally
+preferrable to set all file descriptors to not be inherited, and then explicitly
+duplicate file descriptors between the \fBfork\fR(2) and \fBexec\fR(2) calls of
+the child process. The socket creation functions will have already set this flag.
+.P
+This function will pass through \fIfd\fR as-is if either \fIfd\fR is less than
+zero (i.e. already an error), or the flag is applied successfully. 
+.TP
+\fIfd\fR
+The file descriptor to enable close-on-exec.
+.P
+Return values from this function may be:
+.TP
+\fIfd\fR
+If the input \fIfd\fR is less than zero or the flag is applied successfully.
+.TP
+\fI<0\fR
+An error occurred and -\fBerrno\fR was returned. See \fBfcntl\fR(2) for
+possible errors.
+.RE
+
 
 .SH "SEE ALSO"
-\fBcrux-task\fR(3), \fBcrux-common\fR(3)
+\fBcrux-task\fR(3)
 
 
 .SH "EXAMPLE"
@@ -249,7 +879,7 @@ server (struct xhub *h, void *data)
 	xcheck_errno (listen (s, 1024));
 	xdefer (doclose, (void *)(uintptr_t)s);
 
-	printf ("[%d] listening on stream://%s:%d\n",
+	printf ("[%d] listening on stream://%s:%d\\n",
 			getpid (), inet_ntoa (dest.sin_addr), ntohs (dest.sin_port));
 
 	while (1) {
@@ -257,12 +887,12 @@ server (struct xhub *h, void *data)
 		socklen_t len = sizeof addr;
 		int fd = xaccept (s, (struct sockaddr *)&addr, &len, -1);
 		if (fd >= 0) {
-			printf ("[%d] accepted from stream://%s:%d\n",
+			printf ("[%d] accepted from stream://%s:%d\\n",
 					getpid (), inet_ntoa (addr.sin_addr), ntohs (addr.sin_port));
 			xspawn (h, connection, (void *)(uintptr_t)fd);
 		}
 		else {
-			printf ("[%d] failed to accept: %s\n", getpid (), xerr_str (fd));
+			printf ("[%d] failed to accept: %s\\n", getpid (), xerr_str (fd));
 			xhub_stop (h);
 			break;
 		}
