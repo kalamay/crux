@@ -1,7 +1,6 @@
 #include "../include/crux/hub.h"
 #include "../include/crux/err.h"
 #include "../include/crux/list.h"
-#include "../include/crux/common.h"
 
 #include "task.h"
 #include "heap.h"

@@ -1,5 +1,4 @@
 #include "mu.h"
-#include "../include/crux/common.h"
 #include "../include/crux/task.h"
 
 static union xvalue

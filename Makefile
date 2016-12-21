@@ -87,7 +87,6 @@ BUILD_TYPE:= $(BUILD_ROOT)/$(BUILD)
 BUILD_LIB:= $(BUILD_TYPE)/lib
 BUILD_INCLUDE:= $(BUILD_TYPE)/include
 BUILD_MAN:= $(BUILD_TYPE)/$(MANDIR)
-BUILD_TEST:= $(BUILD_TYPE)/test
 BUILD_TMP:= $(BUILD_ROOT)/tmp/$(BUILD)
 
 # update final build flags
@@ -109,7 +108,6 @@ SRC:= \
 INCLUDE:= \
 	include/crux.h \
 	include/crux/clock.h \
-	include/crux/common.h \
 	include/crux/ctx.h \
 	include/crux/def.h \
 	include/crux/err.h \
@@ -118,7 +116,8 @@ INCLUDE:= \
 	include/crux/list.h \
 	include/crux/poll.h \
 	include/crux/task.h \
-	include/crux/version.h
+	include/crux/version.h \
+	include/crux/typedefs.h
 
 # list of manual pages
 MAN:= \
@@ -147,7 +146,7 @@ SRC_OBJ:= $(SRC:src/%.c=$(BUILD_TMP)/crux-%.o)
 # object files mapped from test files
 TEST_OBJ:= $(TEST:test/%.c=$(BUILD_TMP)/crux-test-%.o)
 # executable files mapped from test files
-TEST_BIN:= $(TEST:test/%.c=$(BUILD_TEST)/%)
+TEST_BIN:= $(TEST:test/%.c=$(BUILD_TMP)/test-%)
 # build header files mapped from include files
 INCLUDE_OUT:=$(INCLUDE:%=$(BUILD_TYPE)/%)
 # build man pages mapped from man source files
@@ -185,7 +184,7 @@ uninstall:
 	@if [ -d $(DESTDIR)$(PREFIX)/include/crux ]; then rmdir $(DESTDIR)$(PREFIX)/include/crux; fi
 
 # build and execute test
-test-%: $(BUILD_TEST)/%
+test-%: $(BUILD_TMP)/%
 	./$<
 
 # set config.h as a dependency for all source files
@@ -220,7 +219,7 @@ $(BUILD_MAN)/%: man/% | $(BUILD_MAN)
 	cp $< $@
 
 # link test executables
-$(BUILD_TEST)/%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TEST)
+$(BUILD_TMP)/test-%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TMP)
 	$(CC) $(LDFLAGS) $^ -o $@
 
 # compile main object files
@@ -232,7 +231,7 @@ $(BUILD_TMP)/crux-test-%.o: test/%.c Makefile | $(BUILD_TMP)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # create directory paths
-$(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_MAN) $(BUILD_TEST) $(BUILD_TMP):
+$(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_MAN) $(BUILD_TMP):
 	mkdir -p $@
 
 # removes the build directory
