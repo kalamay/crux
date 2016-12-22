@@ -63,6 +63,12 @@ def has_epoll():
 		int main(void) { epoll_create (10); }
 	""")
 
+def has_arc4():
+	return compiles("""
+		#include <time.h>
+		int main(void) { arc4random_buf (10); }
+	""")
+
 print("#define XHEAP_PAGECOUNT %d" % PAGEPTR)
 print("#define XHEAP_PAGEMASK %d" % (PAGEPTR - 1))
 print("#define XHEAP_PAGESHIFT %d" % math.log(PAGEPTR, 2))
@@ -78,6 +84,8 @@ if has_kqueue():
 	print("#define HAS_KQUEUE 1")
 elif has_epoll():
 	print("#define HAS_EPOLL 1")
+if has_arc4():
+	print("#define HAS_ARC4 1")
 
 print(("""
 #if defined (__aarch64__)

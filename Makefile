@@ -96,13 +96,17 @@ LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 
 # list of souce files to include in build
 SRC:= \
+	src/init.c \
 	src/version.c \
 	src/err.c \
 	src/heap.c \
 	src/clock.c \
 	src/task.c \
 	src/poll.c \
-	src/hub.c
+	src/hub.c \
+	src/rand.c \
+	src/seed.c \
+	src/hash.c
 
 # list of header files to include in build
 INCLUDE:= \
@@ -117,7 +121,11 @@ INCLUDE:= \
 	include/crux/poll.h \
 	include/crux/task.h \
 	include/crux/version.h \
-	include/crux/typedefs.h
+	include/crux/rand.h \
+	include/crux/seed.h \
+	include/crux/hash.h \
+	include/crux/hashtier.h \
+	include/crux/hashmap.h
 
 # list of manual pages
 MAN:= \
@@ -130,7 +138,10 @@ TEST:= \
 	test/clock.c \
 	test/task.c \
 	test/poll.c \
-	test/hub.c
+	test/hub.c \
+	test/hash.c \
+	test/hashtier.c \
+	test/hashmap.c
 
 # list of files to install
 INSTALL:= \
@@ -184,7 +195,7 @@ uninstall:
 	@if [ -d $(DESTDIR)$(PREFIX)/include/crux ]; then rmdir $(DESTDIR)$(PREFIX)/include/crux; fi
 
 # build and execute test
-test-%: $(BUILD_TMP)/%
+test-%: $(BUILD_TMP)/test-%
 	./$<
 
 # set config.h as a dependency for all source files

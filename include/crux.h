@@ -8,5 +8,8 @@
 #include "crux/task.h"
 #include "crux/hub.h"
 
+extern void
+xinit (void);
+
 #endif
 

@@ -13,11 +13,15 @@
 
 static mach_timebase_info_data_t info = { 1, 1 };
 
-static void __attribute__((constructor))
-init (void)
+void
+xinit_clock (void)
 {
 	(void)mach_timebase_info (&info);
 }
+
+#else
+
+void xinit_clock (void) {}
 
 #endif
 
