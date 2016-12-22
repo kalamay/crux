@@ -1,9 +1,10 @@
 #ifndef CRUX_POLL_H
 #define CRUX_POLL_H
 
-#include <signal.h>
-
+#include "def.h"
 #include "clock.h"
+
+#include <signal.h>
 
 #define XPOLL_ADD 0x0001 /** Operation to add an event */
 #define XPOLL_DEL 0x0002 /** Operation to remove an event */
@@ -50,7 +51,7 @@ struct xevent {
  *   `-ENFILE`: the system file table is full
  *   `-ENOMEM`: insufficient memory was available
  */
-extern int
+XEXTERN int
 xpoll_new (struct xpoll **pollp);
 
 /**
@@ -61,7 +62,7 @@ xpoll_new (struct xpoll **pollp);
  *
  * @param  pollp  indirect poll object pointer
  */
-extern void
+XEXTERN void
 xpoll_free (struct xpoll **pollp);
 
 /**
@@ -82,7 +83,7 @@ xpoll_free (struct xpoll **pollp);
  *   `-ENOENT`: the event could not be found to be modified or deleted
  *   `-ENOMEM`: no memory was available to register the event
  */
-extern int
+XEXTERN int
 xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
 
 /**
@@ -96,7 +97,7 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
  * @param[out]  ev  event information if successful
  * @return  1 on sucess, 0 on timeout, -errno on error
  */
-extern int
+XEXTERN int
 xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev);
 
 /**
@@ -107,7 +108,7 @@ xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev);
  * @param  poll  poll pointer
  * @return  clock pointer
  */
-extern const struct xclock *
+XEXTERN const struct xclock *
 xpoll_clock (const struct xpoll *poll);
 
 #endif

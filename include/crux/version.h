@@ -1,7 +1,7 @@
 #ifndef CRUX_VERSION_H
 #define CRUX_VERSION_H
 
-#include <stdint.h>
+#include "def.h"
 
 struct xversion {
 	uint8_t major;
@@ -9,7 +9,7 @@ struct xversion {
 	uint16_t patch;
 };
 
-struct xversion
+XEXTERN struct xversion
 xversion (void);
 
 #endif

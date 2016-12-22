@@ -1,10 +1,6 @@
 #ifndef CRUX_HEAP_H
 #define CRUX_HEAP_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-
 #include "def.h"
 
 /**
@@ -74,7 +70,7 @@ typedef void (*xheap_fn)(struct xheap_entry *ent, void *data);
  * Errors:
  *   `-ENOMEM`: an allocation is required and the system is out of memory
  */
-extern int
+XEXTERN int
 xheap_new (struct xheap **heapp);
 
 /**
@@ -85,7 +81,7 @@ xheap_new (struct xheap **heapp);
  *
  * @param  heapp  indirect heap object pointer
  */
-extern void
+XEXTERN void
 xheap_free (struct xheap **heapp);
 
 /**
@@ -94,7 +90,7 @@ xheap_free (struct xheap **heapp);
  * @param  heap  heap pointer
  * @return  number of entries
  */
-extern uint32_t
+XEXTERN uint32_t
 xheap_count (const struct xheap *heap);
 
 /**
@@ -106,7 +102,7 @@ xheap_count (const struct xheap *heap);
  * @param  key   entry key >= `XHEAP_ROOT`
  * @return  entry pointer or `NULL`
  */
-extern struct xheap_entry *
+XEXTERN struct xheap_entry *
 xheap_get (const struct xheap *heap, uint32_t key);
 
 /**
@@ -122,7 +118,7 @@ xheap_get (const struct xheap *heap, uint32_t key);
  * Errors:
  *   `-ENOMEM`: an allocation is required and the system is out of memory
  */
-extern int
+XEXTERN int
 xheap_add (struct xheap *heap, struct xheap_entry *e);
 
 /**
@@ -140,7 +136,7 @@ xheap_add (struct xheap *heap, struct xheap_entry *e);
  * Errors:
  *   `-ENOENT`: the key for the entry is not in the heap
  */
-extern int
+XEXTERN int
 xheap_remove (struct xheap *heap, struct xheap_entry *e);
 
 /**
@@ -157,7 +153,7 @@ xheap_remove (struct xheap *heap, struct xheap_entry *e);
  * Errors:
  *   `-ENOENT`: the key for the entry is not in the heap
  */
-extern int
+XEXTERN int
 xheap_update (const struct xheap *heap, struct xheap_entry *e);
 
 /**
@@ -171,7 +167,7 @@ xheap_update (const struct xheap *heap, struct xheap_entry *e);
  * @param  fn    callback function for each entry
  * @param  data  user pointer to pass to `fn`
  */
-extern void
+XEXTERN void
 xheap_clear (struct xheap *heap, xheap_fn fn, void *data);
 
 #endif

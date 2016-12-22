@@ -4,7 +4,6 @@
 #include "../include/crux/clock.h"
 
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <assert.h>
 

@@ -8,10 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <inttypes.h>
 #include <dlfcn.h>
 #include <assert.h>
-#include <errno.h>
 
 #if HAS_X86_64
 # include "ctx/x86_64.c"

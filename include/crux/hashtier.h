@@ -1,21 +1,12 @@
 #ifndef CRUX_HASHTIER_H
 #define CRUX_HASHTIER_H
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <assert.h>
-#include <stdint.h>
-
+#include "def.h"
 #include "err.h"
 #include "hash.h"
-#include "def.h"
 
-#ifndef XEXTERN
-# define XEXTERN extern
-#endif
-#ifndef XSTATIC
-# define XSTATIC __attribute__((unused)) static
-#endif
+#include <stdlib.h>
+#include <assert.h>
 
 /**
  * Hash base functionality

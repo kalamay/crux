@@ -1,9 +1,9 @@
 #ifndef CRUX_CTX_H
 #define CRUX_CTX_H
 
+#include "def.h"
+
 #include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
 
 struct xctx;
 
@@ -17,7 +17,7 @@ struct xctx;
  * @param  a1     first argument to `ip`
  * @param  a2     second argument to `ip`
  */
-extern void
+XEXTERN void
 xctx_init (struct xctx *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2);
 
@@ -27,7 +27,7 @@ xctx_init (struct xctx *ctx, void *stack, size_t len,
  * @param  save  destination to save current context
  * @param  load  context to activate
  */
-extern void
+XEXTERN void
 xctx_swap (struct xctx *save, const struct xctx *load);
 
 #endif

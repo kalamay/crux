@@ -1,11 +1,9 @@
 #ifndef CRUX_TASK_H
 #define CRUX_TASK_H
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <limits.h>
+#include "def.h"
 
+#include <stdio.h>
 
 union xvalue {
 	uint64_t u64;
@@ -38,13 +36,13 @@ union xvalue {
 
 struct xmgr;
 
-extern int
+XEXTERN int
 xmgr_new (struct xmgr **mgrp, size_t tls, size_t stack, int flags);
 
-extern void
+XEXTERN void
 xmgr_free (struct xmgr **mgrp);
 
-extern struct xmgr *
+XEXTERN struct xmgr *
 xmgr_self (void);
 
 
@@ -53,45 +51,45 @@ struct xtask;
 #define xtask_new(tp, mgr, tls, fn) \
 	xtask_newf (tp, mgr, tls, __FILE__, __LINE__, fn)
 
-extern int
+XEXTERN int
 xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
 		const char *file, int line,
 		union xvalue (*fn)(void *tls, union xvalue));
 
-extern void
+XEXTERN void
 xtask_free (struct xtask **tp);
 
-extern struct xtask *
+XEXTERN struct xtask *
 xtask_self (void);
 
-extern void *
+XEXTERN void *
 xtask_local (struct xtask *t);
 
-extern bool
+XEXTERN bool
 xtask_alive (const struct xtask *t);
 
-extern int
+XEXTERN int
 xtask_exitcode (const struct xtask *t);
 
-extern int
+XEXTERN int
 xtask_exit (struct xtask *t, int ec);
 
-extern void
+XEXTERN void
 xtask_print (const struct xtask *t, FILE *out);
 
-extern union xvalue
+XEXTERN union xvalue
 xyield (union xvalue val);
 
-extern union xvalue
+XEXTERN union xvalue
 xresume (struct xtask *t, union xvalue val);
 
-extern int
+XEXTERN int
 xdefer (void (*fn) (void *), void *data);
 
-extern void *
+XEXTERN void *
 xmalloc (size_t size);
 
-extern void *
+XEXTERN void *
 xcalloc (size_t count, size_t size);
 
 #endif

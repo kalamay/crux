@@ -2,7 +2,16 @@
 #define CRUX_DEF_H
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <stddef.h>
+#include <errno.h>
+
+#define XEXTERN __attribute__ ((visibility ("default"))) extern
+#define XLOCAL  __attribute__ ((visibility ("hidden")))
+#define XSTATIC __attribute__ ((unused)) static
 
 #define xcontainer(ptr, type, member) __extension__ ({ \
 	const __typeof (((type *)0)->member) *__mptr = (ptr); \
@@ -34,7 +43,7 @@
 	tmp; \
 })
 
-extern const uint64_t XPOWER2_PRIMES[64];
+XEXTERN const uint64_t XPOWER2_PRIMES[64];
 
 #define xpower2_prime(n) __extension__ ({ \
 	__typeof (n) tmp = (n); \

@@ -1,8 +1,9 @@
 #ifndef CRUX_ERR_H
 #define CRUX_ERR_H
 
+#include "def.h"
+
 #include <stdio.h>
-#include <errno.h>
 
 #define XERRNO (-errno)
 
@@ -12,7 +13,7 @@
  * @param  code  error code in either positive or negative form
  * @return  string error message
  */
-extern const char *
+XEXTERN const char *
 xerr_str (int code);
 
 /**
@@ -22,7 +23,7 @@ xerr_str (int code);
  *
  * @param  code  error code in either positive or negative form
  */
-extern void
+XEXTERN void
 xerr_abort (int code);
 
 /**
@@ -34,7 +35,7 @@ xerr_abort (int code);
  *
  * @param  code  error code in either positive or negative form
  */
-extern void __attribute__ ((format (printf, 2, 3)))
+XEXTERN void __attribute__ ((format (printf, 2, 3)))
 xerr_fabort (int code, const char *fmt, ...);
 
 /**

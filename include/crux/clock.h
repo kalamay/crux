@@ -1,7 +1,8 @@
 #ifndef CRUX_CLOCK_H
 #define CRUX_CLOCK_H
 
-#include <stdint.h>
+#include "def.h"
+
 #include <stdio.h>
 #include <time.h>
 
@@ -118,7 +119,7 @@ struct xclock {
  * @param  c  clock pointer
  * @return  0 on succes, -errno on error
  */
-extern int
+XEXTERN int
 xclock_real (struct xclock *c);
 
 /**
@@ -127,7 +128,7 @@ xclock_real (struct xclock *c);
  * @param  c  clock pointer
  * @return  0 on succes, -errno on error
  */
-extern int
+XEXTERN int
 xclock_mono (struct xclock *c);
 
 /**
@@ -138,7 +139,7 @@ xclock_mono (struct xclock *c);
  * @param  c  clock pointer
  * @return  delta time in seconds, NAN on error
  */
-extern double
+XEXTERN double
 xclock_diff (struct xclock *c);
 
 /**
@@ -149,8 +150,17 @@ xclock_diff (struct xclock *c);
  * @param  c  clock pointer
  * @return  delta time in seconds, NAN on error
  */
-extern double
+XEXTERN double
 xclock_step (struct xclock *c);
+
+/**
+ * @brief  Prints a representation of the clock
+ *
+ * @param  c    clock pointer
+ * @param  out  output stream or `NULL` for `stdout`
+ */
+XEXTERN void
+xclock_print (const struct xclock *c, FILE *out);
 
 #endif
 
