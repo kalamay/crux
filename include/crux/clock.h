@@ -152,14 +152,5 @@ xclock_diff (struct xclock *c);
 extern double
 xclock_step (struct xclock *c);
 
-/**
- * @brief  Prints a representation of the clock
- *
- * @param  c    clock pointer
- * @param  out  output stream or `NULL` for `stdout`
- */
-extern void
-xclock_print (const struct xclock *c, FILE *out);
-
 #endif
 

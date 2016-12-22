@@ -96,16 +96,11 @@ LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 
 # list of souce files to include in build
 SRC:= \
-	src/init.c \
-	src/version.c \
-	src/err.c \
+	src/base.c \
 	src/heap.c \
-	src/clock.c \
 	src/task.c \
 	src/poll.c \
 	src/hub.c \
-	src/rand.c \
-	src/seed.c \
 	src/hash.c
 
 # list of header files to include in build
@@ -134,14 +129,14 @@ MAN:= \
 
 # list of source files for testing
 TEST:= \
-	test/heap.c \
 	test/clock.c \
-	test/task.c \
-	test/poll.c \
-	test/hub.c \
 	test/hash.c \
+	test/hashmap.c \
 	test/hashtier.c \
-	test/hashmap.c
+	test/heap.c \
+	test/hub.c \
+	test/poll.c \
+	test/task.c
 
 # list of files to install
 INSTALL:= \
