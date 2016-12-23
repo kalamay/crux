@@ -16,8 +16,7 @@ struct thing_tier {
 	XHASHTIER (struct thing);
 };
 
-XHASHTIER_STATIC (thing, struct thing_tier, int)
-XHASHTIER_GEN_INT (thing, struct thing_tier, int)
+XHASHTIER_INT_STATIC (thing, struct thing_tier, int)
 
 static bool
 verify_tier (struct thing_tier *tier)

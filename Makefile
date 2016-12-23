@@ -118,6 +118,7 @@ INCLUDE:= \
 	include/crux/version.h \
 	include/crux/rand.h \
 	include/crux/seed.h \
+	include/crux/vec.h \
 	include/crux/hash.h \
 	include/crux/hashtier.h \
 	include/crux/hashmap.h
@@ -130,6 +131,7 @@ MAN:= \
 # list of source files for testing
 TEST:= \
 	test/clock.c \
+	test/vec.c \
 	test/hash.c \
 	test/hashmap.c \
 	test/hashtier.c \

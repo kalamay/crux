@@ -20,7 +20,6 @@ struct junk {
 };
 
 XHASHMAP_STATIC (junk, struct junk, const char *, const char *)
-XHASHMAP_GEN (junk, struct junk, const char *, const char *)
 
 #define TEST_ADD_NEW(map, key, resultcount) do { \
 	const char *k = key; \
@@ -250,6 +249,16 @@ struct thing {
 	int key, value;
 };
 
+struct thing_map {
+	XHASHMAP (thing, struct thing, 2);
+};
+
+void
+thing_print_entry (struct thing *t, FILE *out)
+{
+	fprintf (out, "<thing key=%d, value=%d>", t->key, t->value);
+}
+
 bool
 thing_has_key (struct thing *t, int k, size_t kn)
 {
@@ -257,12 +266,7 @@ thing_has_key (struct thing *t, int k, size_t kn)
 	return t->key == k;
 }
 
-struct thing_map {
-	XHASHMAP (thing, struct thing, 2);
-};
-
-XHASHMAP_STATIC (thing, struct thing_map, int, struct thing)
-XHASHMAP_GEN_INT (thing, struct thing_map, int, struct thing)
+XHASHMAP_INT_STATIC (thing, struct thing_map, int, struct thing)
 
 static void
 test_set (void)
@@ -488,7 +492,10 @@ test_remove_all (void)
 		t = thing_get (&map, key, 0);
 		mu_assert_ptr_ne (t, NULL);
 		mu_assert_int_eq (t->value, val);
-		mu_assert (thing_remove (&map, t));
+		if (!thing_remove (&map, t)) {
+			thing_print (&map, stdout, thing_print_entry);
+			mu_fail ("failed to remove: key=%d, value=%d", key, val);
+		}
 	}
 
 	mu_assert_uint_eq (map.count, 0);
@@ -499,7 +506,7 @@ test_remove_all (void)
 
 	mu_assert_uint_eq (map.count, 1000);
 
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 999; i >= 0; i--) {
 		t = thing_get (&map, i, 0);
 		mu_assert_ptr_ne (t, NULL);
 		mu_assert_int_eq (t->value, i * 100);
@@ -507,6 +514,105 @@ test_remove_all (void)
 	}
 
 	mu_assert_uint_eq (map.count, 0);
+}
+
+void
+test_tier_sizes (void)
+{
+	struct thing_map map;
+	thing_init (&map, 0.0, 0);
+
+	for (int i = 1; i <= 10; i++) {
+		thing_put (&map, i, 0, &((struct thing) { i, i*i }));
+	}
+
+	mu_assert_int_eq (map.count, 10);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_int_eq (map.tiers[0]->count, 3);
+	mu_assert_int_eq (map.tiers[0]->size, 16);
+	mu_assert_int_eq (map.tiers[0]->remap, 16);
+	mu_assert_ptr_ne (map.tiers[1], NULL);
+	mu_assert_int_eq (map.tiers[1]->count, 7);
+	mu_assert_int_eq (map.tiers[1]->size, 8);
+	mu_assert_int_eq (map.tiers[1]->remap, 8);
+
+	thing_condense (&map, 5);
+
+	mu_assert_int_eq (map.count, 10);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_int_eq (map.tiers[0]->count, 8);
+	mu_assert_int_eq (map.tiers[0]->size, 16);
+	mu_assert_int_eq (map.tiers[0]->remap, 16);
+	mu_assert_ptr_ne (map.tiers[1], NULL);
+	mu_assert_int_eq (map.tiers[1]->count, 2);
+	mu_assert_int_eq (map.tiers[1]->size, 8);
+	mu_assert_int_lt (map.tiers[1]->remap, 8);
+
+	thing_condense (&map, 5);
+
+	mu_assert_int_eq (map.count, 10);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_int_eq (map.tiers[0]->count, 10);
+	mu_assert_int_eq (map.tiers[0]->size, 16);
+	mu_assert_int_eq (map.tiers[0]->remap, 16);
+	mu_assert_ptr_eq (map.tiers[1], NULL);
+
+	for (int i = 11; i <= 20; i++) {
+		thing_put (&map, i, 0, &((struct thing) { i, i*i }));
+	}
+
+	mu_assert_int_eq (map.count, 20);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_int_eq (map.tiers[0]->count, 6);
+	mu_assert_int_eq (map.tiers[0]->size, 32);
+	mu_assert_int_eq (map.tiers[0]->remap, 32);
+	mu_assert_ptr_ne (map.tiers[1], NULL);
+	mu_assert_int_eq (map.tiers[1]->count, 14);
+	mu_assert_int_eq (map.tiers[1]->size, 16);
+	mu_assert_int_eq (map.tiers[1]->remap, 16);
+
+	for (int i = 1; i <= 11; i++) {
+		thing_del (&map, i, 0, NULL);
+	}
+
+	mu_assert_int_eq (map.count, 9);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_int_eq (map.tiers[0]->count, 6);
+	mu_assert_int_eq (map.tiers[0]->size, 32);
+	mu_assert_int_eq (map.tiers[0]->remap, 32);
+	mu_assert_ptr_ne (map.tiers[1], NULL);
+	mu_assert_int_eq (map.tiers[1]->count, 3);
+	mu_assert_int_eq (map.tiers[1]->size, 16);
+	mu_assert_int_eq (map.tiers[1]->remap, 16);
+
+	thing_condense (&map, 1);
+
+	mu_assert_int_eq (map.count, 9);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_int_eq (map.tiers[0]->count, 7);
+	mu_assert_int_eq (map.tiers[0]->size, 32);
+	mu_assert_int_eq (map.tiers[0]->remap, 32);
+	mu_assert_ptr_ne (map.tiers[1], NULL);
+	mu_assert_int_eq (map.tiers[1]->count, 2);
+	mu_assert_int_eq (map.tiers[1]->size, 16);
+	mu_assert_int_lt (map.tiers[1]->remap, 16);
+
+	struct thing_tier *reuse = map.tiers[1];
+
+	thing_del (&map, 20, 0, NULL);
+
+	mu_assert_int_eq (map.count, 8);
+	mu_assert_ptr_ne (map.tiers[0], NULL);
+	mu_assert_ptr_eq (map.tiers[0], reuse);
+	mu_assert_int_eq (map.tiers[0]->count, 2);
+	mu_assert_int_eq (map.tiers[0]->size, 16);
+	mu_assert_int_eq (map.tiers[0]->remap, 16);
+	mu_assert_ptr_ne (map.tiers[1], NULL);
+	mu_assert_int_eq (map.tiers[1]->count, 6);
+	mu_assert_int_eq (map.tiers[1]->size, 32);
+	mu_assert_int_eq (map.tiers[1]->remap, 32);
+
+	thing_final (&map);
 }
 
 uint64_t
@@ -535,7 +641,6 @@ struct prehash {
 };
 
 XHASHMAP_STATIC (prehash, struct prehash, uint64_t, int)
-XHASHMAP_GEN (prehash, struct prehash, uint64_t, int)
 
 static uint64_t
 make_key (int n)
@@ -1058,6 +1163,7 @@ main (void)
 	test_each ();
 	test_remove ();
 	test_remove_all ();
+	test_tier_sizes ();
 	test_pre_hash (0);
 	test_pre_hash (100);
 

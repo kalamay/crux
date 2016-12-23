@@ -6,6 +6,7 @@
 #include "hash.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 /**
@@ -32,6 +33,17 @@
 	(arr)[(a)] = (arr)[(b)]; \
 	memcpy (&(arr)[(b)], xsym(tmp), sizeof xsym(tmp)); \
 } while (0)
+
+/**
+ * Determines the allocation count
+ *
+ * @param  n  desired count
+ * @return  allocation count
+ */
+#define XHASHTIER_SIZE(n) __extension__ ({ \
+	size_t __size = (size_t)(n); \
+	__size < 8 ? 8 : xpower2 (__size); \
+})
 
 /**
  * Determines the starting index for a hash value
@@ -109,17 +121,54 @@
  * @param  TKey   key type
  */
 #define XHASHTIER_EXTERN(pref, TTier, TKey) \
-	XTASHTIER_PROTO (XEXTERN, pref, TTier, TKey)
+	XHASHTIER_PROTO (XEXTERN, pref, TTier, TKey)
 
 /**
- * Generates static function prototypes for the tier
+ * Generates functions for the tier
+ *
+ * @param  pref     function name prefix
+ * @param  TTier    tier structure name
+ * @param  TKey     key type
+ */
+#define XHASHTIER_GEN(pref, TTier, TKey) \
+	XHASHTIER_GEN_PRIV (pref, TTier, TKey, pref##_has_key, pref##_hash)
+
+/**
+ * Generates functions for the tier with an int-like key
+ *
+ * This generates a hash function so a user-defined function should be omitted.
+ *
+ * @param  pref     function name prefix
+ * @param  TTier    tier structure name
+ * @param  TKey     key type
+ */
+#define XHASHTIER_INT_GEN(pref, TTier, TKey) \
+	XHASH_INT_GEN (XSTATIC, pref##_hash, TKey) \
+	XHASHTIER_GEN (pref, TTier, TKey)
+
+/**
+ * Generates static functions for the tier
  *
  * @param  pref   function name prefix
  * @param  TTier  tier structure type
  * @param  TKey   key type
  */
 #define	XHASHTIER_STATIC(pref, TTier, TKey) \
-	XTASHTIER_PROTO (XSTATIC, pref, TTier, TKey)
+	XHASHTIER_PROTO (XSTATIC, pref, TTier, TKey) \
+	XHASHTIER_GEN (pref, TTier, TKey)
+
+/**
+ * Generates static functions for the tier using an int-like key.
+ *
+ * This generates a hash function so a user-defined function should be omitted.
+ *
+ * @param  pref   function name prefix
+ * @param  TTier  tier structure type
+ * @param  TKey   key type
+ */
+#define	XHASHTIER_INT_STATIC(pref, TTier, TKey) \
+	XHASHTIER_PROTO (XSTATIC, pref, TTier, TKey) \
+	XHASHTIER_INT_GEN (pref, TTier, TKey)
 
 /**
  * Generates attributed function prototypes for the tier 
@@ -129,7 +178,7 @@
  * @param  pref   function name prefix
  * @param  attr   attributes to apply to the function prototypes
  */
-#define XTASHTIER_PROTO(attr, pref, TTier, TKey) \
+#define XHASHTIER_PROTO(attr, pref, TTier, TKey) \
 	attr double \
 	pref##_load (const TTier *tier); \
 	attr ssize_t \
@@ -153,30 +202,11 @@
 	attr int \
 	pref##_new (TTier **tierp, size_t n); \
 	attr int \
+	pref##_new_size (TTier **tierp, size_t n); \
+	attr int \
 	pref##_renew (TTier **tierp, size_t n); \
-
-/**
- * Generates functions for the tier
- *
- * @param  pref     function name prefix
- * @param  TTier    tier structure name
- * @param  TKey     key type
- */
-#define XHASHTIER_GEN(pref, TTier, TKey) \
-	XHASHTIER_GEN_PRIV (pref, TTier, TKey, pref##_has_key, pref##_hash)
-
-/**
- * Generates functions for the tier with an int-like key
- *
- * This generates a hash function so a user-defined function should be omitted.
- *
- * @param  pref     function name prefix
- * @param  TTier    tier structure name
- * @param  TKey     key type
- */
-#define XHASHTIER_GEN_INT(pref, TTier, TKey) \
-	XHASH_GEN_INT (XSTATIC, pref##_hash, TKey) \
-	XHASHTIER_GEN (pref, TTier, TKey)
+	attr int \
+	pref##_renew_size (TTier **tierp, size_t n); \
 
 /**
  * Generates functions for the tier with a named key verification function
@@ -193,13 +223,11 @@
 	{ \
 		return (double)tier->count / (double)tier->size; \
 	} \
-	\
 	ssize_t \
 	pref##_get (TTier *tier, TKey k, size_t kn) \
 	{ \
 		return pref##_hget (tier, k, kn, hash (k, kn)); \
 	} \
-	\
 	ssize_t \
 	pref##_hget (TTier *tier, TKey k, size_t kn, uint64_t h) \
 	{ \
@@ -218,13 +246,11 @@
 			} \
 		} \
 	} \
-	\
 	ssize_t \
 	pref##_reserve (TTier *tier, TKey k, size_t kn, int *full) \
 	{ \
 		return pref##_hreserve (tier, k, kn, hash (k, kn), full); \
 	} \
-	\
 	ssize_t \
 	pref##_hreserve (TTier *tier, TKey k, size_t kn, uint64_t h, int *full) \
 	{ \
@@ -262,7 +288,6 @@
 			} \
 		} \
 	} \
-	\
 	size_t \
 	pref##_force (TTier *tier, const TTier *src, size_t idx) \
 	{ \
@@ -287,7 +312,6 @@
 			} \
 		} \
 	} \
-	\
 	int \
 	pref##_del (TTier *tier, size_t idx) \
 	{ \
@@ -297,7 +321,6 @@
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
 		do { \
-			tier->arr[idx].h = 0; \
 			memset (&tier->arr[idx], 0, sizeof tier->arr[idx]); \
 			ssize_t p = idx; \
 			idx = XHASHTIER_WRAP (idx+1, mask); \
@@ -309,7 +332,6 @@
 			tier->arr[p] = tier->arr[idx]; \
 		} while (1); \
 	} \
-	\
 	void \
 	pref##_clear (TTier *tier) \
 	{ \
@@ -317,7 +339,6 @@
 		tier->remap = tier->size; \
 		memset (tier->arr, 0, sizeof tier->arr[0] * tier->size); \
 	} \
-	\
 	size_t \
 	pref##_remap (TTier *tier, TTier *dst) \
 	{ \
@@ -333,7 +354,6 @@
 		tier->count = 0; \
 		return n; \
 	} \
-	\
 	size_t \
 	pref##_nremap (TTier *tier, TTier *dst, size_t limit) \
 	{ \
@@ -355,11 +375,14 @@
 		tier->remap = i; \
 		return n; \
 	} \
-	\
 	int \
 	pref##_new (TTier **tierp, size_t n) \
 	{ \
-		n = n < 8 ? 8 : xpower2 (n); \
+		return pref##_new_size (tierp, XHASHTIER_SIZE (n)); \
+	} \
+	int \
+	pref##_new_size (TTier **tierp, size_t n) \
+	{ \
 		TTier *tier = calloc (1, \
 				sizeof *tier + (sizeof tier->arr[0] * (n - 1))); \
 		if (tier == NULL) { return XERRNO; } \
@@ -369,24 +392,32 @@
 		*tierp = tier; \
 		return 1; \
 	} \
-	\
 	int \
 	pref##_renew (TTier **tierp, size_t n) \
 	{ \
+		return pref##_renew_size (tierp, XHASHTIER_SIZE (n)); \
+	} \
+	int \
+	pref##_renew_size (TTier **tierp, size_t n) \
+	{ \
 		TTier *tier = *tierp; \
 		if (tier != NULL) { \
-			n = n < 8 ? 8 : xpower2 (n); \
-			if (n == tier->size) { return 0; } \
+			if (n == tier->size) { \
+				tier->remap = n; \
+				return 0; \
+			} \
 			if (n < tier->count) { return -EPERM; } \
 		} \
-		int rc = pref##_new (tierp, n); \
+		int rc = pref##_new_size (tierp, n); \
 		if (rc < 0) { return rc; } \
-		if (tier != NULL) { pref##_remap (tier, *tierp); } \
-		free (tier); \
+		if (tier != NULL) { \
+			pref##_remap (tier, *tierp); \
+			free (tier); \
+		} \
 		return 1; \
 	} \
 
-#define XHASH_GEN_INT(attr, name, TKey) \
+#define XHASH_INT_GEN(attr, name, TKey) \
 	attr uint64_t \
 	name (TKey k, size_t kn) \
 	{ \
