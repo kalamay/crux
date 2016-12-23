@@ -135,6 +135,26 @@ test_siphash_case (void)
 	mu_assert_uint_eq (
 			xhash_sipcase ("longervalue", 11, XSEED_DEFAULT),
 			xhash_sipcase ("LongerValue", 11, XSEED_DEFAULT));
+
+	mu_assert_uint_eq (
+			xhash_sip ("test", 4, XSEED_DEFAULT),
+			xhash_sipcase ("TEST", 4, XSEED_DEFAULT));
+
+	mu_assert_uint_eq (
+			xhash_sip ("test", 4, XSEED_DEFAULT),
+			xhash_sipcase ("Test", 4, XSEED_DEFAULT));
+
+	mu_assert_uint_eq (
+			xhash_sip ("test", 4, XSEED_DEFAULT),
+			xhash_sipcase ("TesT", 4, XSEED_DEFAULT));
+
+	mu_assert_uint_eq (
+			xhash_sip ("longervalue", 11, XSEED_DEFAULT),
+			xhash_sipcase ("LONGERVALUE", 11, XSEED_DEFAULT));
+
+	mu_assert_uint_eq (
+			xhash_sip ("longervalue", 11, XSEED_DEFAULT),
+			xhash_sipcase ("LongerValue", 11, XSEED_DEFAULT));
 }
 
 static void
