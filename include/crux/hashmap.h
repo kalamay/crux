@@ -105,10 +105,10 @@
 			if (n && n->size == sz && s != d) { tmp[0] = n; } \
 			else                              { tmp[d++] = n; } \
 		} \
-		if (pref##_tier_renew_size (tmp, sz) >= 0) { \
-			memcpy (map->tiers, tmp, sizeof map->tiers); \
-			map->max = tmp[0]->size * map->loadf; \
-		} \
+		int rc = pref##_tier_renew_size (tmp, sz); \
+		if (rc < 0) { return rc; } \
+		memcpy (map->tiers, tmp, sizeof map->tiers); \
+		map->max = tmp[0]->size * map->loadf; \
 		return 1; \
 	} \
 	int \
