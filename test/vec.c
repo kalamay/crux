@@ -13,6 +13,12 @@ cmp (const int *a, const int *b)
 
 XVEC_STATIC (intvec, struct intvec, int)
 
+struct str {
+	XVEC (char);
+};
+
+XVEC_STATIC_EXT (str, struct str, char, 1)
+
 static void
 test_resize (void)
 {
@@ -319,9 +325,6 @@ test_bsearch (void)
 {
 	struct intvec vec = XVEC_INIT;
 
-	intvec_reverse (&vec);
-	mu_assert_uint_eq (vec.count, 0);
-
 	int vals[] = { 1, 2, 3, 4, 5 };
 	intvec_pushn (&vec, vals, xlen (vals));
 	mu_assert_uint_eq (vec.count, 5);
@@ -361,9 +364,6 @@ test_search (void)
 {
 	struct intvec vec = XVEC_INIT;
 
-	intvec_reverse (&vec);
-	mu_assert_uint_eq (vec.count, 0);
-
 	int vals[] = { 2, 5, 1, 4, 3 };
 	intvec_pushn (&vec, vals, xlen (vals));
 	mu_assert_uint_eq (vec.count, 5);
@@ -398,6 +398,84 @@ test_search (void)
 	intvec_final (&vec);
 }
 
+static void
+test_sort (void)
+{
+	struct intvec vec = XVEC_INIT;
+
+	int vals[] = { 2, 5, 1, 4, 3 };
+	intvec_pushn (&vec, vals, xlen (vals));
+	mu_assert_uint_eq (vec.count, 5);
+
+	intvec_sort (&vec, cmp);
+
+	mu_assert_int_eq (vec.count, 5);
+	mu_assert_int_eq (vec.arr[0], 1);
+	mu_assert_int_eq (vec.arr[1], 2);
+	mu_assert_int_eq (vec.arr[2], 3);
+	mu_assert_int_eq (vec.arr[3], 4);
+	mu_assert_int_eq (vec.arr[4], 5);
+
+	intvec_final (&vec);
+}
+
+static void
+test_str (void)
+{
+	char buf[16];
+	struct str str = XVEC_INIT;
+	str_resize (&str, 4);
+	memset (str.arr+1, 0xFF, str.size-1);
+
+	str_push (&str, 't');
+	mu_assert_int_eq (str.count, 1);
+	mu_assert_int_eq (str.arr[1], '\0');
+	mu_assert_str_eq (str.arr, "t");
+
+	str_pushn (&str, "est", 3);
+	mu_assert_int_eq (str.count, 4);
+	mu_assert_int_eq (str.arr[4], '\0');
+	mu_assert_str_eq (str.arr, "test");
+
+	str_splice (&str, 2, 1, "ar", 2);
+	mu_assert_int_eq (str.count, 5);
+	mu_assert_int_eq (str.arr[5], '\0');
+	mu_assert_str_eq (str.arr, "teart");
+
+	mu_assert_int_eq (str_shift (&str, '\0'), 't');
+	mu_assert_int_eq (str.count, 4);
+	mu_assert_int_eq (str.arr[4], '\0');
+	mu_assert_str_eq (str.arr, "eart");
+
+	mu_assert_int_eq (str_shift (&str, '\0'), 'e');
+	mu_assert_int_eq (str.count, 3);
+	mu_assert_int_eq (str.arr[3], '\0');
+	mu_assert_str_eq (str.arr, "art");
+
+	str_insert (&str, 0, "ch", 2);
+	mu_assert_int_eq (str.count, 5);
+	mu_assert_int_eq (str.arr[5], '\0');
+	mu_assert_str_eq (str.arr, "chart");
+
+	str_reverse (&str);
+	mu_assert_int_eq (str.count, 5);
+	mu_assert_int_eq (str.arr[5], '\0');
+	mu_assert_str_eq (str.arr, "trahc");
+
+	str_popn (&str, buf, 2);
+	mu_assert_int_eq (str.count, 3);
+	mu_assert_int_eq (str.arr[3], '\0');
+	mu_assert_str_eq (str.arr, "tra");
+	mu_assert_int_eq (buf[0], 'h');
+	mu_assert_int_eq (buf[1], 'c');
+
+	str_pushn (&str, "ctors", 5);
+	mu_assert_int_eq (str.count, 8);
+	mu_assert_int_gt (str.size, 8);
+	mu_assert_int_eq (str.arr[8], '\0');
+	mu_assert_str_eq (str.arr, "tractors");
+}
+
 int
 main (void)
 {
@@ -419,5 +497,7 @@ main (void)
 	test_reverse ();
 	test_bsearch ();
 	test_search ();
+	test_sort ();
+	test_str ();
 }
 

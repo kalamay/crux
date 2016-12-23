@@ -17,9 +17,16 @@
 #define XVEC_EXTERN(pref, TVec, TEnt) \
 	XVEC_PROTO (XEXTERN, pref, TVec, TEnt)
 
+#define XVEC_GEN(pref, TVec, TEnt) \
+	XVEC_GEN_EXT(pref, TVec, TEnt, 0) \
+
 #define XVEC_STATIC(pref, TVec, TEnt) \
 	XVEC_PROTO (XSTATIC, pref, TVec, TEnt) \
 	XVEC_GEN (pref, TVec, TEnt)
+
+#define XVEC_STATIC_EXT(pref, TVec, TEnt, ext) \
+	XVEC_PROTO (XSTATIC, pref, TVec, TEnt) \
+	XVEC_GEN_EXT (pref, TVec, TEnt, ext)
 
 #define XVEC_PROTO(attr, pref, TVec, TEnt) \
 	attr void \
@@ -41,9 +48,9 @@
 	attr int \
 	pref##_splice (TVec *vec, ssize_t pos, ssize_t len, TEnt *ent, size_t nent); \
 	attr int \
-	pref##_insert (TVec *vec, size_t pos, TEnt *ent, size_t nent); \
+	pref##_insert (TVec *vec, ssize_t pos, TEnt *ent, size_t nent); \
 	attr int \
-	pref##_remove (TVec *vec, size_t pos, size_t len); \
+	pref##_remove (TVec *vec, ssize_t pos, ssize_t len); \
 	attr void \
 	pref##_reverse (TVec *vec); \
 	attr void \
@@ -57,7 +64,7 @@
 	attr void \
 	pref##_print (const TVec *vec, FILE *out, void (*fn)(TEnt *, FILE *out)); \
 
-#define XVEC_GEN(pref, TVec, TEnt) \
+#define XVEC_GEN_EXT(pref, TVec, TEnt, ext) \
 	void \
 	pref##_final (TVec *vec) \
 	{ \
@@ -69,13 +76,14 @@
 	{ \
 		if (hint < vec->count) { return -EPERM; } \
 		if (hint < 8) { hint = 8; } \
+		else          { hint += ext; } \
 		if (hint <= vec->size && hint >= vec->size>>2) { return 0; } \
-		size_t b = sizeof (vec->arr[0]) * hint; \
-		b = b < 16276 ? xpower2 (b) : xquantum (b, 4096); \
-		TEnt *arr = malloc (b); \
+		size_t b = sizeof (TEnt) * hint; \
+		b = b < 16276 ? xpower2 (b) : xquantum (b, 16276); \
+		TEnt *arr = realloc (vec->arr, b); \
 		if (arr == NULL) { return XERRNO; } \
-		memcpy (arr, vec->arr, sizeof (vec->arr[0]) * vec->count); \
-		vec->size = b / sizeof (vec->arr[0]); \
+		memset (arr+vec->count, 0, sizeof (TEnt) * ext); \
+		vec->size = b / sizeof (TEnt); \
 		vec->arr = arr; \
 		return 1; \
 	} \
@@ -83,7 +91,10 @@
 	pref##_push (TVec *vec, TEnt ent) \
 	{ \
 		int rc = pref##_resize (vec, vec->count + 1); \
-		if (rc >= 0) { vec->arr[vec->count++] = ent; } \
+		if (rc >= 0) { \
+			vec->arr[vec->count++] = ent; \
+			memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
+		} \
 		return rc; \
 	} \
 	int \
@@ -91,8 +102,9 @@
 	{ \
 		int rc = pref##_resize (vec, vec->count + nent); \
 		if (rc >= 0) { \
-			memcpy (vec->arr + vec->count, ent, sizeof (*ent) * nent); \
+			memcpy (vec->arr + vec->count, ent, sizeof (TEnt) * nent); \
 			vec->count += nent; \
+			memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 		} \
 		return rc; \
 	} \
@@ -100,14 +112,16 @@
 	pref##_pop (TVec *vec, TEnt def) \
 	{ \
 		return vec->count ? vec->arr[--vec->count] : def; \
+			memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 	} \
 	int \
 	pref##_popn (TVec *vec, TEnt *ent, size_t nent) \
 	{ \
 		ssize_t diff = (ssize_t)vec->count - (ssize_t)nent; \
 		if (diff < 0) { return -ERANGE; } \
-		memcpy (ent, vec->arr+diff, sizeof (*ent) * nent); \
+		memcpy (ent, vec->arr+diff, sizeof (TEnt) * nent); \
 		vec->count -= nent; \
+		memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 		return pref##_resize (vec, vec->count); \
 	} \
 	TEnt \
@@ -116,7 +130,8 @@
 		if (vec->count) { \
 			def = vec->arr[0]; \
 			vec->count--; \
-			memmove (vec->arr, vec->arr+1, sizeof (def) * vec->count); \
+			memmove (vec->arr, vec->arr+1, sizeof (TEnt) * vec->count); \
+			memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 		} \
 		return def; \
 	} \
@@ -125,8 +140,9 @@
 	{ \
 		if (nent > vec->count) { return -ERANGE; } \
 		vec->count -= nent; \
-		memcpy (ent, vec->arr, sizeof (*ent) * nent); \
-		memmove (vec->arr, vec->arr+nent, sizeof (*ent) * vec->count); \
+		memcpy (ent, vec->arr, sizeof (TEnt) * nent); \
+		memmove (vec->arr, vec->arr+nent, sizeof (TEnt) * vec->count); \
+		memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 		return pref##_resize (vec, vec->count); \
 	} \
 	int \
@@ -142,25 +158,26 @@
 			if (len < 0) { return -ERANGE; } \
 		} \
 		if (pos+len > count) { return -ERANGE; } \
-		ssize_t next = count + nent - len; \
+		ssize_t newcount = count + nent - len; \
 		int rc = 0; \
-		if (next > count) { \
-			rc = pref##_resize (vec, next); \
+		if (newcount > count) { \
+			rc = pref##_resize (vec, newcount); \
 			if (rc < 0) { return rc; } \
 		} \
+		vec->count = newcount; \
 		memmove (vec->arr + pos + nent, vec->arr + pos + len, \
-				sizeof (*ent) * count - pos - len); \
-		memcpy (vec->arr + pos, ent, sizeof (*ent) * nent); \
-		vec->count = next; \
+				sizeof (TEnt) * (count - pos - len)); \
+		memcpy (vec->arr + pos, ent, sizeof (TEnt) * nent); \
+		memset (vec->arr+newcount, 0, sizeof (TEnt) * ext); \
 		return rc; \
 	} \
 	int \
-	pref##_insert (TVec *vec, size_t pos, TEnt *ent, size_t nent) \
+	pref##_insert (TVec *vec, ssize_t pos, TEnt *ent, size_t nent) \
 	{ \
 		return pref##_splice (vec, pos, 0, ent, nent); \
 	} \
 	int \
-	pref##_remove (TVec *vec, size_t pos, size_t len) \
+	pref##_remove (TVec *vec, ssize_t pos, ssize_t len) \
 	{ \
 		return pref##_splice (vec, pos, len, NULL, 0); \
 	} \
@@ -178,7 +195,7 @@
 	void \
 	pref##_sort (TVec *vec, int (*compar)(const TEnt *, const TEnt *)) \
 	{ \
-		qsort (vec->arr, vec->count, sizeof (vec->arr[0]), \
+		qsort (vec->arr, vec->count, sizeof (TEnt), \
 			(int (*)(const void *, const void *))compar); \
 	} \
 	TEnt * \
