@@ -119,7 +119,7 @@
 	{ \
 		ssize_t diff = (ssize_t)vec->count - (ssize_t)nent; \
 		if (diff < 0) { return -ERANGE; } \
-		memcpy (ent, vec->arr+diff, sizeof (TEnt) * nent); \
+		if (ent) { memcpy (ent, vec->arr+diff, sizeof (TEnt) * nent); } \
 		vec->count -= nent; \
 		memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 		return pref##_resize (vec, vec->count); \
@@ -140,7 +140,7 @@
 	{ \
 		if (nent > vec->count) { return -ERANGE; } \
 		vec->count -= nent; \
-		memcpy (ent, vec->arr, sizeof (TEnt) * nent); \
+		if (ent) { memcpy (ent, vec->arr, sizeof (TEnt) * nent); } \
 		memmove (vec->arr, vec->arr+nent, sizeof (TEnt) * vec->count); \
 		memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
 		return pref##_resize (vec, vec->count); \

@@ -442,15 +442,12 @@ test_str (void)
 	mu_assert_int_eq (str.arr[5], '\0');
 	mu_assert_str_eq (str.arr, "teart");
 
-	mu_assert_int_eq (str_shift (&str, '\0'), 't');
-	mu_assert_int_eq (str.count, 4);
-	mu_assert_int_eq (str.arr[4], '\0');
-	mu_assert_str_eq (str.arr, "eart");
-
-	mu_assert_int_eq (str_shift (&str, '\0'), 'e');
+	str_shiftn (&str, buf, 2);
 	mu_assert_int_eq (str.count, 3);
 	mu_assert_int_eq (str.arr[3], '\0');
 	mu_assert_str_eq (str.arr, "art");
+	mu_assert_int_eq (buf[0], 't');
+	mu_assert_int_eq (buf[1], 'e');
 
 	str_insert (&str, 0, "ch", 2);
 	mu_assert_int_eq (str.count, 5);
