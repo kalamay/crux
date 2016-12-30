@@ -111,8 +111,11 @@
 	TEnt \
 	pref##_pop (TVec *vec, TEnt def) \
 	{ \
-		return vec->count ? vec->arr[--vec->count] : def; \
+		if (vec->count) { \
+			def = vec->arr[--vec->count]; \
 			memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
+		} \
+		return def; \
 	} \
 	int \
 	pref##_popn (TVec *vec, TEnt *ent, size_t nent) \
