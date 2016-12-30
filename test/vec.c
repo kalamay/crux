@@ -123,7 +123,7 @@ test_popn (void)
 	mu_assert_uint_eq (vec.count, 1);
 
 	rc = intvec_popn (&vec, out, xlen (out));
-	mu_assert_int_eq (rc, -ERANGE);
+	mu_assert_int_eq (rc, XESYS (ERANGE));
 
 	intvec_final (&vec);
 	mu_assert_uint_eq (vec.count, 0);
@@ -177,7 +177,7 @@ test_shiftn (void)
 	mu_assert_uint_eq (vec.count, 1);
 
 	rc = intvec_shiftn (&vec, out, xlen (out));
-	mu_assert_int_eq (rc, -ERANGE);
+	mu_assert_int_eq (rc, XESYS (ERANGE));
 
 	intvec_final (&vec);
 	mu_assert_uint_eq (vec.count, 0);
@@ -207,7 +207,7 @@ test_splice_offset (void)
 
 	int rc = intvec_splice (&vec, 2, 0, vals, xlen (vals));
 
-	mu_assert_int_eq (rc, -ERANGE);
+	mu_assert_int_eq (rc, XESYS (ERANGE));
 
 	intvec_final (&vec);
 }
@@ -292,7 +292,7 @@ test_splice_after (void)
 	intvec_splice (&vec, 0, 0, first, xlen (first));
 	int rc = intvec_splice (&vec, 8, 2, second, xlen (second));
 
-	mu_assert_int_eq (rc, -ERANGE);
+	mu_assert_int_eq (rc, XESYS (ERANGE));
 
 	intvec_final (&vec);
 }

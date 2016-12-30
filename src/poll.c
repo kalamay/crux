@@ -53,8 +53,8 @@ xpoll__has_more (struct xpoll *poll);
  *
  * This function should return the number of events acquired. If a timeout
  * is reached, it shuold return 0. Errors should be returned using XERRNO,
- * however, the value `-EINTR` directs the poller to re-invoke the update
- * with an adjusted timeout.
+ * however, the value `XESYS (EINTR)` directs the poller to re-invoke the
+ * update with an adjusted timeout.
  *
  * This is allowed to reset any events in poller. It should only be called
  * once the event list is cleared.
@@ -139,18 +139,18 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 {
 	assert (poll != NULL);
 
-	if (op != XPOLL_ADD && op != XPOLL_DEL) { return -EINVAL; }
+	if (op != XPOLL_ADD && op != XPOLL_DEL) { return XESYS (EINVAL); }
 
 	switch (type) {
 	case XPOLL_IN:
 	case XPOLL_OUT:
-		if (id < 0) { return -EBADF; }
+		if (id < 0) { return XESYS (EBADF); }
 		break;
 	case XPOLL_SIG:
-		if (id < 1 || id > 31) { return -EINVAL; }
+		if (id < 1 || id > 31) { return XESYS (EINVAL); }
 		break;
 	default:
-		return -EINVAL;
+		return XESYS (EINVAL);
 	}
 
 	return xpoll__ctl (poll, op, type, id, ptr);

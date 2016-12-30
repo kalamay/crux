@@ -141,10 +141,10 @@ int
 xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags)
 {
 	if (stack < XSTACK_MIN || stack > XSTACK_MAX) {
-		return -EINVAL;
+		return XESYS (EINVAL);
 	}
 	if (tls > XTASK_TLS_MAX) {
-		return -EINVAL;
+		return XESYS (EINVAL);
 	}
 
 	size_t tls_size, map_size;
@@ -390,15 +390,15 @@ xtask_exit (struct xtask *t, int ec)
 	bool yield;
 	if (t == NULL) {
 		t = current;
-		if (t == NULL) { return -EPERM; }
+		if (t == NULL) { return XESYS (EPERM); }
 		yield = true;
 	}
 	else {
 		yield = t == current;
 	}
 
-	if (t->istop) { return -EPERM; }
-	if (t->state == EXIT) { return -EALREADY; }
+	if (t->istop) { return XESYS (EPERM); }
+	if (t->state == EXIT) { return XESYS (EALREADY); }
 
 	struct xtask *p = t->parent;
 	eol (t, XZERO, ec);

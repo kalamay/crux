@@ -61,7 +61,7 @@ xpoll__update (struct xpoll *poll, const struct timespec *ts)
 		mark++;
 	}
 	poll->rlen = rc;
-	if (!rc) { rc = -EINTR; }
+	if (!rc) { rc = XESYS (EINTR); }
 
 done:
 	poll->wpos = poll->rlen;

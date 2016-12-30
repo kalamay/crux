@@ -4,8 +4,41 @@
 #include "def.h"
 
 #include <stdio.h>
+#include <netdb.h>
 
-#define XERRNO (-errno)
+enum xerr_type {
+	XERR_SYS  = 0,
+	XERR_ADDR = 1,
+	XERR_HTTP = 2,
+};
+
+#define XETYPE(n) ((enum xerr_type)(-(n) >> 16) & 0xff)
+#define XECODE(n) ((-(int)(n)) & 0xffff)
+
+#define XEMAKE(T, n) (-((XERR_##T << 16) | ((n) & 0xffff)))
+#define XESYS(n) (XEMAKE (SYS, n))
+#if EAI_FAIL < 0
+# define XEADDR(n) (XEMAKE (ADDR, -(n)))
+#else
+# define XEADDR(n) (XEMAKE (ADDR, n))
+#endif
+#define XEHTTP(n) (XEMAKE (HTTP, n))
+
+#define XEIS(T, n) (XETYPE (n) == XERR_##T)
+#define XEISSYS(n) (XEIS (SYS, n))
+#define XEISADDR(n) (XEIS (ADDR, n))
+#define XEISHTTP(n) (XEIS (HTTP, n))
+
+#define XERRNO XESYS (errno)
+
+#define XEHTTPSYNTAX    XEHTTP (1)
+#define XEHTTPSIZE      XEHTTP (2)
+#define XEHTTPSTATE     XEHTTP (3)
+#define XEHTTPTOOSHORT  XEHTTP (4)
+#define XEHTTPBUFS      XEHTTP (5)
+
+XEXTERN const char *
+xerr_type (int code);
 
 /**
  * @brief  Gets a string representation of an error code

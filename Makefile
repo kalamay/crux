@@ -101,7 +101,8 @@ SRC:= \
 	src/task.c \
 	src/poll.c \
 	src/hub.c \
-	src/hash.c
+	src/hash.c \
+	src/http.c
 
 # list of header files to include in build
 INCLUDE:= \

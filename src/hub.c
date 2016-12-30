@@ -232,7 +232,7 @@ run_once (struct xhub *hub)
 	case 0:
 		ent = xcontainer (wait, struct xhub_entry, hent);
 		if (ent->poll_type) {
-			val = -ETIMEDOUT;
+			val = XESYS (ETIMEDOUT);
 		}
 		goto timeout;
 	case 1:
@@ -262,7 +262,7 @@ int
 xhub_run (struct xhub *hub)
 {
 	if (hub->running) {
-		return -EPERM;
+		return XESYS (EPERM);
 	}
 
 	hub->running = true;
@@ -357,7 +357,7 @@ xsleep (unsigned ms)
 		do {
 			rc = nanosleep (&c.ts, &c.ts);
 			if (rc < 0) { rc = XERRNO; }
-		} while (rc == -EINTR);
+		} while (rc == XESYS (EINTR));
 		return rc;
 	}
 
@@ -382,7 +382,7 @@ int
 xsignal (int signum, int timeoutms)
 {
 	struct xhub_entry *ent = current_entry ();
-	if (ent == NULL) { return -EPERM; }
+	if (ent == NULL) { return XESYS (EPERM); }
 	int rc = schedule_poll (ent, signum, XPOLL_SIG, timeoutms);
 	if (rc == 0) {
 		int val = xyield (XZERO).i;
@@ -397,7 +397,7 @@ again: \
 	rc = fn (fd, __VA_ARGS__); \
 	if (rc >= 0) { return rc; } \
 	rc = XERRNO; \
-	if (rc != -EAGAIN) { return rc; } \
+	if (rc != XESYS (EAGAIN)) { return rc; } \
 	struct xhub_entry *ent = current_entry (); \
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll (ent, fd, XPOLL_IN, ms); \
@@ -413,7 +413,7 @@ again: \
 	rc = fn (fd, __VA_ARGS__); \
 	if (rc >= 0) { return rc; } \
 	rc = XERRNO; \
-	if (rc != -EAGAIN) { return rc; } \
+	if (rc != XESYS (EAGAIN)) { return rc; } \
 	struct xhub_entry *ent = current_entry (); \
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll (ent, fd, XPOLL_OUT, ms); \
@@ -478,7 +478,7 @@ xio (int fd, void *buf, size_t len, int timeoutms,
 		ssize_t (*fn) (int fd, void *buf, size_t len, int timeoutms))
 {
 	if (len > SSIZE_MAX) {
-		return -EINVAL;
+		return XESYS (EINVAL);
 	}
 
 	struct xclock now;
@@ -581,7 +581,7 @@ again:
 #endif
 
 	fd = XERRNO;
-	if (fd == -EAGAIN) {
+	if (fd == XESYS (EAGAIN)) {
 		struct xhub_entry *ent = current_entry ();
 		if (ent != NULL) {
 			fd = schedule_poll (ent, s, XPOLL_IN, timeoutms);

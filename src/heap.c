@@ -250,7 +250,7 @@ xheap_remove (struct xheap *heap, struct xheap_entry *e)
 
 	uint32_t key = e->key;
 	if (key == 0 || key >= heap->next) {
-		return -ENOENT;
+		return XESYS (ENOENT);
 	}
 
 	e->key = XHEAP_NONE;
@@ -284,7 +284,7 @@ xheap_update (const struct xheap *heap, struct xheap_entry *e)
 
 	uint32_t key = e->key;
 	if (key == 0 || key >= heap->next) {
-		return -ENOENT;
+		return XESYS (ENOENT);
 	}
 
 	key = move_up (heap, key);

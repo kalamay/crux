@@ -199,7 +199,7 @@ dorecv_timeout (struct xhub *h, void *data)
 	int64_t nsec = XCLOCK_NSEC (&end) - XCLOCK_NSEC (&start);
 	int ms = round ((double)nsec / X_NSEC_PER_MSEC);
 
-	mu_assert_int_eq (rc, -ETIMEDOUT);
+	mu_assert_int_eq (rc, XESYS (ETIMEDOUT));
 	mu_assert_int_ge (ms, 20-5);
 	mu_assert_int_le (ms, 20+5);
 

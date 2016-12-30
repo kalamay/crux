@@ -74,7 +74,7 @@
 	int \
 	pref##_resize (TVec *vec, size_t hint) \
 	{ \
-		if (hint < vec->count) { return -EPERM; } \
+		if (hint < vec->count) { return XESYS (EPERM); } \
 		if (hint < 8) { hint = 8; } \
 		else          { hint += ext; } \
 		if (hint <= vec->size && hint >= vec->size>>2) { return 0; } \
@@ -118,7 +118,7 @@
 	pref##_popn (TVec *vec, TEnt *ent, size_t nent) \
 	{ \
 		ssize_t diff = (ssize_t)vec->count - (ssize_t)nent; \
-		if (diff < 0) { return -ERANGE; } \
+		if (diff < 0) { return XESYS (ERANGE); } \
 		if (ent) { memcpy (ent, vec->arr+diff, sizeof (TEnt) * nent); } \
 		vec->count -= nent; \
 		memset (vec->arr+vec->count, 0, sizeof (TEnt) * ext); \
@@ -138,7 +138,7 @@
 	int \
 	pref##_shiftn (TVec *vec, TEnt *ent, size_t nent) \
 	{ \
-		if (nent > vec->count) { return -ERANGE; } \
+		if (nent > vec->count) { return XESYS (ERANGE); } \
 		vec->count -= nent; \
 		if (ent) { memcpy (ent, vec->arr, sizeof (TEnt) * nent); } \
 		memmove (vec->arr, vec->arr+nent, sizeof (TEnt) * vec->count); \
@@ -151,13 +151,13 @@
 		ssize_t count = (ssize_t)vec->count; \
 		if (pos < 0) { \
 			pos += count; \
-			if (pos < 0) { return -ERANGE; }; \
+			if (pos < 0) { return XESYS (ERANGE); }; \
 		} \
 		if (len < 0) { \
 			len = (len + count + 1) - pos; \
-			if (len < 0) { return -ERANGE; } \
+			if (len < 0) { return XESYS (ERANGE); } \
 		} \
-		if (pos+len > count) { return -ERANGE; } \
+		if (pos+len > count) { return XESYS (ERANGE); } \
 		ssize_t newcount = count + nent - len; \
 		int rc = 0; \
 		if (newcount > count) { \

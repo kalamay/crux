@@ -231,7 +231,7 @@
 	ssize_t \
 	pref##_hget (TTier *tier, TKey k, size_t kn, uint64_t h) \
 	{ \
-		if (tier->count == 0) { return -ENOENT; } \
+		if (tier->count == 0) { return XESYS (ENOENT); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
@@ -239,7 +239,7 @@
 		for (dist = 0; 1; dist++, i = XHASHTIER_WRAP (i+1, mask)) { \
 			uint64_t eh = tier->arr[i].h; \
 			if (eh == 0 || XHASHTIER_STEP (i, size, eh, mod, mask) < dist) { \
-				return -ENOENT; \
+				return XESYS (ENOENT); \
 			} \
 			if (eh == h && has_key (&tier->arr[i].entry, k, kn)) { \
 				return i; \
@@ -256,16 +256,16 @@
 	{ \
 		assert (tier->remap == tier->size); \
 		assert (full != NULL); \
-		if (tier->count == tier->size) { return -ENOBUFS; } \
+		if (tier->count == tier->size) { return XESYS (ENOBUFS); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
-		ssize_t dist, rc = -ENOENT, i = XHASHTIER_START (h, mod); \
+		ssize_t dist, rc = XESYS (ENOENT), i = XHASHTIER_START (h, mod); \
 		for (dist = 0; 1; dist++, i = XHASHTIER_WRAP (i+1, mask)) { \
 			uint64_t eh = tier->arr[i].h; \
 			if (eh == 0 || \
 					(eh == h && has_key (&tier->arr[i].entry, k, kn))) { \
-				if (rc == -ENOENT) { rc = i; } \
+				if (rc == XESYS (ENOENT)) { rc = i; } \
 				else { \
 					tier->arr[i] = tier->arr[rc]; \
 					memset (&tier->arr[rc], 0, sizeof tier->arr[rc]); \
@@ -315,8 +315,8 @@
 	int \
 	pref##_del (TTier *tier, size_t idx) \
 	{ \
-		if (idx >= tier->size) { return -ERANGE; } \
-		if (tier->arr[idx].h == 0) { return -ENOENT; } \
+		if (idx >= tier->size) { return XESYS (ERANGE); } \
+		if (tier->arr[idx].h == 0) { return XESYS (ENOENT); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
@@ -406,7 +406,7 @@
 				tier->remap = n; \
 				return 0; \
 			} \
-			if (n < tier->count) { return -EPERM; } \
+			if (n < tier->count) { return XESYS (EPERM); } \
 		} \
 		int rc = pref##_new_size (tierp, n); \
 		if (rc < 0) { return rc; } \
