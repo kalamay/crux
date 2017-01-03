@@ -96,6 +96,7 @@ LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 
 # list of souce files to include in build
 SRC:= \
+	src/err.c \
 	src/base.c \
 	src/heap.c \
 	src/task.c \
