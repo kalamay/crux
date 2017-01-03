@@ -132,6 +132,7 @@ MAN:= \
 
 # list of source files for testing
 TEST:= \
+	test/err.c \
 	test/clock.c \
 	test/vec.c \
 	test/hash.c \
