@@ -9,7 +9,7 @@
 #include "crux/hub.h"
 
 extern int
-xinit (void);
+xinit(void);
 
 #endif
 

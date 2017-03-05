@@ -83,25 +83,25 @@ struct xhttp {
 
 
 XEXTERN int
-xhttp_init_request (struct xhttp *p);
+xhttp_init_request(struct xhttp *p);
 
 XEXTERN int
-xhttp_init_response (struct xhttp *p);
+xhttp_init_response(struct xhttp *p);
 
 XEXTERN void
-xhttp_final (struct xhttp *p);
+xhttp_final(struct xhttp *p);
 
 XEXTERN void
-xhttp_reset (struct xhttp *p);
+xhttp_reset(struct xhttp *p);
 
 XEXTERN ssize_t
-xhttp_next (struct xhttp *p, const void *restrict buf, size_t len);
+xhttp_next(struct xhttp *p, const void *restrict buf, size_t len);
 
 XEXTERN bool
-xhttp_is_done (const struct xhttp *p);
+xhttp_is_done(const struct xhttp *p);
 
 XEXTERN void
-xhttp_print (const struct xhttp *p, const void *restrict buf, FILE *out);
+xhttp_print(const struct xhttp *p, const void *restrict buf, FILE *out);
 
 #endif
 

@@ -14,7 +14,7 @@
  * @return  0 on success, -errno on error
  */
 static int
-xpoll__init (struct xpoll *poll);
+xpoll__init(struct xpoll *poll);
 
 /**
  * @brief  Implementation-specific finalization function
@@ -22,7 +22,7 @@ xpoll__init (struct xpoll *poll);
  * @param  poll  partially finalized poll instance
  */
 static void
-xpoll__final (struct xpoll *poll);
+xpoll__final(struct xpoll *poll);
 
 /**
  * @brief  Modifies an event of interest for the poller
@@ -37,7 +37,7 @@ xpoll__final (struct xpoll *poll);
  * @return  0 on success, -errno on error
  */
 static int
-xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
+xpoll__ctl(struct xpoll *poll, int op, int type, int id, void *ptr);
 
 /**
  * @brief  Checks if the poller has more event in the event list
@@ -46,14 +46,14 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
  * @return  `true` if there are more events
  */
 static bool
-xpoll__has_more (struct xpoll *poll);
+xpoll__has_more(struct xpoll *poll);
 
 /**
  * @brief  Reads new events into the poller
  *
  * This function should return the number of events acquired. If a timeout
  * is reached, it shuold return 0. Errors should be returned using XERRNO,
- * however, the value `XESYS (EINTR)` directs the poller to re-invoke the
+ * however, the value `XESYS(EINTR)` directs the poller to re-invoke the
  * update with an adjusted timeout.
  *
  * This is allowed to reset any events in poller. It should only be called
@@ -64,7 +64,7 @@ xpoll__has_more (struct xpoll *poll);
  * @return  number of events acquired
  */
 static int
-xpoll__update (struct xpoll *poll, const struct timespec *ts);
+xpoll__update(struct xpoll *poll, const struct timespec *ts);
 
 /**
  * @brief  Copies the next event into `dst`
@@ -79,7 +79,7 @@ xpoll__update (struct xpoll *poll, const struct timespec *ts);
  * @return  1 if copied, 0 to ignore the next event, -errno on error
  */
 static int
-xpoll__next (struct xpoll *poll, struct xevent *dst);
+xpoll__next(struct xpoll *poll, struct xevent *dst);
 
 #if HAS_KQUEUE
 #include "poll/kqueue.c"
@@ -90,16 +90,16 @@ xpoll__next (struct xpoll *poll, struct xevent *dst);
 #endif
 
 int
-xpoll_new (struct xpoll **pollp)
+xpoll_new(struct xpoll **pollp)
 {
-	struct xpoll *poll = malloc (sizeof *poll);
+	struct xpoll *poll = malloc(sizeof *poll);
 	if (poll == NULL) {
 		return XERRNO;
 	}
 
-	int rc = xpoll_init (poll);
+	int rc = xpoll_init(poll);
 	if (rc < 0) {
-		free (poll);
+		free(poll);
 		return rc;
 	}
 
@@ -108,56 +108,56 @@ xpoll_new (struct xpoll **pollp)
 }
 
 int
-xpoll_init (struct xpoll *poll)
+xpoll_init(struct xpoll *poll)
 {
-	int rc = xclock_mono (&poll->clock);
+	int rc = xclock_mono(&poll->clock);
 	if (rc < 0) { return rc; }
-	return xpoll__init (poll);
+	return xpoll__init(poll);
 }
 
 void
-xpoll_free (struct xpoll **pollp)
+xpoll_free(struct xpoll **pollp)
 {
 	struct xpoll *poll = *pollp;
 	if (poll != NULL) {
 		*pollp = NULL;
-		xpoll_final (poll);
-		free (poll);
+		xpoll_final(poll);
+		free(poll);
 	}
 }
 
 void
-xpoll_final (struct xpoll *poll)
+xpoll_final(struct xpoll *poll)
 {
 	if (poll != NULL) { 
-		xpoll__final (poll);
+		xpoll__final(poll);
 	}
 }
 
 int
-xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
+xpoll_ctl(struct xpoll *poll, int op, int type, int id, void *ptr)
 {
-	assert (poll != NULL);
+	assert(poll != NULL);
 
-	if (op != XPOLL_ADD && op != XPOLL_DEL) { return XESYS (EINVAL); }
+	if (op != XPOLL_ADD && op != XPOLL_DEL) { return XESYS(EINVAL); }
 
 	switch (type) {
 	case XPOLL_IN:
 	case XPOLL_OUT:
-		if (id < 0) { return XESYS (EBADF); }
+		if (id < 0) { return XESYS(EBADF); }
 		break;
 	case XPOLL_SIG:
 		if (id < 1 || id > 31) { return XESYS (EINVAL); }
 		break;
 	default:
-		return XESYS (EINVAL);
+		return XESYS(EINVAL);
 	}
 
-	return xpoll__ctl (poll, op, type, id, ptr);
+	return xpoll__ctl(poll, op, type, id, ptr);
 }
 
 int
-xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev)
+xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev)
 {
 	int rc;
 	struct xclock wait;
@@ -171,36 +171,36 @@ xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev)
 	ev->errcode = -1;
 
 	if (ms >= 0) {
-		xclock_mono (&poll->clock);
-		abs = X_MSEC_TO_NSEC (ms) + XCLOCK_NSEC (&poll->clock);
+		xclock_mono(&poll->clock);
+		abs = X_MSEC_TO_NSEC(ms) + XCLOCK_NSEC(&poll->clock);
 	}
 
 read:
-	while (xpoll__has_more (poll)) {
-		rc = xpoll__next (poll, ev);
+	while (xpoll__has_more(poll)) {
+		rc = xpoll__next(poll, ev);
 		if (rc != 0) { goto done; }
 	}
 
 poll:
 	if (ms >= 0) {
-		xclock_mono (&poll->clock);
-		rel = abs - XCLOCK_NSEC (&poll->clock);
+		xclock_mono(&poll->clock);
+		rel = abs - XCLOCK_NSEC(&poll->clock);
 		if (rel < 0) { rel = 0; }
-		XCLOCK_SET_NSEC (&wait, rel);
+		XCLOCK_SET_NSEC(&wait, rel);
 		tsp = &wait.ts;
 	}
 
-	rc = xpoll__update (poll, tsp);
+	rc = xpoll__update(poll, tsp);
 	if (rc > 0)       { goto read; }
 	if (rc == -EINTR) { goto poll; }
 
 done:
-	xclock_mono (&poll->clock);
+	xclock_mono(&poll->clock);
 	return rc;
 }
 
 const struct xclock *
-xpoll_clock (const struct xpoll *poll)
+xpoll_clock(const struct xpoll *poll)
 {
 	return &poll->clock;
 }

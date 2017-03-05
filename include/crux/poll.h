@@ -52,7 +52,7 @@ struct xevent {
  *   `-ENOMEM`: insufficient memory was available
  */
 XEXTERN int
-xpoll_new (struct xpoll **pollp);
+xpoll_new(struct xpoll **pollp);
 
 /**
  * @brief  Finalizes and deallocates an idirectly referenced poll object
@@ -63,7 +63,7 @@ xpoll_new (struct xpoll **pollp);
  * @param  pollp  indirect poll object pointer
  */
 XEXTERN void
-xpoll_free (struct xpoll **pollp);
+xpoll_free(struct xpoll **pollp);
 
 /**
  * @brief  Performs control operations on the poll
@@ -84,7 +84,7 @@ xpoll_free (struct xpoll **pollp);
  *   `-ENOMEM`: no memory was available to register the event
  */
 XEXTERN int
-xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
+xpoll_ctl(struct xpoll *poll, int op, int type, int id, void *ptr);
 
 /**
  * @brief  Reads the next event from the poller
@@ -98,7 +98,7 @@ xpoll_ctl (struct xpoll *poll, int op, int type, int id, void *ptr);
  * @return  1 on sucess, 0 on timeout, -errno on error
  */
 XEXTERN int
-xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev);
+xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev);
 
 /**
  * @brief  Gets the monotonic clock associated with the poll
@@ -109,7 +109,7 @@ xpoll_wait (struct xpoll *poll, int64_t ms, struct xevent *ev);
  * @return  clock pointer
  */
 XEXTERN const struct xclock *
-xpoll_clock (const struct xpoll *poll);
+xpoll_clock(const struct xpoll *poll);
 
 #endif
 

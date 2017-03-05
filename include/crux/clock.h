@@ -45,7 +45,7 @@ struct xclock {
 
 
 #define XCLOCK_MAKE(val, n) \
-	((struct xclock){{ X_##n##_TO_SEC (val), X_##n##_REM (val) }})
+	((struct xclock){{ X_##n##_TO_SEC(val), X_##n##_REM(val) }})
 
 #define XCLOCK_MAKE_NSEC(nsec) XCLOCK_MAKE(nsec, NSEC)
 #define XCLOCK_MAKE_USEC(usec) XCLOCK_MAKE(usec, USEC)
@@ -54,7 +54,7 @@ struct xclock {
 
 
 #define XCLOCK_GET(c, n) \
-	((int64_t)(X_NSEC_TO_##n ((c)->ts.tv_nsec) + X_SEC_TO_##n ((c)->ts.tv_sec)))
+	((int64_t)(X_NSEC_TO_##n((c)->ts.tv_nsec) + X_SEC_TO_##n((c)->ts.tv_sec)))
 
 #define XCLOCK_NSEC(c) XCLOCK_GET(c, NSEC)
 #define XCLOCK_USEC(c) XCLOCK_GET(c, USEC)
@@ -63,8 +63,8 @@ struct xclock {
 
 
 #define XCLOCK_SET(c, val, n) { \
-	(c)->ts.tv_sec = X_##n##_TO_SEC (val); \
-	(c)->ts.tv_nsec = X_##n##_REM (val); \
+	(c)->ts.tv_sec = X_##n##_TO_SEC(val); \
+	(c)->ts.tv_nsec = X_##n##_REM(val); \
 } while (0)
 
 #define XCLOCK_SET_NSEC(c, nsec) XCLOCK_SET(c, nsec, NSEC)
@@ -78,7 +78,7 @@ struct xclock {
     
 #define XCLOCK_SET_TIME(c, time) do { \
 	double sec; \
-	(c)->ts.tv_nsec = round (modf ((time), &sec) * X_NSEC_PER_SEC); \
+	(c)->ts.tv_nsec = round(modf((time), &sec) * X_NSEC_PER_SEC); \
 	(c)->ts.tv_sec = sec; \
 } while (0)
 
@@ -120,7 +120,7 @@ struct xclock {
  * @return  0 on succes, -errno on error
  */
 XEXTERN int
-xclock_real (struct xclock *c);
+xclock_real(struct xclock *c);
 
 /**
  * @brief  Updates the clock to the current monotonic time
@@ -129,7 +129,7 @@ xclock_real (struct xclock *c);
  * @return  0 on succes, -errno on error
  */
 XEXTERN int
-xclock_mono (struct xclock *c);
+xclock_mono(struct xclock *c);
 
 /**
  * @brief  Calculates the current monotonic time delta from the clock
@@ -140,7 +140,7 @@ xclock_mono (struct xclock *c);
  * @return  delta time in seconds, NAN on error
  */
 XEXTERN double
-xclock_diff (struct xclock *c);
+xclock_diff(struct xclock *c);
 
 /**
  * @brief  Update the clock to current monotonic time an returns the delta
@@ -151,7 +151,7 @@ xclock_diff (struct xclock *c);
  * @return  delta time in seconds, NAN on error
  */
 XEXTERN double
-xclock_step (struct xclock *c);
+xclock_step(struct xclock *c);
 
 /**
  * @brief  Prints a representation of the clock
@@ -160,7 +160,7 @@ xclock_step (struct xclock *c);
  * @param  out  output stream or `NULL` for `stdout`
  */
 XEXTERN void
-xclock_print (const struct xclock *c, FILE *out);
+xclock_print(const struct xclock *c, FILE *out);
 
 #endif
 

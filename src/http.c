@@ -35,22 +35,22 @@ static const uint8_t crlf[] = "\r\n";
 #define CHK_EOL2 0x003000
 
 static int
-scrape_field (struct xhttp *restrict p, const uint8_t *restrict m)
+scrape_field(struct xhttp *restrict p, const uint8_t *restrict m)
 {
 	if (p->trailers || p->body_len) {
 		return 0;
 	}
 
-	if (LEQ16 ("content-length", m + p->as.field.name.off, p->as.field.name.len)) {
+	if (LEQ16("content-length", m + p->as.field.name.off, p->as.field.name.len)) {
 		if (p->as.field.value.len == 0) {
-			YIELD_ERROR (XEHTTPSYNTAX);
+			YIELD_ERROR(XEHTTPSYNTAX);
 		}
 		size_t num = 0;
 		const uint8_t *s = m + p->as.field.value.off;
 		const uint8_t *e = s + p->as.field.value.len;
 		while (s < e) {
-			if (!isdigit (*s)) {
-				YIELD_ERROR (XEHTTPSYNTAX);
+			if (!isdigit(*s)) {
+				YIELD_ERROR(XEHTTPSYNTAX);
 			}
 			num = num * 10 + (*s - '0');
 			s++;
@@ -59,18 +59,18 @@ scrape_field (struct xhttp *restrict p, const uint8_t *restrict m)
 		return 0;
 	}
 
-	if (LEQ16 ("connection", m + p->as.field.name.off, p->as.field.name.len)) {
-		if (LEQ16 ("keep-alive", m + p->as.field.value.off, p->as.field.value.len)) {
+	if (LEQ16("connection", m + p->as.field.name.off, p->as.field.name.len)) {
+		if (LEQ16("keep-alive", m + p->as.field.value.off, p->as.field.value.len)) {
 			p->flags |= XHTTP_FKEEPALIVE;
 		}
-		else if (LEQ16 ("close", m + p->as.field.value.off, p->as.field.value.len)) {
+		else if (LEQ16("close", m + p->as.field.value.off, p->as.field.value.len)) {
 			p->flags &= ~XHTTP_FKEEPALIVE;
 		}
 		return 0;
 	}
 
-	if (LEQ ("transfer-encoding", m + p->as.field.name.off, p->as.field.name.len) &&
-			LEQ16 ("chunked", m + p->as.field.value.off, p->as.field.value.len)) {
+	if (LEQ("transfer-encoding", m + p->as.field.name.off, p->as.field.name.len) &&
+			LEQ16("chunked", m + p->as.field.value.off, p->as.field.value.len)) {
 		p->flags |= XHTTP_FCHUNKED;
 		return 0;
 	}
@@ -79,7 +79,7 @@ scrape_field (struct xhttp *restrict p, const uint8_t *restrict m)
 }
 
 static ssize_t
-parse_request_line (struct xhttp *restrict p,
+parse_request_line(struct xhttp *restrict p,
 		const uint8_t *const restrict m, const size_t len)
 {
 	static const uint8_t method_sep[] = "\0@[`{\xff"; // must match ' '
@@ -95,22 +95,22 @@ parse_request_line (struct xhttp *restrict p,
 		p->as.request.method.off = (uint8_t)p->off;
 
 	case REQ_METH:
-		EXPECT_RANGE_THEN_CHAR (method_sep, ' ', p->max_method, false,
+		EXPECT_RANGE_THEN_CHAR(method_sep, ' ', p->max_method, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.request.method.len = (uint8_t)(p->off - 1);
 		p->cs = REQ_URI;
 		p->as.request.uri.off = p->off;
 
 	case REQ_URI:
-		EXPECT_RANGE_THEN_CHAR (uri_sep, ' ', p->max_uri, false,
+		EXPECT_RANGE_THEN_CHAR(uri_sep, ' ', p->max_uri, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.request.uri.len = (uint16_t)(p->off - 1 - p->as.request.uri.off);
 		p->cs = REQ_VER;
 
 	case REQ_VER:
-		EXPECT_PREFIX (version_start, 1, false, XEHTTPSYNTAX);
-		if (!isdigit (*end)) {
-			YIELD_ERROR (XEHTTPSYNTAX);
+		EXPECT_PREFIX(version_start, 1, false, XEHTTPSYNTAX);
+		if (!isdigit(*end)) {
+			YIELD_ERROR(XEHTTPSYNTAX);
 		}
 		p->as.request.version = (uint8_t)(*end - '0');
 		p->cs = REQ_EOL;
@@ -120,16 +120,16 @@ parse_request_line (struct xhttp *restrict p,
 		end++;
 
 	case REQ_EOL:
-		EXPECT_PREFIX (crlf, 0, false, XEHTTPSYNTAX);
-		YIELD (XHTTP_REQUEST, FLD);
+		EXPECT_PREFIX(crlf, 0, false, XEHTTPSYNTAX);
+		YIELD(XHTTP_REQUEST, FLD);
 
 	default:
-		YIELD_ERROR (XEHTTPSTATE);
+		YIELD_ERROR(XEHTTPSTATE);
 	}
 }
 
 static ssize_t
-parse_response_line (struct xhttp *restrict p,
+parse_response_line(struct xhttp *restrict p,
 		const uint8_t *const restrict m, const size_t len)
 {
 	const uint8_t *end = m + p->off;
@@ -141,16 +141,16 @@ parse_response_line (struct xhttp *restrict p,
 		p->cs = RES_VER;
 
 	case RES_VER:
-		EXPECT_PREFIX (version_start, 1, false, XEHTTPSYNTAX);
-		if (!isdigit (*end)) {
-			YIELD_ERROR (XEHTTPSYNTAX);
+		EXPECT_PREFIX(version_start, 1, false, XEHTTPSYNTAX);
+		if (!isdigit(*end)) {
+			YIELD_ERROR(XEHTTPSYNTAX);
 		}
 		p->as.response.version = (uint8_t)(*end - '0');
 		p->cs = RES_SEP;
 		end++;
 	
 	case RES_SEP:
-		EXPECT_CHAR (' ', false, XEHTTPSYNTAX);
+		EXPECT_CHAR(' ', false, XEHTTPSYNTAX);
 		p->cs = RES_CODE;
 		p->as.response.status = 0;
 
@@ -162,31 +162,31 @@ parse_response_line (struct xhttp *restrict p,
 				end++;
 				break;
 			}
-			if (isdigit (*end)) {
+			if (isdigit(*end)) {
 				p->as.response.status = p->as.response.status * 10 + (*end - '0');
 				p->off++;
 				end++;
 			}
 			else {
-				YIELD_ERROR (XEHTTPSYNTAX);
+				YIELD_ERROR(XEHTTPSYNTAX);
 			}
 		} while (true);
 		p->as.response.reason.off = p->off;
 		p->cs = RES_MSG;
 
 	case RES_MSG:
-		EXPECT_CRLF (p->max_reason + p->as.response.reason.off, false,
+		EXPECT_CRLF(p->max_reason + p->as.response.reason.off, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.response.reason.len = (uint16_t)(p->off - p->as.response.reason.off - (sizeof crlf - 1));
-		YIELD (XHTTP_RESPONSE, FLD);
+		YIELD(XHTTP_RESPONSE, FLD);
 
 	default:
-		YIELD_ERROR (XEHTTPSTATE);
+		YIELD_ERROR(XEHTTPSTATE);
 	}
 }
 
 static ssize_t
-parse_field (struct xhttp *restrict p,
+parse_field(struct xhttp *restrict p,
 		const uint8_t *const restrict m, const size_t len)
 {
 	static const uint8_t field_sep[] = ":@\0 \"\"()[]//{{}}"; // must match ':', allows commas
@@ -211,36 +211,36 @@ parse_field (struct xhttp *restrict p,
 			p->as.body_start.chunked = (p->flags & XHTTP_FCHUNKED) == XHTTP_FCHUNKED;
 			p->as.body_start.content_length = p->body_len;
 			if (p->trailers) {
-				YIELD (XHTTP_TRAILER_END, DONE);
+				YIELD(XHTTP_TRAILER_END, DONE);
 			}
 			else {
-				YIELD (XHTTP_BODY_START, (p->flags & XHTTP_FCHUNKED) ? CHK : DONE);
+				YIELD(XHTTP_BODY_START, (p->flags & XHTTP_FCHUNKED) ? CHK : DONE);
 			}
 		}
 		p->cs = FLD_KEY;
 		p->as.field.name.off = 0;
 
 	case FLD_KEY:
-		EXPECT_RANGE_THEN_CHAR (field_sep, ':', p->max_field, false,
+		EXPECT_RANGE_THEN_CHAR(field_sep, ':', p->max_field, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.field.name.len = (uint16_t)(p->off - 1);
 		p->cs = FLD_LWS;
 
 	case FLD_LWS:
-		EXPECT_RANGE (field_lws, p->max_value + p->as.field.value.off, false,
+		EXPECT_RANGE(field_lws, p->max_value + p->as.field.value.off, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.field.value.off = (uint16_t)p->off;
 		p->cs = FLD_VAL;
 
 	case FLD_VAL:
-		EXPECT_CRLF (p->max_value + p->as.field.value.off, false,
+		EXPECT_CRLF(p->max_value + p->as.field.value.off, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.field.name.off = SCAN;
 		p->as.field.value.off += SCAN;
 		p->as.field.value.len = (uint16_t)(p->off + SCAN - p->as.field.value.off - (sizeof crlf - 1));
-		CHECK_ERROR (scrape_field (p, m));
+		CHECK_ERROR(scrape_field(p, m));
 //		if (p->headers == NULL) {
-			YIELD (XHTTP_FIELD, FLD);
+			YIELD(XHTTP_FIELD, FLD);
 //		}
 //		else {
 //			SCAN = end - m;
@@ -250,7 +250,7 @@ parse_field (struct xhttp *restrict p,
 //		}
 
 	default:
-		YIELD_ERROR (XEHTTPSTATE);
+		YIELD_ERROR(XEHTTPSTATE);
 	}
 
 #undef SCAN
@@ -258,7 +258,7 @@ parse_field (struct xhttp *restrict p,
 }
 
 static ssize_t
-parse_chunk (struct xhttp *restrict p,
+parse_chunk(struct xhttp *restrict p,
 		const uint8_t *const restrict m, const size_t len)
 {
 	static const uint8_t hex[] = {
@@ -281,7 +281,7 @@ again:
 	case CHK_NUM:
 		do {
 			if (p->off == len) return 0;
-			if (isxdigit (*end)) {
+			if (isxdigit(*end)) {
 				p->body_len = (p->body_len << 4) | hex[*end];
 				p->off++;
 				end++;
@@ -293,29 +293,29 @@ again:
 		p->cs = CHK_EOL1;
 	
 	case CHK_EOL1:
-		EXPECT_PREFIX (crlf, 0, false, XEHTTPSYNTAX);
+		EXPECT_PREFIX(crlf, 0, false, XEHTTPSYNTAX);
 		if (p->body_len == 0) {
 			p->trailers = true;
-			YIELD (XHTTP_BODY_END, FLD);
+			YIELD(XHTTP_BODY_END, FLD);
 		}
 		else {
 			p->as.body_chunk.length = p->body_len;
 			p->body_len = 0;
-			YIELD (XHTTP_BODY_CHUNK, CHK_EOL2);
+			YIELD(XHTTP_BODY_CHUNK, CHK_EOL2);
 		}
 
 	case CHK_EOL2:
-		EXPECT_PREFIX (crlf, 0, false, XEHTTPSYNTAX);
+		EXPECT_PREFIX(crlf, 0, false, XEHTTPSYNTAX);
 		p->cs = CHK_NUM;
 		goto again;
 
 	default:
-		YIELD_ERROR (XEHTTPSTATE);
+		YIELD_ERROR(XEHTTPSTATE);
 	}
 }
 
 static void
-init_sizes (struct xhttp *p)
+init_sizes(struct xhttp *p)
 {
 	p->max_method = XHTTP_MAX_METHOD;
 	p->max_uri = XHTTP_MAX_URI;
@@ -325,39 +325,39 @@ init_sizes (struct xhttp *p)
 }
 
 int
-xhttp_init_request (struct xhttp *p)
+xhttp_init_request(struct xhttp *p)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 
-	memset (p, 0, sizeof *p);
-	init_sizes (p);
+	memset(p, 0, sizeof *p);
+	init_sizes(p);
 	p->cs = REQ;
 	return 0;
 }
 
 int
-xhttp_init_response (struct xhttp *p)
+xhttp_init_response(struct xhttp *p)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 
-	memset (p, 0, sizeof *p);
-	init_sizes (p);
+	memset(p, 0, sizeof *p);
+	init_sizes(p);
 	p->cs = RES;
 	p->response = true;
 	return 0;
 }
 
 void
-xhttp_final (struct xhttp *p)
+xhttp_final(struct xhttp *p)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 	(void)p;
 }
 
 void
-xhttp_reset (struct xhttp *p)
+xhttp_reset(struct xhttp *p)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 
 	uint16_t max_method = p->max_method;
 	uint16_t max_uri = p->max_uri;
@@ -366,10 +366,10 @@ xhttp_reset (struct xhttp *p)
 	uint16_t max_value = p->max_value;
 
 	if (p->response) {
-		xhttp_init_response (p);
+		xhttp_init_response(p);
 	}
 	else {
-		xhttp_init_request (p);
+		xhttp_init_request(p);
 	}
 
 	p->max_method = max_method;
@@ -380,9 +380,9 @@ xhttp_reset (struct xhttp *p)
 }
 
 ssize_t
-xhttp_next (struct xhttp *p, const void *restrict buf, size_t len)
+xhttp_next(struct xhttp *p, const void *restrict buf, size_t len)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 
 	if (len == 0) {
 		return 0;
@@ -392,32 +392,32 @@ xhttp_next (struct xhttp *p, const void *restrict buf, size_t len)
 	p->scans++;
 	p->cscans++;
 
-	     if (p->cs & REQ) rc = parse_request_line (p, buf, len);
-	else if (p->cs & RES) rc = parse_response_line (p, buf, len);
-	else if (p->cs & FLD) rc = parse_field (p, buf, len);
-	else if (p->cs & CHK) rc = parse_chunk (p, buf, len);
-	else { YIELD_ERROR (XEHTTPSTATE); }
+	     if (p->cs & REQ) rc = parse_request_line(p, buf, len);
+	else if (p->cs & RES) rc = parse_response_line(p, buf, len);
+	else if (p->cs & FLD) rc = parse_field(p, buf, len);
+	else if (p->cs & CHK) rc = parse_chunk(p, buf, len);
+	else { YIELD_ERROR(XEHTTPSTATE); }
 	if (rc > 0) {
 		p->cscans = 0;
 	}
 	else if (rc == 0 && p->cscans > 64) {
-		YIELD_ERROR (XEHTTPTOOSHORT);
+		YIELD_ERROR(XEHTTPTOOSHORT);
 	}
 	return rc;
 }
 
 bool
-xhttp_is_done (const struct xhttp *p)
+xhttp_is_done(const struct xhttp *p)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 
-	return IS_DONE (p->cs);
+	return IS_DONE(p->cs);
 }
 
 void
-xhttp_print (const struct xhttp *p, const void *restrict buf, FILE *out)
+xhttp_print(const struct xhttp *p, const void *restrict buf, FILE *out)
 {
-	assert (p != NULL);
+	assert(p != NULL);
 
 	if (out == NULL) {
 		out = stderr;
@@ -425,26 +425,26 @@ xhttp_print (const struct xhttp *p, const void *restrict buf, FILE *out)
 
 	switch (p->type) {
 	case XHTTP_REQUEST:
-		fprintf (out, "> %.*s %.*s HTTP/1.%u\n",
+		fprintf(out, "> %.*s %.*s HTTP/1.%u\n",
 				(int)p->as.request.method.len, (char *)buf+p->as.request.method.off,
 				(int)p->as.request.uri.len, (char *)buf+p->as.request.uri.off,
 				p->as.request.version);
 		break;
 	case XHTTP_RESPONSE:
-		fprintf (out, "< HTTP/1.%u %u %.*s\n",
+		fprintf(out, "< HTTP/1.%u %u %.*s\n",
 				p->as.response.version,
 				p->as.response.status,
 				(int)p->as.response.reason.len, (char *)buf+p->as.response.reason.off);
 		break;
 	case XHTTP_FIELD:
-		fprintf (out, "%c %.*s: %.*s\n",
+		fprintf(out, "%c %.*s: %.*s\n",
 				p->response ? '<' : '>',
 				(int)p->as.field.name.len, (char *)buf+p->as.field.name.off,
 				(int)p->as.field.value.len, (char *)buf+p->as.field.value.off);
 		break;
 	case XHTTP_BODY_START:
 	case XHTTP_TRAILER_END:
-		fprintf (out, "%c\n", p->response ? '<' : '>');
+		fprintf(out, "%c\n", p->response ? '<' : '>');
 		break;
 	default: break;
 	}

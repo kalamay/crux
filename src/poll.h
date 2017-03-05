@@ -30,8 +30,8 @@ struct xpoll {
 #endif
 
 extern int
-xpoll_init (struct xpoll *poll);
+xpoll_init(struct xpoll *poll);
 
 extern void
-xpoll_final (struct xpoll *poll);
+xpoll_final(struct xpoll *poll);
 

@@ -16,29 +16,29 @@ enum xerr_type {
 #define XECODE(n) ((-(int)(n)) & 0xffff)
 
 #define XEMAKE(T, n) (-((XERR_##T << 16) | ((n) & 0xffff)))
-#define XESYS(n) (XEMAKE (SYS, n))
+#define XESYS(n) (XEMAKE(SYS, n))
 #if EAI_FAIL < 0
-# define XEADDR(n) (XEMAKE (ADDR, -(n)))
+# define XEADDR(n) (XEMAKE(ADDR, -(n)))
 #else
-# define XEADDR(n) (XEMAKE (ADDR, n))
+# define XEADDR(n) (XEMAKE(ADDR, n))
 #endif
-#define XEHTTP(n) (XEMAKE (HTTP, n))
+#define XEHTTP(n) (XEMAKE(HTTP, n))
 
-#define XEIS(T, n) (XETYPE (n) == XERR_##T)
-#define XEISSYS(n) (XEIS (SYS, n))
-#define XEISADDR(n) (XEIS (ADDR, n))
-#define XEISHTTP(n) (XEIS (HTTP, n))
+#define XEIS(T, n) (XETYPE(n) == XERR_##T)
+#define XEISSYS(n) (XEIS(SYS, n))
+#define XEISADDR(n) (XEIS(ADDR, n))
+#define XEISHTTP(n) (XEIS(HTTP, n))
 
-#define XERRNO XESYS (errno)
+#define XERRNO XESYS(errno)
 
-#define XEHTTPSYNTAX    XEHTTP (1)
-#define XEHTTPSIZE      XEHTTP (2)
-#define XEHTTPSTATE     XEHTTP (3)
-#define XEHTTPTOOSHORT  XEHTTP (4)
-#define XEHTTPBUFS      XEHTTP (5)
+#define XEHTTPSYNTAX    XEHTTP(1)
+#define XEHTTPSIZE      XEHTTP(2)
+#define XEHTTPSTATE     XEHTTP(3)
+#define XEHTTPTOOSHORT  XEHTTP(4)
+#define XEHTTPBUFS      XEHTTP(5)
 
 XEXTERN const char *
-xerr_type (int code);
+xerr_type(int code);
 
 /**
  * @brief  Gets a string representation of an error code
@@ -47,7 +47,7 @@ xerr_type (int code);
  * @return  string error message
  */
 XEXTERN const char *
-xerr_str (int code);
+xerr_str(int code);
 
 /**
  * @brief  Prints an error message and aborts
@@ -57,7 +57,7 @@ xerr_str (int code);
  * @param  code  error code in either positive or negative form
  */
 XEXTERN void
-xerr_abort (int code);
+xerr_abort(int code);
 
 /**
  * @brief  Prints a custom message followed by an  error message and aborts
@@ -68,8 +68,8 @@ xerr_abort (int code);
  *
  * @param  code  error code in either positive or negative form
  */
-XEXTERN void __attribute__ ((format (printf, 2, 3)))
-xerr_fabort (int code, const char *fmt, ...);
+XEXTERN void __attribute__ ((format(printf, 2, 3)))
+xerr_fabort(int code, const char *fmt, ...);
 
 /**
  * @brief  Checks the return code from a function and aborts on error
@@ -83,7 +83,7 @@ xerr_fabort (int code, const char *fmt, ...);
 #define xcheck(f) __extension__ ({ \
 	int __code = (f); \
 	if (__code < 0) { \
-		xerr_fabort (__code, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
+		xerr_fabort(__code, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
 	} \
 	__code; \
 })
@@ -101,7 +101,7 @@ xerr_fabort (int code, const char *fmt, ...);
 #define xcheck_errno(f) __extension__ ({ \
 	int __code = (f); \
 	if (__code < 0) { \
-		xerr_fabort (errno, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
+		xerr_fabort(errno, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
 	} \
 	__code; \
 })

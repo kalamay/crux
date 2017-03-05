@@ -37,60 +37,60 @@ union xvalue {
 struct xmgr;
 
 XEXTERN int
-xmgr_new (struct xmgr **mgrp, size_t tls, size_t stack, int flags);
+xmgr_new(struct xmgr **mgrp, size_t tls, size_t stack, int flags);
 
 XEXTERN void
-xmgr_free (struct xmgr **mgrp);
+xmgr_free(struct xmgr **mgrp);
 
 XEXTERN struct xmgr *
-xmgr_self (void);
+xmgr_self(void);
 
 
 struct xtask;
 
 #define xtask_new(tp, mgr, tls, fn) \
-	xtask_newf (tp, mgr, tls, __FILE__, __LINE__, fn)
+	xtask_newf(tp, mgr, tls, __FILE__, __LINE__, fn)
 
 XEXTERN int
-xtask_newf (struct xtask **tp, struct xmgr *mgr, void *tls,
+xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 		const char *file, int line,
 		union xvalue (*fn)(void *tls, union xvalue));
 
 XEXTERN void
-xtask_free (struct xtask **tp);
+xtask_free(struct xtask **tp);
 
 XEXTERN struct xtask *
-xtask_self (void);
+xtask_self(void);
 
 XEXTERN void *
-xtask_local (struct xtask *t);
+xtask_local(struct xtask *t);
 
 XEXTERN bool
-xtask_alive (const struct xtask *t);
+xtask_alive(const struct xtask *t);
 
 XEXTERN int
-xtask_exitcode (const struct xtask *t);
+xtask_exitcode(const struct xtask *t);
 
 XEXTERN int
-xtask_exit (struct xtask *t, int ec);
+xtask_exit(struct xtask *t, int ec);
 
 XEXTERN void
-xtask_print (const struct xtask *t, FILE *out);
+xtask_print(const struct xtask *t, FILE *out);
 
 XEXTERN union xvalue
-xyield (union xvalue val);
+xyield(union xvalue val);
 
 XEXTERN union xvalue
-xresume (struct xtask *t, union xvalue val);
+xresume(struct xtask *t, union xvalue val);
 
 XEXTERN int
-xdefer (void (*fn) (void *), void *data);
+xdefer(void (*fn) (void *), void *data);
 
 XEXTERN void *
-xmalloc (size_t size);
+xmalloc(size_t size);
 
 XEXTERN void *
-xcalloc (size_t count, size_t size);
+xcalloc(size_t count, size_t size);
 
 #endif
 

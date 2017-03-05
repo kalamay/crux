@@ -9,17 +9,17 @@
 #include <stddef.h>
 #include <errno.h>
 
-#define XEXTERN __attribute__ ((visibility ("default"))) extern
-#define XLOCAL  __attribute__ ((visibility ("hidden")))
+#define XEXTERN __attribute__ ((visibility("default"))) extern
+#define XLOCAL  __attribute__ ((visibility("hidden")))
 #define XSTATIC __attribute__ ((unused)) static
 
 #define xcontainer(ptr, type, member) __extension__ ({ \
-	const __typeof (((type *)0)->member) *__mptr = (ptr); \
+	const __typeof(((type *)0)->member) *__mptr = (ptr); \
 	(type *)(void *)((char *)__mptr - offsetof(type,member)); \
 })
 
 #define xlen(arr) \
-	(sizeof (arr) / sizeof ((arr)[0]))
+	(sizeof(arr) / sizeof((arr)[0]))
 
 #define xlikely(x) __builtin_expect(!!(x), 1)
 #define xunlikely(x) __builtin_expect(!!(x), 0)
@@ -46,12 +46,12 @@
 XEXTERN const uint64_t XPOWER2_PRIMES[64];
 
 #define xpower2_prime(n) __extension__ ({ \
-	__typeof (n) __p2 = (n); \
+	__typeof(n) __p2 = (n); \
 	__p2 > 0 ? XPOWER2_PRIMES[63- __builtin_clzll(__p2)] : (uint64_t)0; \
 })
 
 #define xquantum(n, quant) __extension__ ({ \
-	__typeof (n) __quant = (quant); \
+	__typeof(n) __quant = (quant); \
 	(((((n) - 1) / __quant) + 1) * __quant); \
 })
 

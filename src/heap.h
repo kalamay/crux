@@ -8,8 +8,8 @@ struct xheap {
 };
 
 int
-xheap_init (struct xheap *heap);
+xheap_init(struct xheap *heap);
 
 void
-xheap_final (struct xheap *heap);
+xheap_final(struct xheap *heap);
 

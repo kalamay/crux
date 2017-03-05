@@ -11,88 +11,88 @@
 struct xhub;
 
 XEXTERN int
-xhub_new (struct xhub **hubp);
+xhub_new(struct xhub **hubp);
 
 XEXTERN void
-xhub_free (struct xhub **hupb);
+xhub_free(struct xhub **hupb);
 
 XEXTERN int
-xhub_run (struct xhub *hub);
+xhub_run(struct xhub *hub);
 
 XEXTERN void
-xhub_stop (struct xhub *hub);
+xhub_stop(struct xhub *hub);
 
 #define xspawn(hub, fn, data) \
-	xspawnf (hub, __FILE__, __LINE__, fn, data)
+	xspawnf(hub, __FILE__, __LINE__, fn, data)
 
 XEXTERN int
-xspawnf (struct xhub *hub, const char *file, int line,
+xspawnf(struct xhub *hub, const char *file, int line,
 		void (*fn)(struct xhub *, void *), void *data);
 
-#if defined (__BLOCKS__)
+#if defined(__BLOCKS__)
 
 XEXTERN int
-xspawn_b (struct xhub *hub, void (^block)(void));
+xspawn_b(struct xhub *hub, void (^block)(void));
 
 #endif
 
 XEXTERN void
-xexit (int ec);
+xexit(int ec);
 
 XEXTERN const struct xclock *
-xclock (void);
+xclock(void);
 
 XEXTERN int
-xsleep (unsigned ms);
+xsleep(unsigned ms);
 
 XEXTERN int
-xsignal (int signum, int timeoutms);
+xsignal(int signum, int timeoutms);
 
 XEXTERN ssize_t
-xread (int fd, void *buf, size_t len, int timeoutms);
+xread(int fd, void *buf, size_t len, int timeoutms);
 
 XEXTERN ssize_t
-xreadv (int fd, struct iovec *iov, int iovcnt, int timeoutms);
+xreadv(int fd, struct iovec *iov, int iovcnt, int timeoutms);
 
 XEXTERN ssize_t
-xreadn (int fd, void *buf, size_t len, int timeoutms);
+xreadn(int fd, void *buf, size_t len, int timeoutms);
 
 XEXTERN ssize_t
-xwrite (int fd, const void *buf, size_t len, int timeoutms);
+xwrite(int fd, const void *buf, size_t len, int timeoutms);
 
 XEXTERN ssize_t
-xwritev (int fd, const struct iovec *iov, int iovcnt, int timeoutms);
+xwritev(int fd, const struct iovec *iov, int iovcnt, int timeoutms);
 
 XEXTERN ssize_t
-xwriten (int fd, const void *buf, size_t len, int timeoutms);
+xwriten(int fd, const void *buf, size_t len, int timeoutms);
 
 XEXTERN ssize_t
-xrecvfrom (int s, void *buf, size_t len, int flags,
+xrecvfrom(int s, void *buf, size_t len, int flags,
 	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
 
 XEXTERN ssize_t
-xsendto (int s, const void *buf, size_t len, int flags,
+xsendto(int s, const void *buf, size_t len, int flags,
 	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
 
 typedef ssize_t (*xio_fn) (int fd, void *buf, size_t len, int timeoutms);
 
 XEXTERN ssize_t
-xio (int fd, void *buf, size_t len, int timeoutms, xio_fn fn);
+xio(int fd, void *buf, size_t len, int timeoutms, xio_fn fn);
 
 XEXTERN int
-xpipe (int fds[static 2]);
+xpipe(int fds[static 2]);
 
 XEXTERN int
-xsocket (int domain, int type, int protocol);
+xsocket(int domain, int type, int protocol);
 
 XEXTERN int
-xaccept (int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms);
+xaccept(int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms);
 
 XEXTERN int
-xunblock (int fd);
+xunblock(int fd);
 
 XEXTERN int
-xcloexec (int fd);
+xcloexec(int fd);
 
 #endif
 

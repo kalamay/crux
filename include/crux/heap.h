@@ -21,14 +21,14 @@ struct xheap;
  *         struct xheap_entry handle;
  *     };
  *
- *     struct thing *t = malloc (sizeof (*t));
+ *     struct thing *t = malloc(sizeof(*t));
  *     t->prio = 100;
- *     xheap_add (heap, &t->handle);
+ *     xheap_add(heap, &t->handle);
  *     ...
- *     struct xheap_entry *entry = xheap_get (heap, XHEAP_ROOT);
- *     t = xcontainer (entry, struct thing, handle);
- *     xheap_remove (heap, entry);
- *     free (t);
+ *     struct xheap_entry *entry = xheap_get(heap, XHEAP_ROOT);
+ *     t = xcontainer(entry, struct thing, handle);
+ *     xheap_remove(heap, entry);
+ *     free(t);
  *
  * The priority field must be set before adding an entry to the heap.
  *
@@ -71,7 +71,7 @@ typedef void (*xheap_fn)(struct xheap_entry *ent, void *data);
  *   `-ENOMEM`: an allocation is required and the system is out of memory
  */
 XEXTERN int
-xheap_new (struct xheap **heapp);
+xheap_new(struct xheap **heapp);
 
 /**
  * @brief  Finalizes and deallocates an idirectly referenced heap object
@@ -82,7 +82,7 @@ xheap_new (struct xheap **heapp);
  * @param  heapp  indirect heap object pointer
  */
 XEXTERN void
-xheap_free (struct xheap **heapp);
+xheap_free(struct xheap **heapp);
 
 /**
  * @brief  Gets the number of entries in the heap
@@ -91,7 +91,7 @@ xheap_free (struct xheap **heapp);
  * @return  number of entries
  */
 XEXTERN uint32_t
-xheap_count (const struct xheap *heap);
+xheap_count(const struct xheap *heap);
 
 /**
  * @brief  Gets an entry using an explicit key
@@ -103,7 +103,7 @@ xheap_count (const struct xheap *heap);
  * @return  entry pointer or `NULL`
  */
 XEXTERN struct xheap_entry *
-xheap_get (const struct xheap *heap, uint32_t key);
+xheap_get(const struct xheap *heap, uint32_t key);
 
 /**
  * @brief  Adds an entry to the heap
@@ -119,7 +119,7 @@ xheap_get (const struct xheap *heap, uint32_t key);
  *   `-ENOMEM`: an allocation is required and the system is out of memory
  */
 XEXTERN int
-xheap_add (struct xheap *heap, struct xheap_entry *e);
+xheap_add(struct xheap *heap, struct xheap_entry *e);
 
 /**
  * @brief  Removes an entry from the heap
@@ -137,7 +137,7 @@ xheap_add (struct xheap *heap, struct xheap_entry *e);
  *   `-ENOENT`: the key for the entry is not in the heap
  */
 XEXTERN int
-xheap_remove (struct xheap *heap, struct xheap_entry *e);
+xheap_remove(struct xheap *heap, struct xheap_entry *e);
 
 /**
  * @brief  Updates the priority of an entry
@@ -154,7 +154,7 @@ xheap_remove (struct xheap *heap, struct xheap_entry *e);
  *   `-ENOENT`: the key for the entry is not in the heap
  */
 XEXTERN int
-xheap_update (const struct xheap *heap, struct xheap_entry *e);
+xheap_update(const struct xheap *heap, struct xheap_entry *e);
 
 /**
  * @brief  Removes all entries from the heap
@@ -168,7 +168,7 @@ xheap_update (const struct xheap *heap, struct xheap_entry *e);
  * @param  data  user pointer to pass to `fn`
  */
 XEXTERN void
-xheap_clear (struct xheap *heap, xheap_fn fn, void *data);
+xheap_clear(struct xheap *heap, xheap_fn fn, void *data);
 
 #endif
 

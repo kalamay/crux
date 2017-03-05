@@ -12,7 +12,7 @@ struct xctx {
 };
 
 void
-xctx_init (struct xctx *ctx, void *stack, size_t len,
+xctx_init(struct xctx *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2)
 {
 	uintptr_t *s = (uintptr_t *)(void *)((uint8_t *)stack + len);
@@ -26,7 +26,7 @@ xctx_init (struct xctx *ctx, void *stack, size_t len,
 
 __asm__ (
 	".text             \n"
-#if defined (__APPLE__)
+#if defined(__APPLE__)
 	".globl _xctx_swap \n"
 	"_xctx_swap:       \n"
 #else

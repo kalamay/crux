@@ -16,8 +16,8 @@ struct xmgr {
 };
 
 extern int
-xmgr_init (struct xmgr *mgr, size_t tls, size_t stack, int flags);
+xmgr_init(struct xmgr *mgr, size_t tls, size_t stack, int flags);
 
 extern void
-xmgr_final (struct xmgr *mgr);
+xmgr_final(struct xmgr *mgr);
 

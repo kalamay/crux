@@ -3,9 +3,9 @@
 static const struct timespec zero = { 0, 0 };
 
 int
-xpoll__init (struct xpoll *poll)
+xpoll__init(struct xpoll *poll)
 {
-    poll->fd = kqueue ();
+    poll->fd = kqueue();
 	poll->rpos = 0;
 	poll->rlen = 0;
 	poll->wpos = 0;
@@ -13,35 +13,35 @@ xpoll__init (struct xpoll *poll)
 }
 
 void
-xpoll__final (struct xpoll *poll)
+xpoll__final(struct xpoll *poll)
 {
 	if (poll->fd >= 0) {
-		close (poll->fd);
+		close(poll->fd);
 		poll->fd = -1;
 	}
 }
 
 bool
-xpoll__has_more (struct xpoll *poll)
+xpoll__has_more(struct xpoll *poll)
 {
 	return poll->rpos < poll->rlen;
 }
 
 int
-xpoll__update (struct xpoll *poll, const struct timespec *ts)
+xpoll__update(struct xpoll *poll, const struct timespec *ts)
 {
-	assert (!xpoll__has_more (poll));
+	assert(!xpoll__has_more(poll));
 
 	struct kevent *events = poll->events, *changes = events + poll->rlen;
-	int nevents = xlen (poll->events), nchanges = poll->wpos - poll->rlen;
+	int nevents = xlen(poll->events), nchanges = poll->wpos - poll->rlen;
 
-	int rc = kevent (poll->fd, changes, nchanges, events, nevents, ts);
+	int rc = kevent(poll->fd, changes, nchanges, events, nevents, ts);
 	if (rc < 0) { return XERRNO; }
 
 	poll->rpos = 0;
 
 	if (rc == 0) {
-		assert (nchanges == 0);
+		assert(nchanges == 0);
 		poll->rlen = 0;
 		goto done;
 	}
@@ -55,13 +55,13 @@ xpoll__update (struct xpoll *poll, const struct timespec *ts)
 			continue;
 		}
 		// only do a memmove if a non-receipt event is found
-		memmove (mark, p, (pe - p) * sizeof (*p));
+		memmove(mark, p, (pe - p) * sizeof(*p));
 		pe = p - rc;
 		p = mark;
 		mark++;
 	}
 	poll->rlen = rc;
-	if (!rc) { rc = XESYS (EINTR); }
+	if (!rc) { rc = XESYS(EINTR); }
 
 done:
 	poll->wpos = poll->rlen;
@@ -69,9 +69,9 @@ done:
 }
 
 int
-xpoll__next (struct xpoll *poll, struct xevent *dst)
+xpoll__next(struct xpoll *poll, struct xevent *dst)
 {
-	assert (xpoll__has_more (poll));
+	assert(xpoll__has_more(poll));
 
 	struct kevent *src = &poll->events[poll->rpos++];
 
@@ -92,7 +92,7 @@ xpoll__next (struct xpoll *poll, struct xevent *dst)
 #endif
 
 	if (dst->type == XPOLL_SIG) {
-		signal (dst->id, SIG_DFL);
+		signal(dst->id, SIG_DFL);
 	}
 
 	if (src->flags & EV_ERROR) {
@@ -108,7 +108,7 @@ xpoll__next (struct xpoll *poll, struct xevent *dst)
 }
 
 int
-xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
+xpoll__ctl(struct xpoll *poll, int op, int type, int id, void *ptr)
 {
 #if EVFILT_READ == 0
 	type = type - 1; // NetBSD
@@ -128,18 +128,18 @@ xpoll__ctl (struct xpoll *poll, int op, int type, int id, void *ptr)
 	}
 
 	// signal events must be registered immediately, otherwise only if full
-	if (type == EVFILT_SIGNAL || poll->wpos == xlen (poll->events)) {
+	if (type == EVFILT_SIGNAL || poll->wpos == xlen(poll->events)) {
 		struct kevent ev;
-		EV_SET (&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
-		int rc = kevent (poll->fd, &ev, 1, NULL, 0, &zero);
+		EV_SET(&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
+		int rc = kevent(poll->fd, &ev, 1, NULL, 0, &zero);
 		if (rc < 0) { return XERRNO; }
-		signal (id, XPOLL_ADD ? SIG_IGN : SIG_DFL);
+		signal(id, XPOLL_ADD ? SIG_IGN : SIG_DFL);
 		return 0;
 	}
 
 	// queue up the event change for the next xpoll__update
 	struct kevent *ev = &poll->events[poll->wpos++];
-	EV_SET (ev, id, type, op|EV_ONESHOT|EV_RECEIPT, 0, 0, ptr);
+	EV_SET(ev, id, type, op|EV_ONESHOT|EV_RECEIPT, 0, 0, ptr);
 	return 0;
 }
 

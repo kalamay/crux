@@ -18,7 +18,7 @@ struct xctx;
  * @param  a2     second argument to `ip`
  */
 XEXTERN void
-xctx_init (struct xctx *ctx, void *stack, size_t len,
+xctx_init(struct xctx *ctx, void *stack, size_t len,
 		uintptr_t ip, uintptr_t a1, uintptr_t a2);
 
 /**
@@ -28,7 +28,7 @@ xctx_init (struct xctx *ctx, void *stack, size_t len,
  * @param  load  context to activate
  */
 XEXTERN void
-xctx_swap (struct xctx *save, const struct xctx *load);
+xctx_swap(struct xctx *save, const struct xctx *load);
 
 #endif
 

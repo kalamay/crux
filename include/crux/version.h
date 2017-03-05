@@ -10,7 +10,7 @@ struct xversion {
 };
 
 XEXTERN struct xversion
-xversion (void);
+xversion(void);
 
 #endif
 

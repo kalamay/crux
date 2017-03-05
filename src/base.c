@@ -60,77 +60,77 @@ const union xseed *const XSEED_RANDOM = &SEED_RANDOM;
 const union xseed *const XSEED_DEFAULT = &SEED_DEFAULT;
 
 int
-xinit (void)
+xinit(void)
 {
 #if HAS_MACH_TIME
-	(void)mach_timebase_info (&info);
+	(void)mach_timebase_info(&info);
 #endif
 
 #if !HAS_ARC4
-	if (randfd >= 0) { close (randfd); }
+	if (randfd >= 0) { close(randfd); }
 
 	while (1) {
-		randfd = open ("/dev/urandom", O_RDONLY);
+		randfd = open("/dev/urandom", O_RDONLY);
 		if (randfd >= 0) {
 			break;
 		}
 		int rc = XERRNO;
-		if (rc != XESYS (EINTR)) {
-			fprintf (stderr, "[cux:init:error failed to open /dev/urandom: %s", xerr_str (rc));
+		if (rc != XESYS(EINTR)) {
+			fprintf(stderr, "[cux:init:error failed to open /dev/urandom: %s", xerr_str(rc));
 			return rc;
 		}
 	}
 
 	// stat the randfd so it can be verified
 	struct stat sbuf;
-	if (fstat (randfd, &sbuf) < 0) {
+	if (fstat(randfd, &sbuf) < 0) {
 		int rc = XERRNO;
-		fprintf (stderr, "[crux:init:error] failed to stat /dev/urandom: %s", xerr_str (rc));
-		close (randfd);
+		fprintf(stderr, "[crux:init:error] failed to stat /dev/urandom: %s", xerr_str(rc));
+		close(randfd);
 		randfd = -1;
 		return rc;
 	}
 
 	// check that it is a char special
-	if (!S_ISCHR (sbuf.st_mode) ||
+	if (!S_ISCHR(sbuf.st_mode) ||
 			// verify that the device is /dev/random or /dev/urandom (linux only)
-			(sbuf.st_rdev != makedev (1, 8) && sbuf.st_rdev != makedev (1, 9))) {
-		int rc = XESYS (ENODEV);
-		fprintf (stderr, "[crux:init:error] /dev/urandom is an invalid device");
-		close (randfd);
+			(sbuf.st_rdev != makedev(1, 8) && sbuf.st_rdev != makedev(1, 9))) {
+		int rc = XESYS(ENODEV);
+		fprintf(stderr, "[crux:init:error] /dev/urandom is an invalid device");
+		close(randfd);
 		randfd = -1;
 		return rc;
 	}
 #endif
 
-	return xrand (&SEED_RANDOM, sizeof SEED_RANDOM);
+	return xrand(&SEED_RANDOM, sizeof SEED_RANDOM);
 }
 
 static void __attribute__((constructor))
-auto_init (void)
+auto_init(void)
 {
-	int rc = xinit ();
-	if (rc < 0) { exit (1); }
+	int rc = xinit();
+	if (rc < 0) { exit(1); }
 }
 
 struct xversion
-xversion (void)
+xversion(void)
 {
 	return (struct xversion) { VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH };
 }
 
 int
-xclock_real (struct xclock *c)
+xclock_real(struct xclock *c)
 {
-	assert (c != NULL);
+	assert(c != NULL);
 
 #if HAS_CLOCK_GETTIME
-	if (clock_gettime (CLOCK_REALTIME, &c->ts) < 0) {
+	if (clock_gettime(CLOCK_REALTIME, &c->ts) < 0) {
 		return XERRNO;
 	}
 #else
 	struct timeval now;
-    if (gettimeofday (&now, NULL) < 0) {
+    if (gettimeofday(&now, NULL) < 0) {
 		return XERRNO;
 	}
     c->ts.tv_sec = now.tv_sec;
@@ -140,61 +140,61 @@ xclock_real (struct xclock *c)
 }
 
 int
-xclock_mono (struct xclock *c)
+xclock_mono(struct xclock *c)
 {
-	assert (c != NULL);
+	assert(c != NULL);
 
 #if HAS_CLOCK_GETTIME
-	if (clock_gettime (CLOCK_MONOTONIC, &c->ts) < 0) {
+	if (clock_gettime(CLOCK_MONOTONIC, &c->ts) < 0) {
 		return XERRNO;
 	}
 #elif HAS_MACH_TIME
-	XCLOCK_SET_NSEC (c, (mach_absolute_time () * info.numer) / info.denom);
+	XCLOCK_SET_NSEC(c, (mach_absolute_time() * info.numer) / info.denom);
 #else
-	XCLOCK_SET_NSEC (c, clock () * (X_NSEC_PER_SEC / CLOCKS_PER_SEC));
+	XCLOCK_SET_NSEC(c, clock() * (X_NSEC_PER_SEC / CLOCKS_PER_SEC));
 #endif
 	return 0;
 }
 
 double
-xclock_diff (struct xclock *c)
+xclock_diff(struct xclock *c)
 {
-	assert (c != NULL);
+	assert(c != NULL);
 
 	struct xclock now;
-	if (xclock_mono (&now) < 0) {
+	if (xclock_mono(&now) < 0) {
 		return NAN;
 	}
-	XCLOCK_SUB (&now, c);
-	return XCLOCK_TIME (&now);
+	XCLOCK_SUB(&now, c);
+	return XCLOCK_TIME(&now);
 }
 
 double
-xclock_step (struct xclock *c)
+xclock_step(struct xclock *c)
 {
-	assert (c != NULL);
+	assert(c != NULL);
 
 	struct xclock now;
-	if (xclock_mono (&now) < 0) {
+	if (xclock_mono(&now) < 0) {
 		return NAN;
 	}
-	double time = XCLOCK_TIME (&now) - XCLOCK_TIME (c);
+	double time = XCLOCK_TIME(&now) - XCLOCK_TIME(c);
 	*c = now;
 	return time;
 }
 
 void
-xclock_print (const struct xclock *c, FILE *out)
+xclock_print(const struct xclock *c, FILE *out)
 {
 	if (out == NULL) {
 		out = stdout;
 	}
 
 	if (c == NULL) {
-		fprintf (out, "<crux:clock:(null)>\n");
+		fprintf(out, "<crux:clock:(null)>\n");
 	}
 	else {
-		fprintf (out, "<crux:clock:%p time=%f>\n", (void *)c, XCLOCK_TIME (c));
+		fprintf(out, "<crux:clock:%p time=%f>\n", (void *)c, XCLOCK_TIME(c));
 	}
 }
 
@@ -203,27 +203,27 @@ xclock_print (const struct xclock *c, FILE *out)
 #if HAS_ARC4
 
 int
-xrand (void *const restrict dst, size_t len)
+xrand(void *const restrict dst, size_t len)
 {
-	arc4random_buf (dst, len);
+	arc4random_buf(dst, len);
 	return 0;
 }
 
 int
-xrand_u32 (uint32_t bound, uint32_t *out)
+xrand_u32(uint32_t bound, uint32_t *out)
 {
-	*out = bound ? arc4random_uniform (bound) : arc4random ();
+	*out = bound ? arc4random_uniform(bound) : arc4random();
 	return 0;
 }
 
 #else
 
 int
-xrand (void *const restrict dst, size_t len)
+xrand(void *const restrict dst, size_t len)
 {
 	size_t amt = 0;
 	while (amt < len) {
-		ssize_t r = read (randfd, (char *)dst+amt, len-amt);
+		ssize_t r = read(randfd, (char *)dst+amt, len-amt);
 		if (r > 0) {
 			amt += (size_t)r;
 		}
@@ -235,10 +235,10 @@ xrand (void *const restrict dst, size_t len)
 }
 
 int
-xrand_u32 (uint32_t bound, uint32_t *out)
+xrand_u32(uint32_t bound, uint32_t *out)
 {
 	uint32_t val;
-	int rc = xrand (&val, sizeof val);
+	int rc = xrand(&val, sizeof val);
 	if (rc < 0) { return rc; }
 	if (bound) {
 		val = ((double)val / (double)UINT32_MAX) * bound;
@@ -250,10 +250,10 @@ xrand_u32 (uint32_t bound, uint32_t *out)
 #endif
 
 int
-xrand_u64 (uint64_t bound, uint64_t *out)
+xrand_u64(uint64_t bound, uint64_t *out)
 {
 	uint64_t val;
-	int rc = xrand (&val, sizeof val);
+	int rc = xrand(&val, sizeof val);
 	if (rc < 0) { return rc; }
 	if (bound) {
 		val = ((double)val / (double)UINT64_MAX) * bound;
@@ -263,10 +263,10 @@ xrand_u64 (uint64_t bound, uint64_t *out)
 }
 
 int
-xrand_num (double *out)
+xrand_num(double *out)
 {
 	uint64_t val;
-	int rc = xrand (&val, sizeof val);
+	int rc = xrand(&val, sizeof val);
 	if (rc < 0) { return rc; }
 	*out = (double)val / (double)UINT64_MAX;
 	return 0;

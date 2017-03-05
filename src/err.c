@@ -117,37 +117,37 @@
 
 
 const char *
-xerr_type (int code)
+xerr_type(int code)
 {
-	switch (XETYPE (code)) {
+	switch (XETYPE(code)) {
 #define XX(sym, msg) \
 		case XERR_##sym: return msg;
-	XERR_TYPE_MAP (XX)
+	XERR_TYPE_MAP(XX)
 #undef XX
 	}
 	return "invalid type";
 }
 
 const char *
-xerr_str (int code)
+xerr_str(int code)
 {
 	if (code > 0) { code = -code; }
-	switch (XETYPE (code)) {
+	switch (XETYPE(code)) {
 
 	case XERR_SYS:
-		switch (XECODE (code)) {
+		switch (XECODE(code)) {
 #define XX(sym, msg) \
 			case sym: return msg;
-	XERR_SYS_MAP (XX)
+	XERR_SYS_MAP(XX)
 #undef XX
 		}
-		return strerror (XECODE (code));;
+		return strerror(XECODE(code));;
 
 	case XERR_ADDR:
-		switch (XECODE (code)) {
+		switch (XECODE(code)) {
 #define XX(sym, msg) \
 			case EAI_##sym: return msg;
-	XERR_ADDR_MAP (XX)
+	XERR_ADDR_MAP(XX)
 #undef XX
 		}
 		break;
@@ -156,7 +156,7 @@ xerr_str (int code)
 		switch (code) {
 #define XX(sym, msg) \
 			case XEHTTP##sym: return msg;
-	XERR_HTTP_MAP (XX)
+	XERR_HTTP_MAP(XX)
 #undef XX
 		}
 		break;
@@ -166,34 +166,34 @@ xerr_str (int code)
 }
 
 static void
-stack_abort (FILE *out)
+stack_abort(FILE *out)
 {
-	fflush (out);
+	fflush(out);
 #if HAS_EXECINFO
 	void *calls[32];
-	int frames = backtrace (calls, sizeof calls / sizeof calls[0]);
-	backtrace_symbols_fd (calls, frames, fileno (out));
+	int frames = backtrace(calls, sizeof calls / sizeof calls[0]);
+	backtrace_symbols_fd(calls, frames, fileno(out));
 #endif
-	abort ();
+	abort();
 }
 
 void
-xerr_abort (int code)
+xerr_abort(int code)
 {
-	fprintf (stderr, "%s\n", xerr_str (code));
-	stack_abort (stderr);
+	fprintf(stderr, "%s\n", xerr_str(code));
+	stack_abort(stderr);
 }
 
 void
-xerr_fabort (int code, const char *fmt, ...)
+xerr_fabort(int code, const char *fmt, ...)
 {
 	va_list ap;
-	va_start (ap, fmt);
-	vfprintf (stderr, fmt, ap);
-	va_end (ap);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
 	if (code != 0) {
-		fprintf (stderr, ": %s", xerr_str (code));
+		fprintf(stderr, ": %s", xerr_str(code));
 	}
-	fputc ('\n', stderr);
-	stack_abort (stderr);
+	fputc('\n', stderr);
+	stack_abort(stderr);
 }

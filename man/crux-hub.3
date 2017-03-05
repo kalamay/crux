@@ -29,7 +29,7 @@ Opaque type for the hub instance.
 .P
 .nf
 \fBint\fR
-\fBxhub_new\fR (\fBstruct xhub \fR**\fIhubp\fR);
+\fBxhub_new\fR(\fBstruct xhub \fR**\fIhubp\fR);
 .fi
 .RS
 Create a new hub for spawing and scheduling new tasks.
@@ -60,7 +60,7 @@ The system file descriptor table is full.
 .P
 .nf
 \fBvoid\fR
-\fBxhub_free\fR (\fBstruct xhub \fR**\fIhubp\fR);
+\fBxhub_free\fR(\fBstruct xhub \fR**\fIhubp\fR);
 .fi
 .RS
 Frees the hub and \fBNULL\fRs the reference. This must only be called after
@@ -75,7 +75,7 @@ will be \fBNULL\fR.
 .P
 .nf
 \fBint\fR
-\fBxhub_run\fR (\fBstruct xhub \fR**\fIhup\fR);
+\fBxhub_run\fR(\fBstruct xhub \fR**\fIhup\fR);
 .fi
 .RS
 Runs the hub until all task are complete.
@@ -98,7 +98,7 @@ An error occurred and -\fBerrno\fR was returned by the system polling functon.
 .P
 .nf
 \fBvoid\fR
-\fBxhub_stop\fR (\fBstruct xhub \fR**\fIhup\fR);
+\fBxhub_stop\fR(\fBstruct xhub \fR**\fIhup\fR);
 .fi
 .RS
 Schedules the hub to stop after regaining context from the active task. All
@@ -148,7 +148,7 @@ The requested stack size outside the allowed range.
 .P
 .nf
 \fBint\fR
-\fBxspawnf\fR (\fBstruct xhub \fR*\fIhub\fR, \fBconst char \fR*\fIfile\fR, \fBint \fIline\fR,
+\fBxspawnf\fR(\fBstruct xhub \fR*\fIhub\fR, \fBconst char \fR*\fIfile\fR, \fBint \fIline\fR,
          \fBvoid\fR (*\fIfn\fR)(\fBstruct xhub\fR *, \fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
 .fi
 .RS
@@ -181,7 +181,7 @@ The requested stack size outside the allowed range.
 .P
 .nf
 \fBint\fR
-\fBxspawn_b\fR (\fBstruct xhub \fR*\fIhub\fR, \fBvoid\fR (^\fIblock\fR)(\fBvoid\fR));
+\fBxspawn_b\fR(\fBstruct xhub \fR*\fIhub\fR, \fBvoid\fR (^\fIblock\fR)(\fBvoid\fR));
 .fi
 .RS
 Where blocks are supported, this allows spawning blocks as a task.
@@ -212,7 +212,7 @@ These are functions that may be called when a spawned hub task has context.
 .P
 .nf
 \fBvoid\fR
-\fBxexit\fR (\fBint\fR \fIec\fR);
+\fBxexit\fR(\fBint\fR \fIec\fR);
 .fi
 .RS
 .P
@@ -240,7 +240,7 @@ The exit code.
 .P
 .nf
 \fBconst struct xclock\fR *
-\fBxclock\fR (\fBvoid\fR);
+\fBxclock\fR(\fBvoid\fR);
 .fi
 .RS
 .P
@@ -255,7 +255,7 @@ This returns the clock or \fBNULL\fR if the current context is not a hub task.
 .P
 .nf
 \fBint\fR
-\fBxsleep\fR (\fBunsigned \fIms\fR);
+\fBxsleep\fR(\fBunsigned \fIms\fR);
 .fi
 .RS
 Sleeps for the specified number of milliseconds. If the current context is a
@@ -281,7 +281,7 @@ Problem with copying information from user space.
 .P
 .nf
 \fBint\fR
-\fBxsignal\fR (\fBint \fIsignum\fR, \fBint \fIms\fR);
+\fBxsignal\fR(\fBint \fIsignum\fR, \fBint \fIms\fR);
 .fi
 .RS
 .P
@@ -309,7 +309,7 @@ The \fIsignum\fR is not valid.
 .P
 .nf
 \fBssize_t\fR
-\fBxread\fR (\fBint \fIfd\fR, \fBvoid \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+\fBxread\fR(\fBint \fIfd\fR, \fBvoid \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
 .fi
 .RS
 Reads upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
@@ -348,7 +348,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxreadv\fR (\fBint \fIfd\fR, \fBstruct iovec \fR*\fIiov\fR, \fBint \fIiovcnt\fR, \fBint \fIms\fR);
+\fBxreadv\fR(\fBint \fIfd\fR, \fBstruct iovec \fR*\fIiov\fR, \fBint \fIiovcnt\fR, \fBint \fIms\fR);
 .fi
 .RS
 Reads upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
@@ -387,7 +387,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxreadn\fR (\fBint \fIfd\fR, \fBvoid \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+\fBxreadn\fR(\fBint \fIfd\fR, \fBvoid \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
 .fi
 .RS
 Reads exactly \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
@@ -428,7 +428,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxwrite\fR (\fBint \fIfd\fR, \fBconst void \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+\fBxwrite\fR(\fBint \fIfd\fR, \fBconst void \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
 .fi
 .RS
 Writes upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
@@ -467,7 +467,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxwritev\fR (\fBint \fIfd\fR, \fBconst struct iovec \fR*\fIiov\fR, \fBint \fIiovcnt\fR, \fBint \fIms\fR);
+\fBxwritev\fR(\fBint \fIfd\fR, \fBconst struct iovec \fR*\fIiov\fR, \fBint \fIiovcnt\fR, \fBint \fIms\fR);
 .fi
 .RS
 Writes upto \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
@@ -506,7 +506,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxwriten\fR (\fBint \fIfd\fR, \fBconst void \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
+\fBxwriten\fR(\fBint \fIfd\fR, \fBconst void \fR*\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR);
 .fi
 .RS
 Writes exactly \fIlen\fR bytes from the file descriptor \fIfd\fR. This calls
@@ -547,7 +547,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxrecvfrom\fR (\fBint \fIs\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIflags\fR,
+\fBxrecvfrom\fR(\fBint \fIs\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIflags\fR,
            \fBstruct sockaddr\fR *\fIsrc_addr\fR, \fBsocklen_t\fR *\fIsrc_len\fR, \fBint \fIms\fR);
 .fi
 .RS
@@ -596,7 +596,7 @@ possible errors.
 .P
 .nf
 \fBssize_t\fR
-\fBxsendto\fR (\fBint \fIs\fR, \fBconst void\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIflags\fR,
+\fBxsendto\fR(\fBint \fIs\fR, \fBconst void\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIflags\fR,
            \fBstruct sockaddr\fR *\fIdest_addr\fR, \fBsocklen_t \fIdest_len\fR, \fBint \fIms\fR);
 .fi
 .RS
@@ -641,7 +641,7 @@ possible errors.
 
 .P
 .nf
-\fBtypedef ssize_t\fR (*\fBxio_fn\fR) (\fBint \fIfd\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBinta \fIms\fR);
+\fBtypedef ssize_t\fR (*\fBxio_fn\fR)(\fBint \fIfd\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBinta \fIms\fR);
 .fi
 .RS
 The callback function type for \fBxio\fR. Functions matching this type are
@@ -668,13 +668,13 @@ This must return the number of bytes handled by the call, or the error code
 .P
 .nf
 \fBssize_t\fR
-\fBxio\fR (\fBint \fIfd\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR, \fBxio_fn \fIfn\fR);
+\fBxio\fR(\fBint \fIfd\fR, \fBvoid\fR *\fIbuf\fR, \fBsize_t \fIlen\fR, \fBint \fIms\fR, \fBxio_fn \fIfn\fR);
 .fi
 .RS
 This function is used to aid in writing IO operations that must handle an exact
 number of bytes. This calls \fIfn\fR until \fIlen\fR bytes have been reported by
 the callback function. For each successive call, the byte counts returned will
-be tallyed, and the \fIbuf\fR, \fIlen\fR, and \fIms\fR values will be adjusted
+be tallied, and the \fIbuf\fR, \fIlen\fR, and \fIms\fR values will be adjusted
 to account for the number of bytes currently processed and the time remaining
 to complete all operaionts.
 .P
@@ -711,7 +711,7 @@ Any other error returned by \fIfn\fR.
 .P
 .nf
 \fBint\fR
-\fBxpipe\fR (\fBint \fIfds\fR[\fBstatic 2\fR]);
+\fBxpipe\fR(\fBint \fIfds\fR[\fBstatic 2\fR]);
 .fi
 .RS
 Creates a non-blocking pipe pair. This will alse set the \fBFD_CLOEXEC\fR flag on the
@@ -727,7 +727,7 @@ See \fBpipe\fR(2) for more details.
 .P
 .nf
 \fBint\fR
-\fBxsocket\fR (\fBint \fIdomain\fR, \fBint \fItype\fR, \fBint \fIprotocol\fR);
+\fBxsocket\fR(\fBint \fIdomain\fR, \fBint \fItype\fR, \fBint \fIprotocol\fR);
 .fi
 .RS
 Opens a non-blocking socket. This will alse set the \fBFD_CLOEXEC\fR flag on the
@@ -743,7 +743,7 @@ See \fBsocket\fR(2) for more details.
 .P
 .nf
 \fBint\fR
-\fBxaccept\fR (\fBint \fIs\fR, \fBstruct sockaddr\fR *\fIaddr\fR, \fBsocklen_t \fIaddrlen\fR, \fIint \fIms\fR);
+\fBxaccept\fR(\fBint \fIs\fR, \fBstruct sockaddr\fR *\fIaddr\fR, \fBsocklen_t \fIaddrlen\fR, \fIint \fIms\fR);
 .fi
 .RS
 Accepts a connection off of the stream socket. If the socket has no pending
@@ -783,7 +783,7 @@ possible errors.
 .P
 .nf
 \fBint\fR
-\fBxunblock\fR (\fBint \fIfd\fR);
+\fBxunblock\fR(\fBint \fIfd\fR);
 .fi
 .RS
 Sets the \fBO_NONBLOCK\fR flag on the file descriptor. When successful, reads
@@ -810,7 +810,7 @@ possible errors.
 .P
 .nf
 \fBint\fR
-\fBxcloexec\fR (\fBint \fIfd\fR);
+\fBxcloexec\fR(\fBint \fIfd\fR);
 .fi
 .RS
 Sets the \fBFD_CLOEXEC\fR flag on the file descriptor. When successful, this file
@@ -847,26 +847,26 @@ possible errors.
 #include <crux.h>
 
 static void
-doclose (void *data)
+doclose(void *data)
 {
-	close ((int)(intptr_t)data);
+	close((int)(intptr_t)data);
 }
 
 static void
-connection (struct xhub *h, void *data)
+connection(struct xhub *h, void *data)
 {
 	int fd = (int)(uintptr_t)data;
-	xdefer (doclose, data);
+	xdefer(doclose, data);
 
 	char buf[1024];
 	ssize_t len;
-	while ((len = xread (fd, buf, sizeof buf, -1)) > 0) {
-		fwrite (buf, 1, len, stdout);
+	while ((len = xread(fd, buf, sizeof buf, -1)) > 0) {
+		fwrite(buf, 1, len, stdout);
 	}
 }
 
 static void
-server (struct xhub *h, void *data)
+server(struct xhub *h, void *data)
 {
 	struct sockaddr_in dest = {
 		.sin_family = AF_INET,
@@ -874,47 +874,47 @@ server (struct xhub *h, void *data)
 		.sin_addr.s_addr = 0
 	};
 
-	int s = xcheck (xsocket (AF_INET, SOCK_STREAM, IPPROTO_TCP));
-	xcheck_errno (bind (s, (struct sockaddr *)&dest, sizeof dest));
-	xcheck_errno (listen (s, 1024));
-	xdefer (doclose, (void *)(uintptr_t)s);
+	int s = xcheck(xsocket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+	xcheck_errno(bind(s, (struct sockaddr *)&dest, sizeof dest));
+	xcheck_errno(listen(s, 1024));
+	xdefer(doclose, (void *)(uintptr_t)s);
 
-	printf ("[%d] listening on stream://%s:%d\\n",
-			getpid (), inet_ntoa (dest.sin_addr), ntohs (dest.sin_port));
+	printf("[%d] listening on stream://%s:%d\\n",
+			getpid(), inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
 
 	while (1) {
 		struct sockaddr_in addr;
-		socklen_t len = sizeof addr;
-		int fd = xaccept (s, (struct sockaddr *)&addr, &len, -1);
+		socklen_t len = sizeof(addr);
+		int fd = xaccept(s, (struct sockaddr *)&addr, &len, -1);
 		if (fd >= 0) {
-			printf ("[%d] accepted from stream://%s:%d\\n",
-					getpid (), inet_ntoa (addr.sin_addr), ntohs (addr.sin_port));
-			xspawn (h, connection, (void *)(uintptr_t)fd);
+			printf("[%d] accepted from stream://%s:%d\\n",
+					getpid(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+			xspawn(h, connection, (void *)(uintptr_t)fd);
 		}
 		else {
-			printf ("[%d] failed to accept: %s\\n", getpid (), xerr_str (fd));
-			xhub_stop (h);
+			printf("[%d] failed to accept: %s\\n", getpid(), xerr_str(fd));
+			xhub_stop(h);
 			break;
 		}
 	}
 }
 
 static void
-stop (struct xhub *h, void *data)
+stop(struct xhub *h, void *data)
 {
-	xsignal (SIGINT, -1);
-	xhub_stop (h);
+	xsignal(SIGINT, -1);
+	xhub_stop(h);
 }
 
 int
-main (void)
+main(void)
 {
 	struct xhub *hub;
-	xcheck (xhub_new (&hub));
-	xspawn (hub, stop, NULL);
-	xspawn (hub, server, NULL);
-	xhub_run (hub);
-	xhub_free (&hub);
+	xcheck(xhub_new(&hub));
+	xspawn(hub, stop, NULL);
+	xspawn(hub, server, NULL);
+	xhub_run(hub);
+	xhub_free(&hub);
 	return 0;
 }
 
