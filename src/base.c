@@ -103,7 +103,7 @@ xinit(void)
 	}
 #endif
 
-	return xrand(&SEED_RANDOM, sizeof SEED_RANDOM);
+	return xrand(&SEED_RANDOM, sizeof(SEED_RANDOM));
 }
 
 static void __attribute__((constructor))
@@ -238,7 +238,7 @@ int
 xrand_u32(uint32_t bound, uint32_t *out)
 {
 	uint32_t val;
-	int rc = xrand(&val, sizeof val);
+	int rc = xrand(&val, sizeof(val));
 	if (rc < 0) { return rc; }
 	if (bound) {
 		val = ((double)val / (double)UINT32_MAX) * bound;
@@ -253,7 +253,7 @@ int
 xrand_u64(uint64_t bound, uint64_t *out)
 {
 	uint64_t val;
-	int rc = xrand(&val, sizeof val);
+	int rc = xrand(&val, sizeof(val));
 	if (rc < 0) { return rc; }
 	if (bound) {
 		val = ((double)val / (double)UINT64_MAX) * bound;
@@ -266,7 +266,7 @@ int
 xrand_num(double *out)
 {
 	uint64_t val;
-	int rc = xrand(&val, sizeof val);
+	int rc = xrand(&val, sizeof(val));
 	if (rc < 0) { return rc; }
 	*out = (double)val / (double)UINT64_MAX;
 	return 0;

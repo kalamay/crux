@@ -68,15 +68,15 @@ add_row(struct xheap *heap)
 	// check if we need to resize the array of rows
 	if (&ROW(heap, heap->capacity) >= heap->entries + heap->rows) {
 		struct xheap_entry ***entries =
-			realloc(heap->entries, sizeof *entries * heap->rows * 2);
+			realloc(heap->entries, sizeof(*entries) * heap->rows * 2);
 		if (!entries) {
 			return XERRNO;
 		}
-		memset(entries + heap->rows, 0, heap->rows * sizeof *entries);
+		memset(entries + heap->rows, 0, heap->rows * sizeof(*entries));
 		heap->entries = entries;
 		heap->rows *= 2;
 	}
-	ROW(heap, heap->capacity) = malloc(sizeof **heap->entries * ROW_WIDTH);
+	ROW(heap, heap->capacity) = malloc(sizeof(**heap->entries) * ROW_WIDTH);
 	heap->capacity += ROW_WIDTH;
 	return 0;
 }
@@ -145,7 +145,7 @@ move_down(const struct xheap *heap, uint32_t key)
 int
 xheap_new(struct xheap **heapp)
 {
-	struct xheap *heap = malloc(sizeof *heap);
+	struct xheap *heap = malloc(sizeof(*heap));
 	if (heap == NULL) {
 		return XERRNO;
 	}
@@ -168,7 +168,7 @@ xheap_init(struct xheap *heap)
 	heap->rows = 16;
 	heap->capacity = 0;
 	heap->next = XHEAP_ROOT;
-	heap->entries = calloc(heap->rows, sizeof *heap->entries);
+	heap->entries = calloc(heap->rows, sizeof(*heap->entries));
 
 	if (heap->entries == NULL) {
 		return XERRNO;

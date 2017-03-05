@@ -92,7 +92,7 @@ xpoll__next(struct xpoll *poll, struct xevent *dst);
 int
 xpoll_new(struct xpoll **pollp)
 {
-	struct xpoll *poll = malloc(sizeof *poll);
+	struct xpoll *poll = malloc(sizeof(*poll));
 	if (poll == NULL) {
 		return XERRNO;
 	}

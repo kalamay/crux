@@ -177,7 +177,7 @@ parse_response_line(struct xhttp *restrict p,
 	case RES_MSG:
 		EXPECT_CRLF(p->max_reason + p->as.response.reason.off, false,
 				XEHTTPSYNTAX, XEHTTPSIZE);
-		p->as.response.reason.len = (uint16_t)(p->off - p->as.response.reason.off - (sizeof crlf - 1));
+		p->as.response.reason.len = (uint16_t)(p->off - p->as.response.reason.off - (sizeof(crlf) - 1));
 		YIELD(XHTTP_RESPONSE, FLD);
 
 	default:
@@ -203,7 +203,7 @@ parse_field(struct xhttp *restrict p,
 
 	switch (p->cs) {
 	case FLD:
-		if (REMAIN < sizeof crlf - 1) {
+		if (REMAIN < sizeof(crlf) - 1) {
 			return SCAN;
 		}
 		if (end[0] == crlf[0] && end[1] == crlf[1]) {
@@ -237,7 +237,7 @@ parse_field(struct xhttp *restrict p,
 				XEHTTPSYNTAX, XEHTTPSIZE);
 		p->as.field.name.off = SCAN;
 		p->as.field.value.off += SCAN;
-		p->as.field.value.len = (uint16_t)(p->off + SCAN - p->as.field.value.off - (sizeof crlf - 1));
+		p->as.field.value.len = (uint16_t)(p->off + SCAN - p->as.field.value.off - (sizeof(crlf) - 1));
 		CHECK_ERROR(scrape_field(p, m));
 //		if (p->headers == NULL) {
 			YIELD(XHTTP_FIELD, FLD);
@@ -329,7 +329,7 @@ xhttp_init_request(struct xhttp *p)
 {
 	assert(p != NULL);
 
-	memset(p, 0, sizeof *p);
+	memset(p, 0, sizeof(*p));
 	init_sizes(p);
 	p->cs = REQ;
 	return 0;
@@ -340,7 +340,7 @@ xhttp_init_response(struct xhttp *p)
 {
 	assert(p != NULL);
 
-	memset(p, 0, sizeof *p);
+	memset(p, 0, sizeof(*p));
 	init_sizes(p);
 	p->cs = RES;
 	p->response = true;

@@ -70,7 +70,7 @@ Opaque type for the task manager instance.
 .P
 .nf
 \fBint\fR
-\fBxmgr_new\fR (\fBstruct xmgr \fR**\fImgrp\fR, \fBsize_t \fItls\fR, \fBsize_t \fIstack\fR, \fBint \fIflags\fR);
+\fBxmgr_new\fR(\fBstruct xmgr \fR**\fImgrp\fR, \fBsize_t \fItls\fR, \fBsize_t \fIstack\fR, \fBint \fIflags\fR);
 .fi
 .RS
 Create a new task manager for use in creating tasks.
@@ -107,7 +107,7 @@ The requested task local storage size is larger than allowed.
 .P
 .nf
 \fBvoid\fR
-\fBxmgr_free\fR (\fBstruct xmgr \fR**\fImgrp\fR);
+\fBxmgr_free\fR(\fBstruct xmgr \fR**\fImgrp\fR);
 .fi
 .RS
 Frees the task manager and \fBNULL\fRs the reference. This must only be called
@@ -122,7 +122,7 @@ pointer will be \fBNULL\fR.
 .P
 .nf
 \fBstruct xmgr \fR*
-\fBxmgr_self\fR (\fBvoid\fR);
+\fBxmgr_self\fR(\fBvoid\fR);
 .fi
 .RS
 Gets the task manager that created the currently active task. If no task is
@@ -229,7 +229,7 @@ to \fBxtask_newf\fR, however it uses the compiler provided \fB__FILE__\fR and
 The function signature for \fIfn\fR is:
 .RS
 .nf
-\fBunion xvalue\fR (*\fIfn\fR)(\fBvoid \fR*\fItls\fR, \fBunion xvalue\fR)
+\fBunion xvalue\fR(*\fIfn\fR)(\fBvoid \fR*\fItls\fR, \fBunion xvalue\fR)
 .fi
 .RE
 .TP
@@ -266,7 +266,7 @@ The requested stack size outside the allowed range.
 .P
 .nf
 \fBint\fR
-\fBxtask_newf\fR (\fBstruct xtask \fR**\fItp\fR, \fBstruct xmgr \fR*\fImgr\fR, \fBvoid \fR*\fItls\fR,
+\fBxtask_newf\fR(\fBstruct xtask \fR**\fItp\fR, \fBstruct xmgr \fR*\fImgr\fR, \fBvoid \fR*\fItls\fR,
             \fBconst char \fR*\fIfile\fR, \fBint \fIline\fR,
             \fBunion xvalue\fR (*\fIfn\fR)(\fBvoid \fR*\fItls\fR, \fBunion xvalue\fR));
 .fi
@@ -315,7 +315,7 @@ The requested stack size outside the allowed range.
 .P
 .nf
 \fBvoid\fR
-\fBxtask_free\fR (\fBstruct xtask \fR**\fItp\fR);
+\fBxtask_free\fR(\fBstruct xtask \fR**\fItp\fR);
 .fi
 .RS
 Frees the task and \fBNULL\fRs the reference.
@@ -329,7 +329,7 @@ pointer will be \fBNULL\fR.
 .P
 .nf
 \fBstruct xtask \fR*
-\fBxtask_self\fR (\fBvoid\fR);
+\fBxtask_self\fR(\fBvoid\fR);
 .fi
 .RS
 Gets the task currently executing or \fBNULL\fR no task has been started.
@@ -338,7 +338,7 @@ Gets the task currently executing or \fBNULL\fR no task has been started.
 .P
 .nf
 \fBvoid \fR*
-\fBxtask_local\fR (\fBstruct xtask \fR*\fIt\fR);
+\fBxtask_local\fR(\fBstruct xtask \fR*\fIt\fR);
 .fi
 .RS
 Gets task local storage for the task.
@@ -352,7 +352,7 @@ This returns \fBNULL\fR if the local storage space is zero-length.
 .P
 .nf
 \fBbool\fR
-\fBxtask_alive\fR (\fBconst struct xtask \fR*\fIt\fR);
+\fBxtask_alive\fR(\fBconst struct xtask \fR*\fIt\fR);
 .fi
 .RS
 Test if the task is either in a suspended or active state. That is, it has not
@@ -365,7 +365,7 @@ The task object.
 .P
 .nf
 \fBint\fR
-\fBxtask_exitcode\fR (\fBconst struct xtask \fR*\fIt\fR);
+\fBxtask_exitcode\fR(\fBconst struct xtask \fR*\fIt\fR);
 .fi
 .RS
 Gets the exit code for the task.
@@ -388,7 +388,7 @@ The task has not yet exited.
 .P
 .nf
 \fBint\fR
-\fBxtask_exit\fR (\fBstruct xtask \fR*\fIt\fR, \fBint \fIec\fR);
+\fBxtask_exit\fR(\fBstruct xtask \fR*\fIt\fR, \fBint \fIec\fR);
 .fi
 .RS
 Forces a task to exit.
@@ -414,7 +414,7 @@ The task has already exited.
 .P
 .nf
 \fBvoid\fR
-\fBxtask_print\fR (\fBconst struct xtask \fR*\fIt\fR, \fBFILE \fR*\fIout\fR);
+\fBxtask_print\fR(\fBconst struct xtask \fR*\fIt\fR, \fBFILE \fR*\fIout\fR);
 .fi
 .RS
 Prints a representation of the task. This will include a task stack of all
@@ -432,7 +432,7 @@ will be used.
 .P
 .nf
 \fBunion xvalue\fR
-\fBxyield\fR (\fBunion xvalue \fIval\fR);
+\fBxyield\fR(\fBunion xvalue \fIval\fR);
 .fi
 .RS
 Transfers the current context to the parent context. The \fIval\fR passed in will
@@ -448,7 +448,7 @@ Value to yield to the parent.
 .P
 .nf
 \fBunion xvalue\fR
-\fBxresume\fR (\fBstruct xtask \fR*\fIt\fR, \fBunion xvalue \fIval\fR);
+\fBxresume\fR(\fBstruct xtask \fR*\fIt\fR, \fBunion xvalue \fIval\fR);
 .fi
 .RS
 Transfers the current context to the task, making it the child of the current
@@ -472,7 +472,7 @@ These are functions that may be called when a task has context.
 .P
 .nf
 \fBint\fR
-\fBxdefer\fR (\fBvoid\fR (*\fIfn\fR) (\fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
+\fBxdefer\fR(\fBvoid\fR (*\fIfn\fR) (\fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
 .fi
 .RS
 .P
@@ -499,7 +499,7 @@ There was insufficient memory to allocate the object.
 .P
 .nf
 \fBvoid *\fR
-\fBxmalloc\fR (\fBsize_t\fR \fIsize\fR);
+\fBxmalloc\fR(\fBsize_t\fR \fIsize\fR);
 .fi
 .RS
 .P
@@ -512,7 +512,7 @@ The number of bytes to allocate.
 .P
 .nf
 \fBvoid *\fR
-\fBxcalloc\fR (\fBsize_t\fR \fIcount\fR, \fBsize_t\fR \fIsize\fR);
+\fBxcalloc\fR(\fBsize_t\fR \fIcount\fR, \fBsize_t\fR \fIsize\fR);
 .fi
 .RS
 .P
@@ -613,53 +613,53 @@ struct msg {
 };
 
 static union xvalue
-fib (void *data, union xvalue val)
+fib(void *data, union xvalue val)
 {
-	xtask_print (xtask_self (), stdout);
+	xtask_print(xtask_self(), stdout);
 	int a = 0, b = 1;
 	while (true) {
 		int r = a;
 		a = b;
 		b += r;
-		xyield (XINT (r));
+		xyield(XINT(r));
 	}
 	return XZERO;
 }
 
 static union xvalue
-fib3 (void *data, union xvalue val)
+fib3(void *data, union xvalue val)
 {
 	struct msg *msg = data;
 	int i = 0;
 	while (true) {
-		xresume (msg->fib, XZERO);
-		xresume (msg->fib, XZERO);
-		val = xresume (msg->fib, XZERO);
-		if (++i < 10) { xyield (val); }
+		xresume(msg->fib, XZERO);
+		xresume(msg->fib, XZERO);
+		val = xresume(msg->fib, XZERO);
+		if (++i < 10) { xyield(val); }
 		else          { return val; }
 	}
 }
 
 int
-main (void)
+main(void)
 {
 	struct xmgr *mgr;
-	xcheck (xmgr_new (&mgr, sizeof (struct msg), XSTACK_DEFAULT, XTASK_FDEBUG));
+	xcheck(xmgr_new(&mgr, sizeof(struct msg), XSTACK_DEFAULT, XTASK_FDEBUG));
 
 	struct xtask *t1, *t2;
-	xcheck (xtask_new (&t1, mgr, NULL, fib));
+	xcheck(xtask_new(&t1, mgr, NULL, fib));
 
 	struct msg msg = { t1 };
-	xcheck (xtask_new (&t2, mgr, &msg, fib3));
+	xcheck(xtask_new(&t2, mgr, &msg, fib3));
 
-	while (xtask_alive (t2)) {
-		union xvalue val = xresume (t2, XZERO);
-		printf ("%d\\n", val.i);
+	while (xtask_alive(t2)) {
+		union xvalue val = xresume(t2, XZERO);
+		printf("%d\\n", val.i);
 	}
 
-	xtask_free (&t1);
-	xtask_free (&t2);
-	xmgr_free (&mgr);
+	xtask_free(&t1);
+	xtask_free(&t2);
+	xmgr_free(&mgr);
 }
 
 .fi

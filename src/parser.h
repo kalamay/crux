@@ -8,10 +8,10 @@
 
 
 #define LEQ(cmp, off, len) \
-	(len == sizeof cmp - 1 && pcmp_leq(off, (uint8_t *)cmp, sizeof cmp - 1))
+	(len == sizeof(cmp) - 1 && pcmp_leq(off, (uint8_t *)cmp, sizeof(cmp) - 1))
 
 #define LEQ16(cmp, off, len) \
-	(len == sizeof cmp - 1 && pcmp_leq16(off, (uint8_t *)cmp, sizeof cmp - 1))
+	(len == sizeof(cmp) - 1 && pcmp_leq16(off, (uint8_t *)cmp, sizeof(cmp) - 1))
 
 
 #define DONE 0xFFFFFFFFU
@@ -66,21 +66,21 @@
 } while (0)
 
 #define EXPECT_RANGE(rng, max, done, esyn, esize) do { \
-	end = pcmp_range16(end, REMAIN, rng, sizeof rng - 1); \
+	end = pcmp_range16(end, REMAIN, rng, sizeof(rng) - 1); \
 	VERIFY_END(max, done, esyn, esize); \
 	CAPTURE_OFFSET(); \
 	EXPECT_MAX_OFFSET(max, esize); \
 } while (0)
 
 #define EXPECT_SET(set, max, done, esyn, esize) do { \
-	end = pcmp_set16(end, REMAIN, set, sizeof set - 1); \
+	end = pcmp_set16(end, REMAIN, set, sizeof(set) - 1); \
 	VERIFY_END(max, done, esyn, esize); \
 	CAPTURE_OFFSET(); \
 	EXPECT_MAX_OFFSET(max, esize); \
 } while (0)
 
 #define EXPECT_RANGE_THEN_CHAR(rng, ch, max, done, esyn, esize) do { \
-	end = pcmp_range16(end, REMAIN, rng, sizeof rng - 1); \
+	end = pcmp_range16(end, REMAIN, rng, sizeof(rng) - 1); \
 	VERIFY_END(max, done, esyn, esize); \
 	if (pcmp_unlikely(*end != ch)) { \
 		YIELD_ERROR(esyn); \
@@ -109,17 +109,17 @@
 } while (0)
 
 #define EXPECT_PREFIX(pre, extra, done, esyn) do { \
-	if (REMAIN < sizeof pre - 1 + extra) { \
+	if (REMAIN < sizeof(pre) - 1 + extra) { \
 		if (pcmp_unlikely(done)) { \
 			YIELD_ERROR(esyn); \
 		} \
 		return SCAN; \
 	} \
-	if (!pcmp_eq16(end, pre, sizeof pre - 1)) { \
+	if (!pcmp_eq16(end, pre, sizeof(pre) - 1)) { \
 		YIELD_ERROR(esyn); \
 	} \
-	end = m + p->off + SCAN + sizeof pre - 1; \
-	p->off += (sizeof pre - 1) + extra; \
+	end = m + p->off + SCAN + sizeof(pre) - 1; \
+	p->off += (sizeof(pre) - 1) + extra; \
 } while (0)
 
 #define EXPECT_CRLF(max, done, esyn, esize) do { \

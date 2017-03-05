@@ -860,7 +860,7 @@ connection(struct xhub *h, void *data)
 
 	char buf[1024];
 	ssize_t len;
-	while ((len = xread(fd, buf, sizeof buf, -1)) > 0) {
+	while ((len = xread(fd, buf, sizeof(buf), -1)) > 0) {
 		fwrite(buf, 1, len, stdout);
 	}
 }
@@ -875,7 +875,7 @@ server(struct xhub *h, void *data)
 	};
 
 	int s = xcheck(xsocket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
-	xcheck_errno(bind(s, (struct sockaddr *)&dest, sizeof dest));
+	xcheck_errno(bind(s, (struct sockaddr *)&dest, sizeof(dest)));
 	xcheck_errno(listen(s, 1024));
 	xdefer(doclose, (void *)(uintptr_t)s);
 

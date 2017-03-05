@@ -171,7 +171,7 @@ stack_abort(FILE *out)
 	fflush(out);
 #if HAS_EXECINFO
 	void *calls[32];
-	int frames = backtrace(calls, sizeof calls / sizeof calls[0]);
+	int frames = backtrace(calls, xlen(calls));
 	backtrace_symbols_fd(calls, frames, fileno(out));
 #endif
 	abort();

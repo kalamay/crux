@@ -91,94 +91,94 @@ static const uint64_t xx64_vectors[64] = {
 };
 
 static void
-test_metrohash (void)
+test_metrohash(void)
 {
 	union xseed s0 = { .u32 = 0 };
 	union xseed s1 = { .u32 = 1 };
-	mu_assert_uint_eq (xhash_metro64 (metro_key_63, 63, &s0), 0x400E735C4F048F65);
-	mu_assert_uint_eq (xhash_metro64 (metro_key_63, 63, &s1), 0x7B5356A8B0EB49AE);
+	mu_assert_uint_eq(xhash_metro64(metro_key_63, 63, &s0), 0x400E735C4F048F65);
+	mu_assert_uint_eq(xhash_metro64(metro_key_63, 63, &s1), 0x7B5356A8B0EB49AE);
 }
 
 static void
-test_siphash (void)
+test_siphash(void)
 {
 	union xseed seed = { .u128 = { 506097522914230528, 1084818905618843912 } };
-	uint8_t in[xlen (sip_vectors)] = { 0 };
+	uint8_t in[xlen(sip_vectors)] = { 0 };
 	unsigned i;
 
-	for (i = 0; i < xlen (sip_vectors); ++i) {
+	for (i = 0; i < xlen(sip_vectors); ++i) {
 		in[i] = i;
-		uint64_t out = xhash_sip (in, i, &seed);
-		mu_assert_msg (memcmp (&out, sip_vectors[i], 8) == 0, "siphash vector failed for %d bytes\n", i );
+		uint64_t out = xhash_sip(in, i, &seed);
+		mu_assert_msg(memcmp(&out, sip_vectors[i], 8) == 0, "siphash vector failed for %d bytes\n", i );
 	}
 }
 
 static void
-test_siphash_case (void)
+test_siphash_case(void)
 {
-	mu_assert_uint_eq (
-			xhash_sipcase ("test", 4, XSEED_DEFAULT),
-			xhash_sipcase ("TEST", 4, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sipcase("test", 4, XSEED_DEFAULT),
+			xhash_sipcase("TEST", 4, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sipcase ("test", 4, XSEED_DEFAULT),
-			xhash_sipcase ("Test", 4, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sipcase("test", 4, XSEED_DEFAULT),
+			xhash_sipcase("Test", 4, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sipcase ("test", 4, XSEED_DEFAULT),
-			xhash_sipcase ("TesT", 4, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sipcase("test", 4, XSEED_DEFAULT),
+			xhash_sipcase("TesT", 4, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sipcase ("this is some longer value", 11, XSEED_DEFAULT),
-			xhash_sipcase ("THIS IS SOME LONGER VALUE", 11, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sipcase("this is some longer value", 11, XSEED_DEFAULT),
+			xhash_sipcase("THIS IS SOME LONGER VALUE", 11, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sipcase ("this is some longer value", 11, XSEED_DEFAULT),
-			xhash_sipcase ("This is Some Longer Value", 11, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sipcase("this is some longer value", 11, XSEED_DEFAULT),
+			xhash_sipcase("This is Some Longer Value", 11, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sip ("test", 4, XSEED_DEFAULT),
-			xhash_sipcase ("TEST", 4, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sip("test", 4, XSEED_DEFAULT),
+			xhash_sipcase("TEST", 4, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sip ("test", 4, XSEED_DEFAULT),
-			xhash_sipcase ("Test", 4, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sip("test", 4, XSEED_DEFAULT),
+			xhash_sipcase("Test", 4, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sip ("test", 4, XSEED_DEFAULT),
-			xhash_sipcase ("TesT", 4, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sip("test", 4, XSEED_DEFAULT),
+			xhash_sipcase("TesT", 4, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sip ("this is some longer value", 11, XSEED_DEFAULT),
-			xhash_sipcase ("THIS IS SOME LONGER VALUE", 11, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sip("this is some longer value", 11, XSEED_DEFAULT),
+			xhash_sipcase("THIS IS SOME LONGER VALUE", 11, XSEED_DEFAULT));
 
-	mu_assert_uint_eq (
-			xhash_sip ("this is some longer value", 11, XSEED_DEFAULT),
-			xhash_sipcase ("This is Some Longer Value", 11, XSEED_DEFAULT));
+	mu_assert_uint_eq(
+			xhash_sip("this is some longer value", 11, XSEED_DEFAULT),
+			xhash_sipcase("This is Some Longer Value", 11, XSEED_DEFAULT));
 }
 
 static void
-test_xx64 (void)
+test_xx64(void)
 {
 	union xseed seed = { .u128 = { 506097522914230528, 1084818905618843912 } };
-	uint8_t in[xlen (xx64_vectors)] = { 0 };
+	uint8_t in[xlen(xx64_vectors)] = { 0 };
 	unsigned i;
 
-	for (i = 0; i < xlen (xx64_vectors); ++i) {
+	for (i = 0; i < xlen(xx64_vectors); ++i) {
 		in[i] = i;
-		uint64_t out = xhash_xx64 (in, i, &seed);
-		mu_assert_uint_eq (xx64_vectors[i], out);
+		uint64_t out = xhash_xx64(in, i, &seed);
+		mu_assert_uint_eq(xx64_vectors[i], out);
 	}
 }
 
 int
-main (void)
+main(void)
 {
-	mu_init ("hash");
+	mu_init("hash");
 	
-	mu_run (test_metrohash);
-	mu_run (test_siphash);
-	mu_run (test_siphash_case);
-	mu_run (test_xx64);
+	mu_run(test_metrohash);
+	mu_run(test_siphash);
+	mu_run(test_siphash_case);
+	mu_run(test_xx64);
 }
 

@@ -20,7 +20,7 @@ inline static uint64_t
 read_u64(const void *const ptr)
 {
     uint64_t val;
-    memcpy(&val, ptr, sizeof val);
+    memcpy(&val, ptr, sizeof(val));
     return val;
 }
 
@@ -28,7 +28,7 @@ inline static uint64_t
 read_u32(const void *const ptr)
 {
     uint32_t val;
-    memcpy(&val, ptr, sizeof val);
+    memcpy(&val, ptr, sizeof(val));
     return val;
 }
 
@@ -36,7 +36,7 @@ inline static uint64_t
 read_u16(const void * const ptr)
 {
     uint16_t val;
-    memcpy(&val, ptr, sizeof val);
+    memcpy(&val, ptr, sizeof(val));
     return val;
 }
 
@@ -125,7 +125,7 @@ xhash_metro64(const void *s, size_t len, const union xseed *seed)
 		a += d; d=rotl(d,21); d ^= a; \
 		c += b; b=rotl(b,17); b ^= c; c=rotl(c,32); \
 	} \
-} while(0)
+} while (0)
 
 uint64_t
 xhash_sip(const void *s, size_t len, const union xseed *seed)
@@ -139,7 +139,7 @@ xhash_sip(const void *s, size_t len, const union xseed *seed)
 	uint64_t v3 = 0x7465646279746573ULL ^ k1;
 	const uint8_t *end = (uint8_t *)s + len - (len % 8);
 
-	for(; s != end; s = (uint8_t*)s + 8) {
+	for (; s != end; s = (uint8_t*)s + 8) {
 		uint64_t m = xle64toh(*(uint64_t *)s);
 		v3 ^= m;
 		SIPROUND(2, v0, v1, v2, v3);
