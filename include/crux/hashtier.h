@@ -3,7 +3,6 @@
 
 #include "def.h"
 #include "err.h"
-#include "hash.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -134,19 +133,6 @@
 	XHASHTIER_GEN_PRIV(pref, TTier, TKey, pref##_has_key, pref##_hash)
 
 /**
- * Generates functions for the tier with an int-like key
- *
- * This generates a hash function so a user-defined function should be omitted.
- *
- * @param  pref     function name prefix
- * @param  TTier    tier structure name
- * @param  TKey     key type
- */
-#define XHASHTIER_INT_GEN(pref, TTier, TKey) \
-	XHASH_INT_GEN(XSTATIC, pref##_hash, TKey) \
-	XHASHTIER_GEN(pref, TTier, TKey)
-
-/**
  * Generates static functions for the tier
  *
  * @param  pref   function name prefix
@@ -156,19 +142,6 @@
 #define	XHASHTIER_STATIC(pref, TTier, TKey) \
 	XHASHTIER_PROTO(XSTATIC, pref, TTier, TKey) \
 	XHASHTIER_GEN(pref, TTier, TKey)
-
-/**
- * Generates static functions for the tier using an int-like key.
- *
- * This generates a hash function so a user-defined function should be omitted.
- *
- * @param  pref   function name prefix
- * @param  TTier  tier structure type
- * @param  TKey   key type
- */
-#define	XHASHTIER_INT_STATIC(pref, TTier, TKey) \
-	XHASHTIER_PROTO(XSTATIC, pref, TTier, TKey) \
-	XHASHTIER_INT_GEN(pref, TTier, TKey)
 
 /**
  * Generates attributed function prototypes for the tier 
@@ -182,13 +155,9 @@
 	attr double \
 	pref##_load(const TTier *tier); \
 	attr ssize_t \
-	pref##_get(TTier *tier, TKey k, size_t kn); \
+	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h); \
 	attr ssize_t \
-	pref##_hget(TTier *tier, TKey k, size_t kn, uint64_t h); \
-	attr ssize_t \
-	pref##_reserve(TTier *tier, TKey k, size_t kn, int *full); \
-	attr ssize_t \
-	pref##_hreserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full); \
+	pref##_reserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full); \
 	attr size_t \
 	pref##_force(TTier *tier, const TTier *src, size_t idx); \
 	attr int \
@@ -224,12 +193,7 @@
 		return (double)tier->count / (double)tier->size; \
 	} \
 	ssize_t \
-	pref##_get(TTier *tier, TKey k, size_t kn) \
-	{ \
-		return pref##_hget(tier, k, kn, hash(k, kn)); \
-	} \
-	ssize_t \
-	pref##_hget(TTier *tier, TKey k, size_t kn, uint64_t h) \
+	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h) \
 	{ \
 		if (tier->count == 0) { return XESYS(ENOENT); } \
 		const size_t size = tier->size; \
@@ -247,12 +211,7 @@
 		} \
 	} \
 	ssize_t \
-	pref##_reserve(TTier *tier, TKey k, size_t kn, int *full) \
-	{ \
-		return pref##_hreserve(tier, k, kn, hash(k, kn), full); \
-	} \
-	ssize_t \
-	pref##_hreserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full) \
+	pref##_reserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full) \
 	{ \
 		assert(tier->remap == tier->size); \
 		assert(full != NULL); \
@@ -413,20 +372,6 @@
 			free(tier); \
 		} \
 		return 1; \
-	} \
-
-#define XHASH_INT_GEN(attr, name, TKey) \
-	attr uint64_t \
-	name(TKey k, size_t kn) \
-	{ \
-		(void)kn; \
-		uint64_t x = ((uint64_t)k << 1) | 1; \
-		x ^= x >> 33; \
-		x *= 0xff51afd7ed558ccdULL; \
-		x ^= x >> 33; \
-		x *= 0xc4ceb9fe1a85ec53ULL; \
-		x ^= x >> 33; \
-		return x; \
 	} \
 
 #endif

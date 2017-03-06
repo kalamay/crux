@@ -98,6 +98,7 @@ LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
 SRC:= \
 	src/err.c \
 	src/base.c \
+	src/map.c \
 	src/heap.c \
 	src/task.c \
 	src/poll.c \
@@ -123,7 +124,8 @@ INCLUDE:= \
 	include/crux/vec.h \
 	include/crux/hash.h \
 	include/crux/hashtier.h \
-	include/crux/hashmap.h
+	include/crux/hashmap.h \
+	include/crux/map.h
 
 # list of manual pages
 MAN:= \
@@ -136,8 +138,9 @@ TEST:= \
 	test/clock.c \
 	test/vec.c \
 	test/hash.c \
-	test/hashmap.c \
 	test/hashtier.c \
+	test/hashmap.c \
+	test/map.c \
 	test/heap.c \
 	test/hub.c \
 	test/poll.c \

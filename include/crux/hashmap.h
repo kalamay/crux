@@ -87,7 +87,7 @@
 	attr void \
 	pref##_clear(TMap *map); \
 	attr void \
-	pref##_print(const TMap *map, FILE *out, void (*fn)(TEnt *, FILE *)); \
+	pref##_print(const TMap *map, FILE *out, void (*fn)(const TMap *, TEnt *, FILE *)); \
 
 #define XHASHMAP_GEN(pref, TMap, TKey, TEnt) \
 	XHASHTIER_PROTO(XSTATIC, pref##_tier, struct pref##_tier, TKey) \
@@ -96,8 +96,8 @@
 	pref##_resize(TMap *map, size_t hint) \
 	{ \
 		if (hint < map->count) { return XESYS(EPERM); } \
-		if (hint <= map->max && (hint < 8 || hint >= map->max/3)) { return 0; } \
 		size_t sz = XHASHTIER_SIZE(ceil(hint / map->loadf)); \
+		if (map->tiers[0] && sz == map->tiers[0]->size) { return 0; } \
 		struct pref##_tier *tmp[xlen(map->tiers) + 1]; \
 		tmp[0] = map->tiers[xlen(map->tiers) - 1]; \
 		for (size_t s=0, d=1; s < xlen(map->tiers); s++) { \
@@ -172,7 +172,7 @@
 	{ \
 		uint64_t h = pref##_hash(k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
-			if (pref##_tier_hget(map->tiers[i], k, kn, h) >= 0) { \
+			if (pref##_tier_get(map->tiers[i], k, kn, h) >= 0) { \
 				return true; \
 			} \
 		} \
@@ -183,12 +183,12 @@
 	{ \
 		uint64_t h = pref##_hash(k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
-			ssize_t idx = pref##_tier_hget(map->tiers[i], k, kn, h); \
+			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h); \
 			if (idx >= 0) { \
 				if (xlen(map->tiers) > 1 && i > 0 && \
 						pref##_tier_load(map->tiers[0]) < map->loadf) { \
 					int full; \
-					ssize_t res = pref##_tier_hreserve(map->tiers[0], k, kn, h, &full); \
+					ssize_t res = pref##_tier_reserve(map->tiers[0], k, kn, h, &full); \
 					if (res >= 0) { \
 						map->tiers[0]->arr[res].entry = map->tiers[i]->arr[idx].entry; \
 						pref##_prune_index(map, i, idx); \
@@ -205,14 +205,16 @@
 	pref##_hreserve(TMap *map, TKey k, size_t kn, uint64_t h, TEnt **entry) \
 	{ \
 		assert(h > 0); \
-		int rc = pref##_resize(map, map->count + 1); \
-		if (rc < 0) { return rc; } \
+		if (map->count == map->max) { \
+			int rc = pref##_resize(map, map->count + 1); \
+			if (rc < 0) { return rc; } \
+		} \
 		int full; \
-		size_t idx = pref##_tier_hreserve(map->tiers[0], k, kn, h, &full); \
+		size_t idx = pref##_tier_reserve(map->tiers[0], k, kn, h, &full); \
 		if (!full) { \
 			for (size_t i = 1; i < xlen(map->tiers) && map->tiers[i]; i++) { \
 				if (map->tiers[i] == NULL) { break; } \
-				ssize_t sidx = pref##_tier_hget(map->tiers[i], k, kn, h); \
+				ssize_t sidx = pref##_tier_get(map->tiers[i], k, kn, h); \
 				if (sidx >= 0) { \
 					map->tiers[0]->arr[idx].entry = map->tiers[i]->arr[sidx].entry; \
 					pref##_prune_index(map, i, sidx); \
@@ -255,11 +257,11 @@
 		uint64_t h = pref##_hash(k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers); i++) { \
 			if (map->tiers[i] == NULL) { break; } \
-			ssize_t idx = pref##_tier_hget(map->tiers[i], k, kn, h); \
+			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h); \
 			if (idx >= 0) { \
 				if (entry != NULL) { *entry = map->tiers[i]->arr[idx].entry; } \
-				if (pref##_prune_index(map, i, idx) == 0) { \
-					pref##_resize(map, --map->count); \
+				if (pref##_prune_index(map, i, idx) == 0 && --map->count < map->max/3) { \
+					pref##_resize(map, map->count); \
 				} \
 				return true; \
 			} \
@@ -278,7 +280,9 @@
 				if (pref##_prune_index(map, i, idx) < 0) { \
 					return false; \
 				} \
-				pref##_resize(map, --map->count); \
+				if (--map->count < map->max/3) { \
+					pref##_resize(map, map->count); \
+				} \
 				return true; \
 			} \
 		} \
@@ -295,7 +299,7 @@
 		map->count = 0; \
 	} \
 	void \
-	pref##_print(const TMap *map, FILE *out, void (*fn)(TEnt *, FILE *out)) \
+	pref##_print(const TMap *map, FILE *out, void (*fn)(const TMap *, TEnt *, FILE *out)) \
 	{ \
 		if (out == NULL) { out = stdout; } \
 		fprintf(out, "<crux:map:" #pref "(" #TKey "," #TEnt "):"); \
@@ -315,7 +319,7 @@
 				for (size_t j = 0; j < t->size; j++) { \
 					if (t->arr[j].h) { \
 						fprintf(out, "        %016" PRIx64 " = ", t->arr[j].h); \
-						fn(&t->arr[j].entry, out); \
+						fn(map, &t->arr[j].entry, out); \
 						fprintf(out, "\n"); \
 					} \
 				} \
@@ -331,6 +335,20 @@
 #define XHASHMAP_INT_GEN(pref, TMap, TKey, TEnt) \
 	XHASH_INT_GEN(XSTATIC, pref##_hash, TKey) \
 	XHASHMAP_GEN(pref, TMap, TKey, TEnt) \
+
+#define XHASH_INT_GEN(attr, name, TKey) \
+	attr uint64_t \
+	name(TKey k, size_t kn) \
+	{ \
+		(void)kn; \
+		uint64_t x = ((uint64_t)k << 1) | 1; \
+		x ^= x >> 33; \
+		x *= 0xff51afd7ed558ccdULL; \
+		x ^= x >> 33; \
+		x *= 0xc4ceb9fe1a85ec53ULL; \
+		x ^= x >> 33; \
+		return x; \
+	} \
 
 #endif
 

@@ -1,5 +1,6 @@
 #include "mu.h"
 #include "../include/crux/hashmap.h"
+#include "../include/crux/hash.h"
 
 uint64_t
 junk_hash(const char *k, size_t kn)
@@ -254,8 +255,9 @@ struct thing_map {
 };
 
 void
-thing_print_entry(struct thing *t, FILE *out)
+thing_print_entry(const struct thing_map *m, struct thing *t, FILE *out)
 {
+	(void)m;
 	fprintf(out, "<thing key=%d, value=%d>", t->key, t->value);
 }
 

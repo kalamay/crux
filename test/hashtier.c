@@ -12,11 +12,17 @@ thing_has_key(struct thing *t, int k, size_t kn)
 	return t->key == k;
 }
 
+uint64_t
+thing_hash(int k)
+{
+	return (uint32_t)k * UINT32_C(2654435761);
+}
+
 struct thing_tier {
 	XHASHTIER(struct thing);
 };
 
-XHASHTIER_INT_STATIC(thing, struct thing_tier, int)
+XHASHTIER_STATIC(thing, struct thing_tier, int)
 
 static bool
 verify_tier(struct thing_tier *tier)
@@ -25,7 +31,7 @@ verify_tier(struct thing_tier *tier)
 	size_t count = 0;
 	for (size_t i = 0; i < tier->size; i++) {
 		if (tier->arr[i].h == 0) { continue; }
-		ssize_t idx = thing_get(tier, tier->arr[i].entry.key, 0);
+		ssize_t idx = thing_get(tier, tier->arr[i].entry.key, 0, thing_hash(tier->arr[i].entry.key));
 		mu_assert_int_eq(idx, i);
 		if (idx != (ssize_t)i) {
 			ok = false;
@@ -54,7 +60,7 @@ test_tier(void)
 
 	for (int i = 0; i < 15; i++) {
 		int key = rand();
-		ssize_t idx = thing_reserve(tier, key, 0, &full);
+		ssize_t idx = thing_reserve(tier, key, 0, thing_hash(key), &full);
 		if (idx >= 0) {
 			tier->arr[idx].entry.key = key;
 			tier->arr[idx].entry.value = rand();
@@ -95,7 +101,7 @@ test_tier(void)
 
 	for (int i = 0; i < 15; i++) {
 		int key = rand();
-		ssize_t idx = thing_get(next, key, 0);
+		ssize_t idx = thing_get(next, key, 0, thing_hash(key));
 		mu_assert_int_ge(idx, 0);
 		if (idx >= 0) {
 			mu_assert_int_eq(next->arr[idx].entry.key, key);
