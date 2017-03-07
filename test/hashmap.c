@@ -1146,6 +1146,52 @@ test_pre_hash(size_t hint)
 #undef NONE
 }
 
+static void
+test_large(void)
+{
+	struct thing *things;
+	unsigned seed = 0;
+
+	things = malloc(sizeof(*things) * 1 << 20);
+	mu_assert_ptr_ne(things, NULL);
+
+	for (int i = 0; i < 1 << 20; i++) {
+		struct thing *t = &things[i];
+		t->key = rand_r(&seed);
+		t->value = rand_r(&seed);
+	}
+
+	struct thing_map map;
+	mu_assert_int_eq(thing_init(&map, 0.0, 0), 1);
+
+	for (int i = 0; i < 1 << 20; i++) {
+		struct thing *t = &things[i];
+		thing_put(&map, t->key, sizeof(int), t);
+	}
+
+	seed = 0;
+	for (int i = 0; i < 1 << 20; i++) {
+		int k = rand_r(&seed);
+		int v = rand_r(&seed);
+		struct thing *t = thing_get(&map, k, sizeof(k));
+		mu_assert_ptr_ne(t, NULL);
+		mu_assert_int_eq(t->key, k);
+		mu_assert_int_eq(t->value, v);
+	}
+
+	seed = 0;
+	for (int i = 0; i < 1 << 20; i++) {
+		int k = rand_r(&seed);
+		int v = rand_r(&seed);
+		struct thing *t = thing_get(&map, k, sizeof(k));
+		mu_assert_ptr_ne(t, NULL);
+		mu_assert_int_eq(t->key, k);
+		mu_assert_int_eq(t->value, v);
+	}
+
+	mu_assert_int_eq(map.count, 1 << 20);
+}
+
 int
 main(void)
 {
@@ -1168,6 +1214,7 @@ main(void)
 	test_tier_sizes();
 	test_pre_hash(0);
 	test_pre_hash(100);
+	test_large();
 
 	return 0;
 }

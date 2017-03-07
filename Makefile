@@ -60,7 +60,7 @@ CFLAGS_DEBUG?= $(CFLAGS_COMMON) -g -Wall -Wextra -Wcast-align -pedantic -Werror
 CFLAGS_RELEASE?= $(CFLAGS_COMMON) -O2 -DNDEBUG -flto
 LDFLAGS_COMMON?= $(FLAGS_COMMON) $(LDFLAGS_EXECINFO)
 LDFLAGS_DEBUG?= $(LDFLAGS_COMMON)
-LDFLAGS_RELEASE?= $(LDFLAGS_COMMON)
+LDFLAGS_RELEASE?= $(LDFLAGS_COMMON) -flto -O2
 
 # define static and dynamic library names and set platform library flags
 LIB:= libcrux.a

@@ -36,26 +36,25 @@ test_basic(void)
 }
 
 struct thing {
-	int id;
-	const char *name;
+	int key, value;
 };
 
 static void
 print_thing(void *value, FILE *out)
 {
 	struct thing *t = value;
-	fprintf(out, "{ id=%d, name=\"%s\" }", t->id, t->name);
+	fprintf(out, "<thing key=%d, value=%d>", t->key, t->value);
 }
 
 static void
 test_struct(void)
 {
 	struct thing stuff[5] = {
-		{  8, "peanuts" },
-		{ 12, "beans" },
-		{  3, "carrots" },
-		{  7, "pears" },
-		{ 19, "mushrooms" },
+		{  8, 100 },
+		{ 12, 101 },
+		{  3, 102 },
+		{  7, 103 },
+		{ 19, 104 },
 	};
 
 	struct xmap *map;
@@ -64,15 +63,62 @@ test_struct(void)
 
 	for (size_t i = 0; i < xlen(stuff); i++) {
 		struct thing *t = &stuff[i];
-		mu_assert_int_eq(xmap_put(map, &stuff[i].id, sizeof(int), (void **)&t), XMAP_NEW_ENTRY);
+		mu_assert_int_eq(xmap_put(map, &stuff[i].key, sizeof(int), (void **)&t), XMAP_NEW_ENTRY);
 	}
 
 	for (size_t i = 0; i < xlen(stuff); i++) {
-		struct thing *t = xmap_get(map, &stuff[i].id, sizeof(int));
+		struct thing *t = xmap_get(map, &stuff[i].key, sizeof(int));
 		mu_assert_ptr_eq(t, &stuff[i]);
 	}
 
 	xmap_free(&map);
+}
+
+static void
+test_large(void)
+{
+	struct thing *things;
+	unsigned seed = 0;
+
+	things = malloc(sizeof(*things) * 1 << 20);
+	mu_assert_ptr_ne(things, NULL);
+
+	for (int i = 0; i < 1 << 20; i++) {
+		struct thing *t = &things[i];
+		t->key = rand_r(&seed);
+		t->value = rand_r(&seed);
+	}
+
+	struct xmap *map;
+	mu_assert_int_eq(xmap_new(&map, 0.0, 0), 0);
+	xmap_set_print(map, print_thing);
+
+	for (int i = 0; i < 1 << 20; i++) {
+		struct thing *t = &things[i];
+		xmap_put(map, &t->key, sizeof(int), (void **)&t);
+	}
+
+	seed = 0;
+	for (int i = 0; i < 1 << 20; i++) {
+		int k = rand_r(&seed);
+		int v = rand_r(&seed);
+		struct thing *t = xmap_get(map, &k, sizeof(k));
+		mu_assert_ptr_ne(t, NULL);
+		mu_assert_int_eq(t->key, k);
+		mu_assert_int_eq(t->value, v);
+	}
+
+	seed = 0;
+	for (int i = 0; i < 1 << 20; i++) {
+		int k = rand_r(&seed);
+		int v = rand_r(&seed);
+		struct thing *t = xmap_get(map, &k, sizeof(k));
+		mu_assert_ptr_ne(t, NULL);
+		mu_assert_int_eq(t->key, k);
+		mu_assert_int_eq(t->value, v);
+	}
+
+	mu_assert_int_eq(xmap_count(map), 1 << 20);
 }
 
 int
@@ -82,5 +128,6 @@ main(void)
 
 	test_basic();
 	test_struct();
+	test_large();
 }
 
