@@ -104,7 +104,8 @@ SRC:= \
 	src/poll.c \
 	src/hub.c \
 	src/hash.c \
-	src/http.c
+	src/http.c \
+	src/dns.c
 
 # list of header files to include in build
 INCLUDE:= \
@@ -125,7 +126,9 @@ INCLUDE:= \
 	include/crux/hash.h \
 	include/crux/hashtier.h \
 	include/crux/hashmap.h \
-	include/crux/map.h
+	include/crux/map.h \
+	include/crux/http.h \
+	include/crux/dns.h
 
 # list of manual pages
 MAN:= \
@@ -144,7 +147,8 @@ TEST:= \
 	test/heap.c \
 	test/hub.c \
 	test/poll.c \
-	test/task.c
+	test/task.c \
+	test/dns.c
 
 # list of files to install
 INSTALL:= \
