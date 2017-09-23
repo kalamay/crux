@@ -15,6 +15,10 @@ struct xclock {
 	struct timespec ts;
 };
 
+struct xtimeout {
+	int64_t rel, abs;
+};
+
 #define X_NSEC_PER_USEC 1000LL
 #define X_NSEC_PER_MSEC 1000000LL
 #define X_NSEC_PER_SEC  1000000000LL
@@ -113,6 +117,9 @@ struct xclock {
 #define XCLOCK_GE(c, v) XCLOCK_CMP(c, v >=)
 
 
+XEXTERN int64_t
+xmono(void);
+
 /**
  * @brief  Updates the clock to the current real time
  *
@@ -161,6 +168,12 @@ xclock_step(struct xclock *c);
  */
 XEXTERN void
 xclock_print(const struct xclock *c, FILE *out);
+
+XEXTERN void
+xtimeout_start(struct xtimeout *t, int ms, const struct xclock *c);
+
+XEXTERN int
+xtimeout(struct xtimeout *t, const struct xclock *c);
 
 #endif
 

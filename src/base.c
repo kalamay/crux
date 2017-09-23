@@ -66,7 +66,7 @@ xinit(void)
 	(void)mach_timebase_info(&info);
 #endif
 
-#if !HAS_ARC4
+#if !HAS_GETRANDOM && !HAS_ARC4
 	if (randfd >= 0) { close(randfd); }
 
 	while (1) {
@@ -117,6 +117,22 @@ struct xversion
 xversion(void)
 {
 	return (struct xversion) { VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH };
+}
+
+int64_t
+xmono(void)
+{
+#if HAS_MACH_TIME
+	return (mach_absolute_time() * info.numer) / info.denom;
+#else
+# if HAS_CLOCK_GETTIME
+	struct xclock c;
+	if (clock_gettime(CLOCK_MONOTONIC, &c->ts) == 0) {
+		return XCLOCK_NSEC(&c);
+	}
+# endif
+	return clock() * (X_NSEC_PER_SEC / CLOCKS_PER_SEC);
+#endif
 }
 
 int
@@ -198,9 +214,39 @@ xclock_print(const struct xclock *c, FILE *out)
 	}
 }
 
+void
+xtimeout_start(struct xtimeout *t, int ms, const struct xclock *c)
+{
+	if (ms < 0) {
+		t->rel = -1;
+	}
+	else {
+		t->rel = X_MSEC_TO_NSEC(ms);
+		t->abs = t->rel + XCLOCK_NSEC(c);
+	}
+}
+
+int
+xtimeout(struct xtimeout *t, const struct xclock *c)
+{
+	if (t->rel < 0) { return -1; }
+	t->rel = t->abs - XCLOCK_NSEC(c);
+	if (t->rel < 0) { t->rel = 0; }
+	int64_t ms = X_NSEC_TO_MSEC(t->rel);
+	return ms < INT_MAX ? (int)ms : INT_MAX;
+}
 
 
-#if HAS_ARC4
+
+#if HAS_GETRANDOM
+
+int
+xrand(void *const restrict dst, size_t len)
+{
+	return getrandom(void *buf, size_t buflen, unsigned int flags);
+}
+
+#elif HAS_ARC4
 
 int
 xrand(void *const restrict dst, size_t len)
@@ -233,6 +279,10 @@ xrand(void *const restrict dst, size_t len)
 	}
 	return 0;
 }
+
+#endif
+
+#if !HAS_ARC4
 
 int
 xrand_u32(uint32_t bound, uint32_t *out)

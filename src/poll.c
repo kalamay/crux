@@ -161,8 +161,8 @@ xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev)
 {
 	int rc;
 	struct xclock wait;
-	struct timespec *tsp = NULL;
-	int64_t abs, rel;
+	struct timespec *tsp = ms < 0 ? NULL : &wait.ts;
+	struct xtimeout timeo;
 
 	ev->poll = poll;
 	ev->type = 0;
@@ -170,10 +170,8 @@ xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev)
 	ev->ptr = NULL;
 	ev->errcode = -1;
 
-	if (ms >= 0) {
-		xclock_mono(&poll->clock);
-		abs = X_MSEC_TO_NSEC(ms) + XCLOCK_NSEC(&poll->clock);
-	}
+	xclock_mono(&poll->clock);
+	xtimeout_start(&timeo, ms, &poll->clock);
 
 read:
 	while (xpoll__has_more(poll)) {
@@ -182,13 +180,8 @@ read:
 	}
 
 poll:
-	if (ms >= 0) {
-		xclock_mono(&poll->clock);
-		rel = abs - XCLOCK_NSEC(&poll->clock);
-		if (rel < 0) { rel = 0; }
-		XCLOCK_SET_NSEC(&wait, rel);
-		tsp = &wait.ts;
-	}
+	xclock_mono(&poll->clock);
+	XCLOCK_SET_MSEC(&wait, xtimeout(&timeo, &poll->clock));
 
 	rc = xpoll__update(poll, tsp);
 	if (rc > 0)       { goto read; }

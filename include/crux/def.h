@@ -13,6 +13,14 @@
 #define XLOCAL  __attribute__ ((visibility("hidden")))
 #define XSTATIC __attribute__ ((unused)) static
 
+#ifndef thread_local
+# ifdef __declspec
+#  define thread_local __declspec(thread)
+# else
+#  define thread_local __thread
+# endif
+#endif
+
 #define xcontainer(ptr, type, member) __extension__ ({ \
 	const __typeof(((type *)0)->member) *__mptr = (ptr); \
 	(type *)(void *)((char *)__mptr - offsetof(type,member)); \

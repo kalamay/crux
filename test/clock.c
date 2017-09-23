@@ -164,6 +164,22 @@ test_sub(void)
 	mu_assert_int_eq(clock.ts.tv_nsec, 0);
 }
 
+static void
+test_timeout(void)
+{
+	struct xtimeout t;
+	struct xclock c, delay;
+
+	XCLOCK_SET_MSEC(&delay, 50);
+	xclock_mono(&c);
+
+	xtimeout_start(&t, 200, &c);
+
+	XCLOCK_ADD(&c, &delay);
+
+	mu_assert_int_eq(xtimeout(&t, &c), 150);
+}
+
 int
 main(void)
 {
@@ -177,5 +193,6 @@ main(void)
 	mu_run(test_rel);
 	mu_run(test_add);
 	mu_run(test_sub);
+	mu_run(test_timeout);
 }
 

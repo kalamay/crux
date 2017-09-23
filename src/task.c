@@ -117,8 +117,8 @@ struct xtask {
 	bool istop;
 } __attribute__ ((aligned(16)));
 
-static __thread struct xtask *current = NULL;
-static __thread struct xtask top = {
+static thread_local struct xtask *current = NULL;
+static thread_local struct xtask top = {
 #if HAS_DLADDR
 	.entry = "main",
 #endif

@@ -12,7 +12,7 @@ ARCH = {
 	'i386': 'X86_32',
 	'x86': 'X86_32',
 }
-CC = ['cc', '-ldl', '-x', 'c', '-o', '/dev/null', '-']
+CC = ['cc', '-D_GNU_SOURCE', '-ldl', '-x', 'c', '-o', '/dev/null', '-']
 DEVNULL = open(os.devnull, 'w')
 
 def memoize(f):
@@ -63,10 +63,28 @@ def has_epoll():
 		int main(void) { epoll_create (10); }
 	""")
 
+def has_getrandom():
+	return compiles("""
+		#include <sys/random.h>
+		int main(void) { char buf[8]; getrandom(buf, 8, 0); }
+	""")
+
 def has_arc4():
 	return compiles("""
-		#include <time.h>
-		int main(void) { arc4random_buf (10); }
+		#include <stdlib.h>
+		int main(void) { char buf[8]; arc4random_buf(buf, 8); }
+	""")
+
+def has_mremap4():
+	return compiles("""
+		#include <sys/mman.h>
+		int main(void) { mremap(0, 0, 0, 0); }
+	""")
+
+def has_mremap5():
+	return compiles("""
+		#include <sys/mman.h>
+		int main(void) { mremap(0, 0, 0, 0, 0); }
 	""")
 
 print("#define XHEAP_PAGECOUNT %d" % PAGEPTR)
@@ -84,8 +102,12 @@ if has_kqueue():
 	print("#define HAS_KQUEUE 1")
 elif has_epoll():
 	print("#define HAS_EPOLL 1")
+if has_getrandom():
+	print("#define HAS_GETRANDOM 1")
 if has_arc4():
 	print("#define HAS_ARC4 1")
+if has_mremap4() or has_mremap5():
+	print("#define HAS_MREMAP 1")
 
 print(("""
 #if defined (__aarch64__)
