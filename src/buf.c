@@ -177,9 +177,9 @@ xbuf_compact(struct xbuf *buf)
 	size_t len = XBUF_LENGTH(buf);
 	if (len > 0) {
 		memmove(buf->map, buf->rd, len);
-		buf->rd = buf->map;
-		buf->wr = buf->map + len;
 	}
+	buf->rd = buf->map;
+	buf->wr = buf->map + len;
 }
 
 void
