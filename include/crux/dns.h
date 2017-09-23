@@ -1,6 +1,9 @@
 #ifndef CRUX_DNS_H
 #define CRUX_DNS_H
 
+#include "def.h"
+
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <netinet/in.h>
@@ -8,7 +11,7 @@
 #define XDNS_MAX_LABEL 63
 #define XDNS_MAX_NAME 255
 #define XDNS_MAX_UDP 512
-#define XDNS_MAX_OPT_UDP 4096
+#define XDNS_MAX_UDP_EDNS 4096
 
 
 #define XX(name, code, desc) XDNS_##name = code,
@@ -40,7 +43,7 @@ enum xdns_type {
 	XDNS_TYPE_MAP(XX)
 };
 
-#define XDNS_TYPE_ALT_MAP(XX) \
+#define XDNS_TYPE_OTHER_MAP(XX) \
 	XX(MD,             3, "mail destination") \
 	XX(MF,             4, "mail forwarder") \
 	XX(MB,             7, "mailbox domain name") \
@@ -101,8 +104,8 @@ enum xdns_type {
 	XX(TA,         32768, "DNSSEC trust authorities") \
 	XX(DLV,        32769, "DNSSEC lookaside validation") \
 
-enum xdns_type_alt {
-	XDNS_TYPE_ALT_MAP(XX)
+enum xdns_type_other {
+	XDNS_TYPE_OTHER_MAP(XX)
 };
 
 #define XDNS_CLASS_MAP(XX) \
@@ -144,7 +147,7 @@ enum xdns_rcode {
  *  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  *  |                      ID                       |
  *  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
- *  |QR|   OPCODE  |AA|TC|RD|RA|   Z    |   RCODE   |
+ *  |QR|   OPCODE  |AA|TC|RD|RA|   _Z   |   RCODE   |
  *  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  *  |                    QDCOUNT                    |
  *  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
@@ -157,23 +160,23 @@ enum xdns_rcode {
  */
 struct xdns_header {
 	uint16_t id;                 /** message identifier */
-#if defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 	unsigned qr:1;               /** query (0) or response (1) */
-	enum xdns_opcode opcode:4; /** kind of query */
+	enum xdns_opcode opcode:4;   /** kind of query */
 	bool aa:1;                   /** is response an authoritative answer */
 	bool tc:1;                   /** is response message truncated */
 	bool rd:1;                   /** is recursion desired for query */
 	bool ra:1;                   /** is recursion available indicated in response */
-	unsigned z:3;                /** (unused) */
-	enum xdns_rcode rcode:4;   /** response code */
+	unsigned _z:3;               /** (unused) */
+	enum xdns_rcode rcode:4;     /** response code */
 #else
 	bool rd:1;                   /** is recursion desired for query */
 	bool tc:1;                   /** is response message truncated */
 	bool aa:1;                   /** is response an authoritative answer */
-	enum xdns_opcode opcode:4; /** kind of query */
+	enum xdns_opcode opcode:4;   /** kind of query */
 	unsigned qr:1;               /** query (0) or response (1) */
-	enum xdns_rcode rcode:4;   /** response code */
-	unsigned z:3;                /** (unused) */
+	enum xdns_rcode rcode:4;     /** response code */
+	unsigned _z:3;               /** (unused) */
 	bool ra:1;                   /** is recursion available indicated in response */
 #endif
 	union {
@@ -201,8 +204,8 @@ struct xdns_header {
  */
 struct xdns_query {
 	// char qname[...]
-	enum xdns_type qtype:16;   /** type of the query */
-	enum xdns_class qclass:16; /** class of the query */
+	enum xdns_type qtype:16;     /** type of the query */
+	enum xdns_class qclass:16;   /** class of the query */
 };
 
 /**
@@ -228,8 +231,8 @@ struct xdns_query {
  */
 struct xdns_rr {
 	// char name[...]
-	enum xdns_type rtype:16;   /** type of the resource */
-	enum xdns_class rclass:16; /** class of the resource */
+	enum xdns_type rtype:16;     /** type of the resource */
+	enum xdns_class rclass:16;   /** class of the resource */
 	int32_t ttl;                 /** time interval that the resource record may be cached */
 	uint16_t rdlength;           /** length in octets of the RDATA field */
 };
@@ -250,30 +253,55 @@ struct xdns_rr {
  * |                   RDLENGTH                    |
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
  * /                     RDATA                     /
- * /                                               /
+ * /            {attribute,value} pairs            /
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
 struct xdns_opt {
-	enum xdns_type rtype:16;   /** type of the resource */
+	enum xdns_type rtype:16;     /** type of the resource */
 	uint16_t udpmax;             /** maximum udp size */
 	uint8_t ext_rcode;           /** upper 8 bits of extended 12-bit RCODE */
 	uint8_t version;             /** version of the opt record */
-	bool dof:1;                  /** DNSSEC OK flag */
-	unsigned z:15;               /** (unused) */
+	struct {
+#if BYTE_ORDER == BIG_ENDIAN
+		bool dof:1;              /** DNSSEC OK flag */
+		unsigned _z:15;          /** (unused) */
+#else
+		unsigned _z1:7;          /** (unused) */
+		bool dof:1;              /** DNSSEC OK flag */
+		unsigned _z2:8;          /** (unused) */
+#endif
+	};
 	uint16_t rdlength;           /** length in octets of the RDATA field */
 };
 
 #define XDNS_OPT_MAKE(udp, rdlen) ((struct xdns_opt){ \
-	.rtype = XDNS_OPT,                                  \
-	.udpmax = udp,                                        \
-	.ext_rcode = 0,                                       \
-	.version = 0,                                         \
-	.dof = 0,                                             \
-	.z = 0,                                               \
-	.rdlength = rdlen                                     \
+	.rtype = XDNS_OPT, \
+	.udpmax = udp, \
+	.ext_rcode = 0, \
+	.version = 0, \
+	.dof = 0, \
+	.rdlength = rdlen \
 })
 
-extern const struct xdns_opt XDNS_OPT_DEFAULT;
+XEXTERN const struct xdns_opt XDNS_OPT_DEFAULT;
+
+/**
+ *             +0 (MSB)                            +1 (LSB)
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |                          OPTION-CODE                          |
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |                         OPTION-LENGTH                         |
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *  |                                                               |
+ *  /                          OPTION-DATA                          /
+ *  /                                                               /
+ *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ */
+struct xdns_opt_pair {
+	uint16_t optcode;
+	uint16_t optlength;
+	// uint8_t optdata[...]
+};
 
 #pragma pack(pop)
 
@@ -326,6 +354,12 @@ struct xdns_mx {
 	char host[XDNS_MAX_NAME+1];
 };
 
+/**
+ *   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ * /                   TXT-DATA                    /
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ */
 struct xdns_txt {
 	const void *data;
 	size_t length;
@@ -354,10 +388,11 @@ struct xdns_srv {
 
 struct xdns {
 	union {
-		uint8_t buf[XDNS_MAX_OPT_UDP];
-		struct xdns_header hdr;
+		uint8_t *buf;
+		struct xdns_header *hdr;
 	};
 	size_t len;
+	size_t max;
 };
 
 union xdns_rdata {
@@ -372,6 +407,14 @@ union xdns_rdata {
 	struct xdns_srv srv;
 };
 
+struct xdns_res {
+	union {
+		struct xdns_rr rr;
+		struct xdns_opt opt;
+	};
+	union xdns_rdata rdata;
+};
+
 struct xdns_iter {
 	const struct xdns *p;
 	struct xdns_header hdr;
@@ -380,51 +423,96 @@ struct xdns_iter {
 	uint16_t at;
 	union {
 		struct xdns_query query;
-		struct {
-			union {
-				struct xdns_rr rr;
-				struct xdns_opt opt;
-			};
-			union xdns_rdata rdata;
-		};
+		struct xdns_res res;
 	};
 	char name[XDNS_MAX_NAME+1];
+	uint8_t namelen;
 };
 
-extern void
-xdns_init(struct xdns *p, uint16_t id);
+XEXTERN ssize_t
+xdns_encode_name(uint8_t *enc, ssize_t len, const char *name);
 
-extern int
+XEXTERN void
+xdns_init(struct xdns *p, uint8_t *buf, size_t len, uint16_t id);
+
+XEXTERN int
 xdns_load(struct xdns *p, const void *packet, size_t len);
 
-extern void
+XEXTERN void
 xdns_final(struct xdns *p);
 
-extern ssize_t
+XEXTERN uint16_t
+xdns_id(const struct xdns *p);
+
+XEXTERN ssize_t
 xdns_add_query(struct xdns *p, const char *host, enum xdns_type type);
 
-extern ssize_t
+XEXTERN ssize_t
 xdns_add_rr(struct xdns *p, const char *name,
 		struct xdns_rr rr, const void *rdata);
 
-extern ssize_t 
+XEXTERN ssize_t 
 xdns_add_opt(struct xdns *p,
 		struct xdns_opt opt, const void *rdata);
 
-extern ssize_t
-xdns_send(const struct xdns *p, int s, struct sockaddr *addr, socklen_t len);
-
-extern ssize_t
-xdns_recv(struct xdns *p, int s, struct sockaddr *addr, socklen_t *len);
-
-extern void
+XEXTERN void
 xdns_iter_init(struct xdns_iter *i, const struct xdns *p);
 
 #define XDNS_MORE 0
 #define XDNS_DONE 1
 
-extern int
+XEXTERN int
 xdns_iter_next(struct xdns_iter *i);
+
+
+
+XEXTERN enum xdns_type
+xdns_type(const char *name, bool other);
+
+XEXTERN const char *
+xdns_section_name(enum xdns_section s);
+
+XEXTERN const char *
+xdns_section_desc(enum xdns_section s);
+
+XEXTERN const char *
+xdns_type_name(enum xdns_type t);
+
+XEXTERN const char *
+xdns_type_desc(enum xdns_type t);
+
+XEXTERN const char *
+xdns_class_name(enum xdns_class c);
+
+XEXTERN const char *
+xdns_class_desc(enum xdns_class c);
+
+XEXTERN const char *
+xdns_opcode_name(enum xdns_opcode oc);
+
+XEXTERN const char *
+xdns_opcode_desc(enum xdns_opcode oc);
+
+XEXTERN const char *
+xdns_rcode_name(enum xdns_rcode rc);
+
+XEXTERN const char *
+xdns_rcode_desc(enum xdns_rcode rc);
+
+XEXTERN void
+xdns_print(const struct xdns *p, FILE *out);
+
+XEXTERN ssize_t
+xdns_json(const struct xdns *p, char *buf, size_t len);
+
+XEXTERN ssize_t
+xdns_res_json(const struct xdns_res *res, char *buf, size_t len);
+
+XEXTERN int
+xdns_res_copy(struct xdns_res **dst, const struct xdns_res *src);
+
+XEXTERN void
+xdns_res_free(struct xdns_res **res);
 
 #endif
 

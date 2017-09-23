@@ -3,18 +3,22 @@
 #include <string.h>
 #include <stddef.h>
 #include <assert.h>
+#include <arpa/inet.h>
 
 #include "../include/crux/dns.h"
 #include "../include/crux/err.h"
 
-const struct xdns_opt XDNS_OPT_DEFAULT = XDNS_OPT_MAKE(XDNS_MAX_OPT_UDP, 0);
+const struct xdns_opt XDNS_OPT_DEFAULT = XDNS_OPT_MAKE(XDNS_MAX_UDP_EDNS, 0);
 
 static uint16_t
 u16(const uint8_t buf[static 2])
 {
 	uint16_t val;
 	memcpy(&val, buf, sizeof(val));
-	return ntohs(val);
+#if BYTE_ORDER == LITTLE_ENDIAN
+	val = __builtin_bswap16(val);
+#endif
+	return val;
 }
 
 static uint32_t
@@ -22,52 +26,39 @@ u32(const uint8_t buf[static 4])
 {
 	uint32_t val;
 	memcpy(&val, buf, sizeof(val));
-	return ntohl(val);
+#if BYTE_ORDER == LITTLE_ENDIAN
+	val = __builtin_bswap32(val);
+#endif
+	return val;
 }
 
 static void *
-tail(struct xdns *p)
+tail(struct xdns *p, size_t need)
 {
-	return p->buf + p->len;
+	return p->len + need > p->max ?
+		NULL : p->buf + p->len;
 }
 
-/**
- * Encodes a host name at the current buffer position
- *
- * @param  p      dns pointer
- * @param  dec    presentational host name
- * @param  len    length of host name
- * @param  extra  additional space required in the buffer after the name
- * @return  0 on success, <0 error code
- */
-static ssize_t
-encode_name(struct xdns *p, const char *dec, size_t len, size_t extra)
+ssize_t
+xdns_encode_name(uint8_t *enc, ssize_t len, const char *name)
 {
-	uint8_t *enc = tail(p);
-	size_t encsize = sizeof(p->buf) - p->len - extra;
-	if (dec[len-1] != '.') {
-		if (len > XDNS_MAX_NAME - 1) { return -EINVAL; }
-		if (len > encsize - 1) { return -ENOBUFS; }
-		memcpy(enc+1, dec, len);
-		enc[++len] = '.';
-	}
-	else {
-		if (len > XDNS_MAX_NAME) { return -EINVAL; }
-		if (len > encsize) { return -ENOBUFS; }
-		memcpy(enc+1, dec, len);
-	}
-
-	// TODO: remove this ugly case
-	if (len == 1) {
-		p->len++;
+	ssize_t nlen = strnlen(name, XDNS_MAX_NAME+1);
+	ssize_t rlen = (nlen == 0 || name[nlen-1] != '.') ? nlen+1 : nlen;
+	if (rlen == 1) {
+		if (len == 0) { return -ENOBUFS; }
 		enc[0] = 0;
 		return 1;
 	}
+	if (rlen > XDNS_MAX_NAME) { return -EINVAL; }
+	if (rlen >= len) { return -ENOBUFS; }
 
-	size_t mark = 0;
-	for (size_t i = 1; i <= len; i++) {
+	memcpy(enc+1, name, nlen);
+	enc[rlen] = '.';
+
+	ssize_t mark = 0;
+	for (ssize_t i = 1; i <= rlen; i++) {
 		if (enc[i] == '.') {
-			size_t label = i - mark - 1;
+			ssize_t label = i - mark - 1;
 			if (label > XDNS_MAX_LABEL) {
 				return -EINVAL;
 			}
@@ -76,7 +67,6 @@ encode_name(struct xdns *p, const char *dec, size_t len, size_t extra)
 		}
 	}
 	enc[mark] = 0;
-	p->len += mark + 1;
 	return mark + 1;
 }
 
@@ -225,7 +215,10 @@ read_rr(const uint8_t *buf, size_t pos, size_t len,
 	case XDNS_SRV:
 		npos = read_srv(buf, pos, len, &rdata->srv);
 		break;
+	case XDNS_OPT:
+		rr->ttl = rrs->ttl;
 	default:
+		memset(rdata, 0, sizeof(*rdata));
 		npos = epos;
 		break;
 	}
@@ -239,26 +232,25 @@ error:
 }
 
 void
-xdns_init(struct xdns *p, uint16_t id)
+xdns_init(struct xdns *p, uint8_t *buf, size_t len, uint16_t id)
 {
-	memset(p, 0, sizeof(*p));
+	p->buf = buf;
+	p->len = sizeof(*p->hdr);
+	p->max = len;
 
-	p->hdr.id = htons(id);
-	p->hdr.rd = 1;
-	p->hdr.opcode = XDNS_QUERY;
-	p->hdr.qdcount = 0;
-	p->len = sizeof(p->hdr);
+	memset(p->hdr, 0, sizeof(*p->hdr));
+	p->hdr->id = htons(id);
+	p->hdr->rd = 1;
+	p->hdr->opcode = XDNS_QUERY;
+	p->hdr->qdcount = 0;
 }
 
 int
 xdns_load(struct xdns *p, const void *packet, size_t len)
 {
-	if (len > sizeof(p->buf)) {
-		return -ENOBUFS;
-	}
-
-	memcpy(p->buf, packet, len);
+	p->buf = (uint8_t *)packet;
 	p->len = len;
+	p->max = len;
 	return 0;
 }
 
@@ -268,25 +260,35 @@ xdns_final(struct xdns *p)
 	(void)p;
 }
 
+uint16_t
+xdns_id(const struct xdns *p)
+{
+	return ntohs(p->hdr->id);
+}
+
 ssize_t
 xdns_add_query(struct xdns *p, const char *host, enum xdns_type type)
 {
-	if (p->hdr.ancount || p->hdr.nscount || p->hdr.arcount) {
+	if (p->hdr->ancount || p->hdr->nscount || p->hdr->arcount) {
 		return -EPERM;
 	}
 
 	struct xdns_query q;
 
-	ssize_t rc = encode_name(p, host, strnlen(host, 256), sizeof(q));
+	ssize_t rc = xdns_encode_name(
+			p->buf + p->len,
+			p->max - p->len - sizeof(q),
+			host);
 	if (rc < 0) { return rc; }
+	p->len += rc;
 
 	q.qtype = htons((uint16_t)type);
 	q.qclass = htons((uint16_t)XDNS_IN);
 
-	memcpy(tail(p), &q, sizeof(q));
+	memcpy(tail(p, sizeof(q)), &q, sizeof(q));
 	p->len += sizeof(q);
 
-	p->hdr.qdcount = htons(ntohs(p->hdr.qdcount) + 1);
+	p->hdr->qdcount = htons(ntohs(p->hdr->qdcount) + 1);
 	return p->len;
 }
 
@@ -294,20 +296,24 @@ ssize_t
 xdns_add_rr(struct xdns *p, const char *name, struct xdns_rr rr, const void *rdata)
 {
 	uint16_t rdlength = rr.rdlength;
-	ssize_t rc = encode_name(p, name, strnlen(name, 256), sizeof(rr) + rdlength);
+	ssize_t rc = xdns_encode_name(
+			p->buf + p->len,
+			p->max - p->len - sizeof(rr) - rdlength,
+			name);
 	if (rc < 0) { return rc; }
+	p->len += rc;
 
 	rr.rtype = htons(rr.rtype);
 	rr.rclass = htons(rr.rclass);
 	rr.ttl = htonl(rr.ttl);
 	rr.rdlength = htons(rr.rdlength);
 
-	memcpy(tail(p), &rr, sizeof(rr));
+	memcpy(tail(p, sizeof(rr)), &rr, sizeof(rr));
 	p->len += sizeof(rr);
-	memcpy(tail(p), rdata, rdlength);
+	memcpy(tail(p, rdlength), rdata, rdlength);
 	p->len += rdlength;
 
-	p->hdr.arcount = htons(ntohs(p->hdr.arcount) + 1);
+	p->hdr->arcount = htons(ntohs(p->hdr->arcount) + 1);
 	return p->len;
 }
 
@@ -328,41 +334,23 @@ xdns_add_opt(struct xdns *p, struct xdns_opt opt, const void *rdata)
 	return xdns_add_rr(p, ".", rr, rdata);
 }
 
-ssize_t
-xdns_send(const struct xdns *p, int s, struct sockaddr *addr, socklen_t len)
-{
-	ssize_t rc = sendto(s, p->buf, p->len, 0, addr, len);
-	return rc < 0 ? XERRNO : rc;
-}
-
-ssize_t
-xdns_recv(struct xdns *p, int s, struct sockaddr *addr, socklen_t *len)
-{
-	ssize_t rc = recvfrom(s, p->buf, sizeof(p->buf), 0, addr, len);
-	if (rc < 0) {
-		return XERRNO;
-	}
-	p->len = (size_t)rc;
-	return rc;
-}
-
 void
 xdns_iter_init(struct xdns_iter *i, const struct xdns *p)
 {
 	i->p = p;
-	i->hdr.id = ntohs(p->hdr.id);
-	i->hdr.qr = p->hdr.qr;
-	i->hdr.opcode = p->hdr.opcode;
-	i->hdr.aa = p->hdr.aa;
-	i->hdr.tc = p->hdr.tc;
-	i->hdr.rd = p->hdr.rd;
-	i->hdr.ra = p->hdr.ra;
-	i->hdr.rcode = p->hdr.rcode;
-	i->hdr.qdcount = ntohs(p->hdr.qdcount);
-	i->hdr.ancount = ntohs(p->hdr.ancount);
-	i->hdr.nscount = ntohs(p->hdr.nscount);
-	i->hdr.arcount = ntohs(p->hdr.arcount);
-	i->pos = sizeof(p->hdr);
+	i->hdr.id = ntohs(p->hdr->id);
+	i->hdr.qr = p->hdr->qr;
+	i->hdr.opcode = p->hdr->opcode;
+	i->hdr.aa = p->hdr->aa;
+	i->hdr.tc = p->hdr->tc;
+	i->hdr.rd = p->hdr->rd;
+	i->hdr.ra = p->hdr->ra;
+	i->hdr.rcode = p->hdr->rcode;
+	i->hdr.qdcount = ntohs(p->hdr->qdcount);
+	i->hdr.ancount = ntohs(p->hdr->ancount);
+	i->hdr.nscount = ntohs(p->hdr->nscount);
+	i->hdr.arcount = ntohs(p->hdr->arcount);
+	i->pos = sizeof(*p->hdr);
 	i->section = XDNS_S_QD;
 	i->at = 0;
 }
@@ -370,17 +358,19 @@ xdns_iter_init(struct xdns_iter *i, const struct xdns *p)
 int
 xdns_iter_next(struct xdns_iter *i)
 {
-	ssize_t pos = i->pos;
+	ssize_t pos = (ssize_t)i->pos;
 
 	for (; i->section <= XDNS_S_AR; i->at = 0, i->section++) {
 		if (i->at < i->hdr.counts[i->section]) {
+			size_t old = pos;
 			pos = read_name(i->p->buf, pos, i->p->len, i->name);
 			if (pos < 0) { return (int)pos; }
+			i->namelen = pos - old;
 			if (i->section == XDNS_S_QD) {
 				pos = read_query(i->p->buf, pos, i->p->len, &i->query);
 			}
 			else {
-				pos = read_rr(i->p->buf, pos, i->p->len, &i->rr, &i->rdata);
+				pos = read_rr(i->p->buf, pos, i->p->len, &i->res.rr, &i->res.rdata);
 			}
 			if (pos < 0) { return (int)pos; }
 			i->pos = pos;
@@ -390,5 +380,312 @@ xdns_iter_next(struct xdns_iter *i)
 	}
 
 	return XDNS_DONE;
+}
+
+enum xdns_type
+xdns_type(const char *name, bool other)
+{
+#define XX(n, code, desc) \
+	if (strncmp(name, #n, sizeof(#n)) == 0) { \
+		return code; \
+	}
+	XDNS_TYPE_MAP(XX)
+	if (other) {
+		XDNS_TYPE_OTHER_MAP(XX)
+	}
+#undef XX
+	return 0;
+}
+
+#define XX_NAME(name, code, desc) case code: return #name;
+#define XX_DESC(name, code, desc) case code: return desc;
+
+const char *
+xdns_section_name(enum xdns_section s)
+{
+	switch (s) { XDNS_SECTION_MAP(XX_NAME) }
+	return NULL;
+}
+
+const char *
+xdns_section_desc(enum xdns_section s)
+{
+	switch (s) { XDNS_SECTION_MAP(XX_DESC) }
+	return NULL;
+}
+
+
+const char *
+xdns_type_name(enum xdns_type t)
+{
+	switch (t) { XDNS_TYPE_MAP(XX_NAME) }
+	switch ((enum xdns_type_other)t) { XDNS_TYPE_OTHER_MAP(XX_NAME) }
+	return NULL;
+}
+
+const char *
+xdns_class_name(enum xdns_class c)
+{
+	switch (c) { XDNS_CLASS_MAP(XX_NAME) }
+	return NULL;
+}
+
+const char *
+xdns_opcode_name(enum xdns_opcode oc)
+{
+	switch (oc) { XDNS_OPCODE_MAP(XX_NAME) }
+	return NULL;
+}
+
+const char *
+xdns_rcode_name(enum xdns_rcode rc)
+{
+	switch (rc) { XDNS_RCODE_MAP(XX_NAME) }
+	return NULL;
+}
+
+#undef XX_NAME
+#undef XX_DESC
+
+static const char *bools[] = { "false", "true" };
+
+void
+xdns_print(const struct xdns *p, FILE *out)
+{
+	char buf[8192];
+	ssize_t n = xdns_json(p, buf, sizeof(buf));
+	if (n > 0) {
+		if (out == NULL) { out = stdout; }
+		fwrite(buf, 1, n, out);
+	}
+}
+
+#define fmt(...) do { \
+	int n = snprintf(buf, len, __VA_ARGS__); \
+	if (n < 0) { return -errno; } \
+	if ((size_t)n > len) { return -ENOBUFS; } \
+	buf += n; \
+	len -= (size_t)n; \
+} while (0)
+
+ssize_t
+xdns_json(const struct xdns *p, char *buf, size_t len)
+{
+	if (p == NULL || buf == NULL) { return -EINVAL; }
+
+	char *start = buf;
+
+	fmt("{\n"
+		"  \"header\": {\n"
+		"    \"id\": %u,\n"
+		"    \"opcode\": \"%s\",\n"
+		"    \"status\": \"%s\",\n"
+		"    \"qr\": %u,\n"
+		"    \"aa\": %s,\n"
+		"    \"tc\": %s,\n"
+		"    \"rd\": %s,\n"
+		"    \"ra\": %s,\n"
+		"    \"qdcount\": %u,\n"
+		"    \"nscount\": %u,\n"
+		"    \"ancount\": %u,\n"
+		"    \"arcount\": %u\n"
+		"  },\n",
+		ntohs(p->hdr->id),
+		xdns_opcode_name(p->hdr->opcode),
+		xdns_rcode_name(p->hdr->rcode),
+		p->hdr->qr,
+		bools[p->hdr->aa],
+		bools[p->hdr->tc],
+		bools[p->hdr->rd],
+		bools[p->hdr->ra],
+		ntohs(p->hdr->qdcount),
+		ntohs(p->hdr->ancount),
+		ntohs(p->hdr->nscount),
+		ntohs(p->hdr->arcount));
+
+	struct xdns_iter iter;
+	xdns_iter_init(&iter, p);
+
+	int section = 0;
+	int index;
+
+	while (xdns_iter_next(&iter) == 0) {
+		if (iter.at == 1) {
+			if (section++ > 0) {
+				fmt("    }\n  ],\n");
+			}
+			fmt("  \"%s\": [\n    {\n", xdns_section_desc(iter.section));
+			index = 0;
+		}
+		if (index++ > 0) {
+			fmt("    },\n    {\n");
+		}
+		if (iter.section == XDNS_S_QD) {
+			fmt("      \"qname\": \"%s\",\n"
+				"      \"qtype\": \"%s\",\n"
+				"      \"qclass\": \"%s\"\n",
+				iter.name,
+				xdns_type_name(iter.query.qtype),
+				xdns_class_name(iter.query.qclass));
+		}
+		else if (iter.res.rr.rtype == XDNS_OPT) {
+			fmt("      \"name\": \".\",\n"
+				"      \"type\": \"OPT\",\n"
+				"      \"udpmax\": %u,\n"
+				"      \"version\": %u,\n"
+				"      \"do\": %s\n",
+				iter.res.opt.udpmax,
+				iter.res.opt.version,
+				bools[iter.res.opt.dof]);
+		}
+		else {
+			fmt("      \"name\": \"%s\",", iter.name);
+			ssize_t n = xdns_res_json(&iter.res, buf, len);
+			if (n < 0) { return n; }
+			buf += n;
+			buf -= n;
+		}
+	}
+
+	fmt("    }\n  ]\n}\n");
+
+	return buf - start;
+}
+
+ssize_t
+xdns_res_json(const struct xdns_res *res, char *buf, size_t len)
+{
+	char *start = buf;
+	char tmp[256];
+
+	fmt("      \"type\": \"%s\",\n"
+		"      \"class\": \"%s\",\n"
+		"      \"ttl\": %d",
+			xdns_type_name(res->rr.rtype),
+			xdns_class_name(res->rr.rclass),
+			res->rr.ttl);
+	switch (res->rr.rtype) {
+	case XDNS_A:
+		fmt(",\n      \"a\": \"%s\"\n",
+				inet_ntop(AF_INET, &res->rdata.a, tmp, sizeof(tmp)));
+		break;
+	case XDNS_NS:
+		fmt(",\n      \"ns\": \"%s\"\n",
+				res->rdata.ns);
+		break;
+	case XDNS_CNAME:
+		fmt(",\n      \"cname\": \"%s\"\n",
+				res->rdata.cname);
+		break;
+	case XDNS_SOA:
+		fmt(",\n"
+			"      \"mname\": \"%s\",\n"
+			"      \"rname\": \"%s\",\n"
+			"      \"serial\": %u,\n"
+			"      \"refresh\": %u,\n"
+			"      \"retry\": %u,\n"
+			"      \"expire\": %u,\n"
+			"      \"minimum\": %u\n",
+			res->rdata.soa.mname,
+			res->rdata.soa.rname,
+			res->rdata.soa.serial,
+			res->rdata.soa.refresh,
+			res->rdata.soa.retry,
+			res->rdata.soa.expire,
+			res->rdata.soa.minimum);
+		break;
+	case XDNS_PTR:
+		fmt(",\n      \"ptr\": \"%s\"\n",
+			res->rdata.ptr);
+		break;
+	case XDNS_MX:
+		fmt(",\n"
+			"      \"preference\": %u,\n"
+			"      \"host\": \"%s\"\n",
+			res->rdata.mx.preference,
+			res->rdata.mx.host);
+		break;
+	case XDNS_TXT:
+		fmt(",\n      \"txt\": \"%.*s\"\n",
+			(int)res->rdata.txt.length, res->rdata.txt.data);
+		break;
+	case XDNS_AAAA:
+		fmt(",\n      \"aaaa\": \"%s\"\n",
+			inet_ntop(AF_INET6, &res->rdata.aaaa, tmp, sizeof(tmp)));
+		break;
+	case XDNS_SRV:
+		fmt(",\n"
+			"      \"priority\": %u,\n"
+			"      \"weight\": %u,\n"
+			"      \"port\": %u,\n"
+			"      \"target\": \"%s\"\n",
+			res->rdata.srv.priority,
+			res->rdata.srv.weight,
+			res->rdata.srv.port,
+			res->rdata.srv.target);
+		break;
+	case XDNS_OPT:
+	case XDNS_ANY:
+		break;
+	}
+	fmt("\n");
+
+	return buf - start;
+}
+
+#define RDATA_SIZE(f) \
+	(sizeof(((union xdns_rdata *)0)->f))
+
+static int
+copy_field(struct xdns_res **dst, const struct xdns_res *src, size_t field_size)
+{
+	struct xdns_res *r = malloc(offsetof(struct xdns_res, rdata) + field_size);
+	if (r == NULL) { return XERRNO; }
+	memcpy(&r->rr, &src->rr, sizeof(src->rr));
+	memcpy(&r->rdata, &src->rdata, field_size);
+	*dst = r;
+	return 0;
+}
+
+static int
+copy_txt(struct xdns_res **dst, const struct xdns_res *src)
+{
+	size_t base = offsetof(struct xdns_res, rdata) + RDATA_SIZE(txt);
+	struct xdns_res *r = malloc(base + src->rdata.txt.length + 1);
+	if (r == NULL) { return XERRNO; }
+	uint8_t *data = ((uint8_t *)r) + base;
+	memcpy(&r->rr, &src->rr, sizeof(src->rr));
+	memcpy(data, src->rdata.txt.data, src->rdata.txt.length);
+	data[src->rdata.txt.length] = 0;
+	r->rdata.txt.data = data;
+	r->rdata.txt.length = src->rdata.txt.length;
+	*dst = r;
+	return 0;
+}
+
+int
+xdns_res_copy(struct xdns_res **dst, const struct xdns_res *src)
+{
+	switch (src->rr.rtype) {
+	case XDNS_A:     return copy_field(dst, src, RDATA_SIZE(a));
+	case XDNS_NS:    return copy_field(dst, src, RDATA_SIZE(ns));
+	case XDNS_CNAME: return copy_field(dst, src, RDATA_SIZE(cname));
+	case XDNS_SOA:   return copy_field(dst, src, RDATA_SIZE(soa));
+	case XDNS_PTR:   return copy_field(dst, src, RDATA_SIZE(ptr));
+	case XDNS_MX:    return copy_field(dst, src, RDATA_SIZE(mx));
+	case XDNS_AAAA:  return copy_field(dst, src, RDATA_SIZE(aaaa));
+	case XDNS_SRV:   return copy_field(dst, src, RDATA_SIZE(srv));
+	case XDNS_TXT:   return copy_txt(dst, src);
+	default:         return XESYS(ENOTSUP);
+	}
+}
+
+void xdns_res_free(struct xdns_res **res)
+{
+	struct xdns_res *r = *res;
+	if (r != NULL) {
+		*res = NULL;
+		free(r);
+	}
 }
 

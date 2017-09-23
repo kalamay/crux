@@ -10,6 +10,17 @@
 #   BUILD: either "release" (default) or "debug"
 #   BUILD_ROOT: directory to build in (default "build")
 #
+#   By default, all features are compiled. To cherry pick features, define
+#   any of these values as 0. Some features have dependencies and will be
+#   implicitly disabled if the dependencies are not enabled:
+#
+#   WITH_POLL: include the poller
+#   WITH_TASK: include coroutines
+#   WITH_HUB: include the hub (requires poll and task)
+#   WITH_HTTP: include the http parser
+#   WITH_DNS: include the dns parser and data structures
+#   WITH_RESOLV: include the dns resolver (requires hub and dns)
+#
 #   EXECINFO: 1 or 0 to override enabling or disabling execinfo
 #   EXECINFO_H: location of execinfo.h
 #   EXECINFO_LIB: location of the execinfo library
@@ -27,6 +38,19 @@
 #   LDFLAGS: override for final linker flags
 
 -include Custom.mk
+
+WITH_POLL?=1
+WITH_TASK?=1
+WITH_HUB?=1
+WITH_HTTP?=1
+WITH_DNS?=1
+WITH_RESOLV?=1
+ifneq ($(WITH_POLL)$(WITH_TASK),11)
+ WITH_HUB:=0
+endif
+ifneq ($(WITH_HUB)$(WITH_DNS),11)
+ WITH_RESOLV=0
+endif
 
 PREFIX?=/usr/local
 DESTDIR?=
@@ -100,40 +124,29 @@ SRC:= \
 	src/base.c \
 	src/map.c \
 	src/heap.c \
-	src/task.c \
-	src/poll.c \
-	src/hub.c \
 	src/hash.c \
-	src/http.c \
-	src/dns.c
+	src/buf.c
 
 # list of header files to include in build
 INCLUDE:= \
 	include/crux.h \
+	include/crux/version.h \
 	include/crux/clock.h \
 	include/crux/ctx.h \
 	include/crux/def.h \
 	include/crux/err.h \
-	include/crux/heap.h \
-	include/crux/hub.h \
-	include/crux/list.h \
-	include/crux/poll.h \
-	include/crux/task.h \
-	include/crux/version.h \
 	include/crux/rand.h \
 	include/crux/seed.h \
+	include/crux/list.h \
 	include/crux/vec.h \
+	include/crux/heap.h \
 	include/crux/hash.h \
 	include/crux/hashtier.h \
 	include/crux/hashmap.h \
-	include/crux/map.h \
-	include/crux/http.h \
-	include/crux/dns.h
+	include/crux/map.h
 
 # list of manual pages
-MAN:= \
-	man/crux-task.3 \
-	man/crux-hub.3
+MAN:=
 
 # list of source files for testing
 TEST:= \
@@ -145,10 +158,39 @@ TEST:= \
 	test/hashmap.c \
 	test/map.c \
 	test/heap.c \
-	test/hub.c \
-	test/poll.c \
-	test/task.c \
-	test/dns.c
+	test/buf.c
+
+ifeq ($(WITH_POLL),1)
+ SRC:=$(SRC) src/poll.c
+ INCLUDE:=$(INCLUDE) include/crux/poll.h
+ TEST:=$(TEST) test/poll.c
+endif
+ifeq ($(WITH_TASK),1)
+ SRC:=$(SRC) src/task.c
+ INCLUDE:=$(INCLUDE) include/crux/task.h
+ MAN:= $(MAN) man/crux-task.3
+ TEST:=$(TEST) test/task.c
+endif
+ifeq ($(WITH_HUB),1)
+ SRC:=$(SRC) src/hub.c
+ INCLUDE:=$(INCLUDE) include/crux/hub.h
+ MAN:= $(MAN) man/crux-hub.3
+ TEST:=$(TEST) test/hub.c
+endif
+ifeq ($(WITH_HTTP),1)
+ SRC:=$(SRC) src/http.c
+ INCLUDE:=$(INCLUDE) include/crux/http.h
+endif
+ifeq ($(WITH_DNS),1)
+ SRC:=$(SRC) src/dns.c src/dnsc.c
+ INCLUDE:=$(INCLUDE) include/crux/dns.h include/crux/dnsc.h
+ TEST:=$(TEST) test/dns.c
+endif
+ifeq ($(WITH_RESOLV),1)
+ SRC:=$(SRC) src/resolv.c
+ INCLUDE:=$(INCLUDE) include/crux/resolv.h
+ TEST:=$(TEST) test/resolv.c
+endif
 
 # list of files to install
 INSTALL:= \
@@ -252,11 +294,17 @@ $(BUILD_TMP)/crux-test-%.o: test/%.c Makefile | $(BUILD_TMP)
 $(BUILD_LIB) $(BUILD_INCLUDE)/crux $(BUILD_MAN) $(BUILD_TMP):
 	mkdir -p $@
 
+show-files:
+	@echo "SRC: $(SRC)\n" | tr ' ' '\n'
+	@echo "INCLUDE: $(INCLUDE)\n" | tr ' ' '\n'
+	@echo "TEST: $(TEST)\n" | tr ' ' '\n'
+	@echo "MAN: $(MAN)\n" | tr ' ' '\n'
+
 # removes the build directory
 clean:
 	rm -rf $(BUILD_ROOT)
 
-.PHONY: all test static dynamic include man install uninstall clean
+.PHONY: all test static dynamic include man install uninstall show-files clean
 .PRECIOUS: $(SRC_OBJ) $(TEST_OBJ) $(INCLUDE_OUT) $(MAN_OUT)
 
 # include compiler-build dependency files
