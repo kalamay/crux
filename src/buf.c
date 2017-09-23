@@ -34,7 +34,7 @@ xbuf_free(struct xbuf **bufp)
 	if (buf == NULL) { return; }
 	*bufp = NULL;
 	if (buf->map) {
-		munmap(buf->map, buf->cap);
+		munmap(buf->map, buf->cap + XBUF_REDZONE);
 	}
 	free(buf);
 }
@@ -64,44 +64,45 @@ xbuf_capacity(const struct xbuf *buf)
 }
 
 int
-xbuf_resize(struct xbuf *buf, size_t cap)
+xbuf_resize(struct xbuf *buf, size_t hint)
 {
 	size_t len = XBUF_LENGTH(buf);
 
-	if (cap <= buf->cap) {
+	if (hint <= buf->cap) {
 		if (len == 0) {
 			xbuf_reset(buf);
 		}
-		else if (XBUF_CAPACITY(buf) < cap) {
+		else if (XBUF_CAPACITY(buf) < hint) {
 			xbuf_compact(buf);
 		}
 		return 0;
 	}
 
-	cap = ((cap + PAGESIZE - 1) / PAGESIZE) * PAGESIZE;
+	hint = ((hint + XBUF_REDZONE + PAGESIZE - 1) / PAGESIZE) * PAGESIZE;
 
 	uint8_t *old = buf->map;
 	uint8_t *map = MAP_FAILED;
 	if (old != NULL) {
 #ifdef MREMAP_MAYMOVE
-		map = mremap(old, buf->cap, cap, MREMAP_MAYMOVE);
+		map = mremap(old, buf->cap, hint, MREMAP_MAYMOVE);
 #else
-		map = mmap(old + buf->cap, cap - buf->cap,
+		map = mmap(old + buf->cap, hint - buf->cap,
 				PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON|MAP_FIXED, -1, 0);
 #endif
 	}
 	if (map == MAP_FAILED) {
-		map = mmap(NULL, cap, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+		map = mmap(NULL, hint, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (map == MAP_FAILED) { return XERRNO; }
 		memcpy(map, buf->rd, len);
 		if (old) {
-			munmap(old, buf->cap);
+			munmap(old, buf->cap + XBUF_REDZONE);
 		}
 		buf->wr = map + len;
 		buf->map = buf->rd = map;
 	}
 
-	buf->cap = cap;
+	buf->cap = hint - XBUF_REDZONE;
+	printf("hint = %zu, cap = %zu\n", hint, buf->cap);
 	return 0;
 }
 

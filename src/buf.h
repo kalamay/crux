@@ -7,12 +7,14 @@ struct xbuf {
 	size_t cap;    /**< Byte size of #map **/
 };
 
+#define XBUF_REDZONE 64
+
 #define XBUF_INIT { NULL, NULL, NULL, 0 }
 
 #define XBUF_READ_OFFSET(b) ((b)->rd - (b)->map)
 #define XBUF_WRITE_OFFSET(b) ((b)->wr - (b)->map)
 #define XBUF_LENGTH(b) ((b)->wr - (b)->rd)
-#define XBUF_CAPACITY(b) ((b)->cap - ((b)->wr - (b)->map))
+#define XBUF_CAPACITY(b) ((b)->cap - XBUF_WRITE_OFFSET(b))
 
 XEXTERN int
 xbuf_init(struct xbuf *buf, size_t cap);
