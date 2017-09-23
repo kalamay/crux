@@ -24,7 +24,7 @@ int
 xbuf_init(struct xbuf *buf, size_t cap)
 {
 	*buf = (struct xbuf)XBUF_INIT;
-	return xbuf_resize(buf, cap);
+	return xbuf_ensure(buf, cap);
 }
 
 void
@@ -34,7 +34,7 @@ xbuf_free(struct xbuf **bufp)
 	if (buf == NULL) { return; }
 	*bufp = NULL;
 	if (buf->map) {
-		munmap(buf->map, buf->cap + XBUF_REDZONE);
+		munmap(buf->map, XBUF_MAPSIZE(buf));
 	}
 	free(buf);
 }
@@ -64,52 +64,58 @@ xbuf_capacity(const struct xbuf *buf)
 }
 
 int
-xbuf_resize(struct xbuf *buf, size_t hint)
+xbuf_ensure(struct xbuf *buf, size_t hint)
 {
 	size_t len = XBUF_LENGTH(buf);
+	hint += len;
 
 	if (hint <= buf->cap) {
 		if (len == 0) {
 			xbuf_reset(buf);
+			return 0;
 		}
-		else if (XBUF_CAPACITY(buf) < hint) {
+		if (XBUF_CAPACITY(buf) >= hint) {
+			return 0;
+		}
+		if (len <= XBUF_MAX_COMPACT) {
 			xbuf_compact(buf);
+			return 0;
 		}
-		return 0;
 	}
 
-	hint = ((hint + XBUF_REDZONE + PAGESIZE - 1) / PAGESIZE) * PAGESIZE;
+	size_t off = XBUF_READ_OFFSET(buf);
+	size_t size = XBUF_HINT(hint + off);
 
 	uint8_t *old = buf->map;
 	uint8_t *map = MAP_FAILED;
 	if (old != NULL) {
+#if XBUF_REDZONE == PAGESIZE
+		mprotect(old + buf->cap, PAGESIZE, PROT_READ|PROT_WRITE);
+#endif
 #ifdef MREMAP_MAYMOVE
-		map = mremap(old, buf->cap, hint, MREMAP_MAYMOVE);
+		map = mremap(old, XBUF_MAPSIZE(buf), size, MREMAP_MAYMOVE);
 #else
-		map = mmap(old + buf->cap, hint - buf->cap,
+		map = mmap(old + XBUF_MAPSIZE(buf), size - XBUF_MAPSIZE(buf),
 				PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON|MAP_FIXED, -1, 0);
 #endif
 	}
 	if (map == MAP_FAILED) {
-		map = mmap(NULL, hint, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+		size = XBUF_HINT(hint);
+		map = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (map == MAP_FAILED) { return XERRNO; }
 		memcpy(map, buf->rd, len);
 		if (old) {
-			munmap(old, buf->cap + XBUF_REDZONE);
+			munmap(old, XBUF_MAPSIZE(buf));
 		}
 		buf->wr = map + len;
 		buf->map = buf->rd = map;
 	}
 
-	buf->cap = hint - XBUF_REDZONE;
-	printf("hint = %zu, cap = %zu\n", hint, buf->cap);
+	buf->cap = size - XBUF_REDZONE;
+#if XBUF_REDZONE == PAGESIZE
+	mprotect(buf->map + buf->cap, PAGESIZE, PROT_READ);
+#endif
 	return 0;
-}
-
-int
-xbuf_ensure(struct xbuf *buf, size_t len)
-{
-	return xbuf_resize(buf, XBUF_LENGTH(buf) + len);
 }
 
 int
@@ -133,7 +139,21 @@ xbuf_trim(struct xbuf *buf, size_t len)
 {
 	size_t max = XBUF_LENGTH(buf);
 	if (len > max) { return XESYS(ERANGE); }
-	buf->rd += len;
+
+	size_t off = XBUF_READ_OFFSET(buf) + len;
+	buf->rd = buf->map + off;
+
+	ssize_t trim = (off) / PAGESIZE * PAGESIZE;
+	if (trim > 0) {
+		ssize_t size = (ssize_t)XBUF_MAPSIZE(buf) - trim;
+		if (size < XBUF_MAX_COMPACT) {
+			trim -= XBUF_MAX_COMPACT - size;
+		}
+		if (trim > 0 && munmap(buf->map, trim) == 0) {
+			buf->map += trim;
+			buf->cap -= trim;
+		}
+	}
 	return 0;
 }
 
@@ -188,8 +208,8 @@ xbuf_print(const struct xbuf *buf, FILE *out)
 		"                                "
 		"                                ";
 	const uint8_t *p = buf->rd;
-	ssize_t start = buf->map - buf->rd;
-	ssize_t end = xbuf_length(buf) - 1;
+	ssize_t start = -XBUF_READ_OFFSET(buf);
+	ssize_t end = XBUF_LENGTH(buf) - 1;
 	ssize_t mark;
 	int tty = isatty(fileno(out));
 

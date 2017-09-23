@@ -26,9 +26,6 @@ XEXTERN size_t
 xbuf_capacity(const struct xbuf *buf);
 
 XEXTERN int
-xbuf_resize(struct xbuf *buf, size_t cap);
-
-XEXTERN int
 xbuf_ensure(struct xbuf *buf, size_t len);
 
 XEXTERN int
