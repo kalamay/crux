@@ -140,18 +140,23 @@ xbuf_trim(struct xbuf *buf, size_t len)
 	size_t max = XBUF_LENGTH(buf);
 	if (len > max) { return XESYS(ERANGE); }
 
-	size_t off = XBUF_READ_OFFSET(buf) + len;
-	buf->rd = buf->map + off;
+	if (len == max) {
+		xbuf_reset(buf);
+	}
+	else {
+		size_t off = XBUF_READ_OFFSET(buf) + len;
+		buf->rd = buf->map + off;
 
-	ssize_t trim = (off) / PAGESIZE * PAGESIZE;
-	if (trim > 0) {
-		ssize_t size = (ssize_t)XBUF_MAPSIZE(buf) - trim;
-		if (size < XBUF_MIN_TRIM) {
-			trim -= XBUF_MIN_TRIM - size;
-		}
-		if (trim > 0 && munmap(buf->map, trim) == 0) {
-			buf->map += trim;
-			buf->cap -= trim;
+		ssize_t trim = (off) / PAGESIZE * PAGESIZE;
+		if (trim > 0) {
+			ssize_t size = (ssize_t)XBUF_MAPSIZE(buf) - trim;
+			if (size < XBUF_MIN_TRIM) {
+				trim -= XBUF_MIN_TRIM - size;
+			}
+			if (trim > 0 && munmap(buf->map, trim) == 0) {
+				buf->map += trim;
+				buf->cap -= trim;
+			}
 		}
 	}
 	return 0;
