@@ -146,8 +146,8 @@ xbuf_trim(struct xbuf *buf, size_t len)
 	ssize_t trim = (off) / PAGESIZE * PAGESIZE;
 	if (trim > 0) {
 		ssize_t size = (ssize_t)XBUF_MAPSIZE(buf) - trim;
-		if (size < XBUF_MAX_COMPACT) {
-			trim -= XBUF_MAX_COMPACT - size;
+		if (size < XBUF_MIN_TRIM) {
+			trim -= XBUF_MIN_TRIM - size;
 		}
 		if (trim > 0 && munmap(buf->map, trim) == 0) {
 			buf->map += trim;
