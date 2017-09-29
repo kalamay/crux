@@ -59,50 +59,74 @@ static union xseed SEED_DEFAULT = {
 const union xseed *const XSEED_RANDOM = &SEED_RANDOM;
 const union xseed *const XSEED_DEFAULT = &SEED_DEFAULT;
 
+#if !HAS_GETRANDOM && !HAS_ARC4
+
+# ifdef S_ISNAM
+#  define IS_RAND_MODE(mode) (S_ISNAM(mode) || S_ISCHR(mode))
+# else
+#  define IS_RAND_MODE(mode) (S_ISCHR(mode))
+# endif
+
+# if defined(__linux__)
+#  define IS_RAND_DEVICE(dev) ((dev) == makedev(1, 9))
+# elif defined(__APPLE__)
+#  define IS_RAND_DEVICE(dev) ((dev) == makedev(14, 1))
+# elif defined(__FreeBSD__)
+#  define IS_RAND_DEVICE(dev) ((dev) == makedev(0, 10))
+# elif defined(__DragonFly__)
+#  define IS_RAND_DEVICE(dev) ((dev) == makedev(8, 4))
+# elif defined(__NetBSD__)
+#  define IS_RAND_DEVICE(dev) ((dev) == makedev(46, 1))
+# elif defined(__OpenBSD__)
+#  define IS_RAND_DEVICE(dev) ((dev) == makedev(45, 2))
+# else
+#  define IS_RAND_DEVICE(dev) 1
+# endif
+
+# define IS_RAND(st) (IS_RAND_MODE((st).st_mode) && IS_RAND_DEVICE((st).st_rdev))
+
+static int
+random_verify(int fd)
+{
+	struct stat st;
+	if (fstat(fd, &st) < 0) { return XERRNO; }
+	if (!IS_RAND(st)) { return XESYS(EBADF); }
+	return 0;
+}
+
+static int
+random_open(void)
+{
+	int fd, err;
+	for (;;) {
+		fd = open("/dev/urandom", O_RDONLY|O_CLOEXEC);
+		if (fd >= 0) {
+			err = random_verify(fd);
+			if (err == 0) { return fd; }
+			close(fd);
+		}
+		else {
+			err = XERRNO;
+		}
+		if (err != XESYS(EINTR)) {
+			return err;
+		}
+	}
+}
+#endif
+
 int
 xinit(void)
 {
 #if HAS_MACH_TIME
 	(void)mach_timebase_info(&info);
 #endif
-
 #if !HAS_GETRANDOM && !HAS_ARC4
+	int fd = random_open();
+	if (fd < 0) { return fd; }
 	if (randfd >= 0) { close(randfd); }
-
-	while (1) {
-		randfd = open("/dev/urandom", O_RDONLY);
-		if (randfd >= 0) {
-			break;
-		}
-		int rc = XERRNO;
-		if (rc != XESYS(EINTR)) {
-			fprintf(stderr, "[cux:init:error failed to open /dev/urandom: %s", xerr_str(rc));
-			return rc;
-		}
-	}
-
-	// stat the randfd so it can be verified
-	struct stat sbuf;
-	if (fstat(randfd, &sbuf) < 0) {
-		int rc = XERRNO;
-		fprintf(stderr, "[crux:init:error] failed to stat /dev/urandom: %s", xerr_str(rc));
-		close(randfd);
-		randfd = -1;
-		return rc;
-	}
-
-	// check that it is a char special
-	if (!S_ISCHR(sbuf.st_mode) ||
-			// verify that the device is /dev/random or /dev/urandom (linux only)
-			(sbuf.st_rdev != makedev(1, 8) && sbuf.st_rdev != makedev(1, 9))) {
-		int rc = XESYS(ENODEV);
-		fprintf(stderr, "[crux:init:error] /dev/urandom is an invalid device");
-		close(randfd);
-		randfd = -1;
-		return rc;
-	}
+	randfd = fd;
 #endif
-
 	return xrand(&SEED_RANDOM, sizeof(SEED_RANDOM));
 }
 
