@@ -936,6 +936,8 @@ possible errors.
 #include <unistd.h>
 #include <crux.h>
 
+static int sock = -1;
+
 static void
 doclose(void *data)
 {
@@ -945,7 +947,7 @@ doclose(void *data)
 static void
 connection(struct xhub *h, void *data)
 {
-	int fd = (int)(uintptr_t)data;
+	int fd = (int)(intptr_t)data;
 	xdefer(doclose, data);
 
 	char buf[1024];
@@ -960,40 +962,44 @@ server(struct xhub *h, void *data)
 {
 	struct sockaddr_in dest = {
 		.sin_family = AF_INET,
-		.sin_port = htons (3333),
+		.sin_port = htons(3333),
 		.sin_addr.s_addr = 0
 	};
 
-	int s = xcheck(xsocket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
-	xcheck_errno(bind(s, (struct sockaddr *)&dest, sizeof(dest)));
-	xcheck_errno(listen(s, 1024));
-	xdefer(doclose, (void *)(uintptr_t)s);
+	sock = xcheck(xsocket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+	xcheck_errno(bind(sock, (struct sockaddr *)&dest, sizeof(dest)));
+	xcheck_errno(listen(sock, 1024));
 
 	printf("[%d] listening on stream://%s:%d\\n",
 			getpid(), inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
 
-	while (1) {
+	int conns = 0;
+
+	for (;;) {
 		struct sockaddr_in addr;
 		socklen_t len = sizeof(addr);
-		int fd = xaccept(s, (struct sockaddr *)&addr, &len, -1);
-		if (fd >= 0) {
-			printf("[%d] accepted from stream://%s:%d\\n",
-					getpid(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-			xspawn(h, connection, (void *)(uintptr_t)fd);
-		}
-		else {
-			printf("[%d] failed to accept: %s\\n", getpid(), xerr_str(fd));
-			xhub_stop(h);
-			break;
-		}
+		int fd = xcheck(xaccept(sock, (struct sockaddr *)&addr, &len, -1));
+		printf("[%d] accepted from stream://%s:%d\\n",
+				getpid(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+		xspawn(h, connection, (void *)(uintptr_t)fd);
 	}
 }
 
 static void
-stop(struct xhub *h, void *data)
+intr(struct xhub *h, void *data)
 {
-	xsignal(SIGINT, -1);
+	xsignal(SIGINT, XTIMEOUT_DETACH);
+	printf("[%d] stopping\\n", getpid());
 	xhub_stop(h);
+}
+
+static void
+term(struct xhub *h, void *data)
+{
+	xsignal(SIGTERM, XTIMEOUT_DETACH);
+	printf("[%d] terminating\\n", getpid());
+	xclose(sock);
+	sock = -1;
 }
 
 int
@@ -1001,11 +1007,11 @@ main(void)
 {
 	struct xhub *hub;
 	xcheck(xhub_new(&hub));
-	xspawn(hub, stop, NULL);
+	xspawn(hub, intr, NULL);
+	xspawn(hub, term, NULL);
 	xspawn(hub, server, NULL);
 	xhub_run(hub);
 	xhub_free(&hub);
 	return 0;
 }
-
 .fi
