@@ -75,7 +75,7 @@ will be \fBNULL\fR.
 .P
 .nf
 \fBint\fR
-\fBxhub_run\fR(\fBstruct xhub \fR**\fIhup\fR);
+\fBxhub_run\fR(\fBstruct xhub \fR*\fIhup\fR);
 .fi
 .RS
 Runs the hub until all task are complete.
@@ -98,7 +98,7 @@ An error occurred and -\fBerrno\fR was returned by the system polling functon.
 .P
 .nf
 \fBvoid\fR
-\fBxhub_stop\fR(\fBstruct xhub \fR**\fIhup\fR);
+\fBxhub_stop\fR(\fBstruct xhub \fR*\fIhup\fR);
 .fi
 .RS
 Schedules the hub to stop after regaining context from the active task. All
