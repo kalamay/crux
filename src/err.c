@@ -2,6 +2,10 @@
 
 #include "config.h"
 
+#if WITH_HUB
+# include "../include/crux/hub.h"
+#endif
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -166,22 +170,26 @@ xerr_str(int code)
 }
 
 static void
-stack_abort(FILE *out)
+stack_abort(void)
 {
-	fflush(out);
+#if WITH_HUB
+	xabort();
+#else
 #if HAS_EXECINFO
 	void *calls[32];
 	int frames = backtrace(calls, xlen(calls));
-	backtrace_symbols_fd(calls, frames, fileno(out));
+	backtrace_symbols_fd(calls, frames, STDERR_FILENO);
 #endif
+	fflush(stderr);
 	abort();
+#endif
 }
 
 void
 xerr_abort(int code)
 {
 	fprintf(stderr, "%s\n", xerr_str(code));
-	stack_abort(stderr);
+	stack_abort();
 }
 
 void
@@ -195,5 +203,5 @@ xerr_fabort(int code, const char *fmt, ...)
 		fprintf(stderr, ": %s", xerr_str(code));
 	}
 	fputc('\n', stderr);
-	stack_abort(stderr);
+	stack_abort();
 }
