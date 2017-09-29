@@ -320,6 +320,28 @@ Problem with copying information from user space.
 
 .P
 .nf
+\fB#define XTIMEOUT_NONE\fR
+.fi
+.RS
+A constant to indicate no timeout period. For functions accepting a timeout,
+this value indicates that no timeout should be applied. In this case, the
+desired event will be polled indefinitely.
+.RE
+
+.P
+.nf
+\fB#define XTIMEOUT_DETACH\fR
+.fi
+.RS
+A constant to indicate a detached timeout period. The detached timeout period
+is an indeterminate time that is reached when no tasks are scheduled in the hub
+that aren't themselves waiting for a detached timeout. That is, this timeout is
+reached when all non-detached timeout tasks have been removed from the hub.
+This is useful for constructing loosely bound tasks such as signal handlers.
+.RE
+
+.P
+.nf
 \fBint\fR
 \fBxsignal\fR(\fBint \fIsignum\fR, \fBint \fIms\fR);
 .fi

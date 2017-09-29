@@ -24,6 +24,8 @@ struct xhub {
 	struct xlist immediate;
 	struct xlist polled;
 	struct xlist closed;
+	unsigned npolled;
+	unsigned ndetached;
 	bool running;
 };
 
@@ -37,6 +39,7 @@ struct xhub_entry {
 	struct xhub *hub;
 	void (*fn)(struct xhub *, void *);
 	int poll_id, poll_type;
+	bool detached;
 };
 
 static thread_local struct xhub *active_hub = NULL;
@@ -64,6 +67,7 @@ schedule_timeout(struct xhub_entry *ent, int ms)
 	struct xhub *h = ent->hub;
 	// TODO: make prio milliseconds?
 	ent->hent.prio = X_MSEC_TO_NSEC((int64_t)ms) + XCLOCK_NSEC(&h->poll.clock);
+	ent->detached = false;
 	int rc = xheap_add(&h->timeout, &ent->hent);
 	return rc < 0 ? rc : 0;
 }
@@ -74,6 +78,7 @@ schedule_poll(struct xhub_entry *ent, int id, int type, int timeoutms)
 	int rc;
 	if (timeoutms < 0) {
 		ent->hent.key = XHEAP_NONE;
+		ent->detached = timeoutms == XTIMEOUT_DETACH;
 	}
 	else {
 		rc = schedule_timeout(ent, timeoutms);
@@ -88,9 +93,24 @@ schedule_poll(struct xhub_entry *ent, int id, int type, int timeoutms)
 	}
 
 	xlist_add(&ent->hub->polled, &ent->lent, X_ASCENDING);
+	ent->hub->npolled++;
+	if (ent->detached) {
+		ent->hub->ndetached++;
+	}
 	ent->poll_id = id;
 	ent->poll_type = type;
 	return 0;
+}
+
+static void
+uncount_poll(struct xhub_entry *ent)
+{
+	assert(ent->hub->npolled > 0);
+	ent->hub->npolled--;
+	if (ent->detached) {
+		assert(ent->hub->ndetached > 0);
+		ent->hub->ndetached--;
+	}
 }
 
 static void
@@ -98,6 +118,7 @@ unschedule(struct xhub_entry *ent)
 {
 	if (ent->poll_type) {
 		xpoll_ctl(&ent->hub->poll, XPOLL_DEL, ent->poll_type, ent->poll_id, NULL);
+		uncount_poll(ent);
 		ent->poll_type = 0;
 	}
 
@@ -147,6 +168,8 @@ xhub_new(struct xhub **hubp)
 	xlist_init(&hub->immediate);
 	xlist_init(&hub->polled);
 	xlist_init(&hub->closed);
+	hub->ndetached = 0;
+	hub->npolled = 0;
 	hub->running = false;
 
 	*hubp = hub;
@@ -177,9 +200,11 @@ xhub_free(struct xhub **hubp)
 
 	struct xhub *hub = *hubp;
 	if (hub != NULL) {
+		struct xhub_entry *ent = active_entry;
+		if (ent && ent->hub == hub) { return; }
+
 		*hubp = NULL;
 
-		struct xhub_entry *ent;
 		struct xlist *lent;
 
 		xlist_each(&hub->immediate, lent, X_ASCENDING) {
@@ -237,6 +262,12 @@ run_once(struct xhub *hub)
 	else if (xlist_is_empty(&hub->polled)) {
 		return 0;
 	}
+	else if (hub->npolled == hub->ndetached) {
+		ent = xcontainer(xlist_first(&hub->polled, X_ASCENDING), struct xhub_entry, lent);
+		assert(ent->detached);
+		val = XESYS(ETIMEDOUT);
+		goto invoke;
+	}
 
 	rc = xpoll_wait(&hub->poll, ms, &ev);
 	switch (rc) {
@@ -249,6 +280,7 @@ run_once(struct xhub *hub)
 	case 1:
 		ent = ev.ptr;
 		ent->poll_type = 0;
+		uncount_poll(ent);
 		goto invoke;
 	default:
 		return rc;

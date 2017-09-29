@@ -8,6 +8,9 @@
 #include <arpa/inet.h>
 #include <signal.h>
 
+#define XTIMEOUT_NONE -1
+#define XTIMEOUT_DETACH INT_MIN
+
 struct xhub;
 
 XEXTERN int
