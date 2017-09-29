@@ -13,6 +13,9 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <assert.h>
+#if HAS_EXECINFO
+# include <execinfo.h>
+#endif
 
 struct xhub {
 	struct xmgr mgr;
@@ -400,6 +403,23 @@ xexit(int ec)
 	struct xhub_entry *ent = xtask_local(t);
 	if (ent && ent->magic == MAGIC) { unschedule(ent); }
 	xtask_exit(t, ec);
+}
+
+void
+xabort(void)
+{
+	fflush(stderr);
+#if HAS_EXECINFO
+	void *calls[32];
+	int frames = backtrace(calls, xlen(calls));
+	backtrace_symbols_fd(calls, frames, STDERR_FILENO);
+#endif
+	struct xtask *t = xtask_self();
+	if (t == NULL) { abort(); }
+	struct xhub_entry *ent = xtask_local(t);
+	if (ent && ent->magic == MAGIC) { unschedule(ent); }
+	xtask_print(t, stderr);
+	xtask_exit(t, SIGABRT);
 }
 
 int

@@ -238,18 +238,43 @@ equivalent to calling:
 .P
 .nf
 
-    xtask_exit (xtask_self (), ec);
+    xtask_exit(xtask_self(), ec);
 .fi
 .P
 If no task has context, this is the equivalent to calling:
 .P
 .nf
 
-    exit (ec);
+    exit(ec);
 .fi
 .TP
 \fIec\fR
 The exit code.
+.RE
+
+.P
+.nf
+\fBvoid\fR
+\fBxabort\fR(\fBvoid\fR);
+.fi
+.RS
+.P
+Aborts the current running task or the entire process if no task context. This
+will properly unschedule the currently spawned task. Unlike other functions in
+this section, this will work with non-hub spawned tasks. In this case, this is
+equivalent to calling:
+.P
+.nf
+
+    xtask_exit(xtask_self(), SIGABRT);
+.fi
+.P
+If no task has context, this is the equivalent to calling:
+.P
+.nf
+
+    abort();
+.fi
 .RE
 
 .P

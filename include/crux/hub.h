@@ -42,6 +42,9 @@ xspawn_b(struct xhub *hub, void (^block)(void));
 XEXTERN void
 xexit(int ec);
 
+XEXTERN void
+xabort(void);
+
 XEXTERN const struct xclock *
 xclock(void);
 
