@@ -17,27 +17,14 @@
 # include "ctx/x86_32.c"
 #endif
 
+#if defined(MAP_GROWSDOWN) && !defined(MAP_STACK)
+# define MAP_STACK MAP_GROWSDOWN
+#endif
 #ifdef MAP_STACK
 # define MAP_FLAGS (MAP_ANON|MAP_PRIVATE|MAP_STACK)
 #else
 # define MAP_FLAGS (MAP_ANON|MAP_PRIVATE)
 #endif
-
-
-/**
- * @brief  Stack size in bytes
- *
- * This is the stack size including the padding added for page boundary
- * rounding. This will also include the protected page if it is uses,
- * but it does not include the task local storage.
- *
- * @param  t  task pointer
- * @param  msz  map size
- * @param  tsz  tls size
- * @return  total size of the stack
- */
-#define STACK_SIZE(t, msz, tsz) \
-	((msz) - sizeof(struct xtask) - (tsz))
 
 /**
  * @brief  Gets the task local storage
@@ -46,29 +33,8 @@
  * @param  tsz  tls size
  * @return  local storage pointer
  */
-#if STACK_GROWS_UP
-# define TLS(t, tsz) \
-	((void *t)((t) + 1))
-#else
-# define TLS(t, tsz) \
+#define TLS(t, tsz) \
 	((void *)((uint8_t *)(t) - (tsz)))
-#endif
-
-
-/**
- * @brief  Get the mapped address from a task
- *
- * @param  t    task pointer
- * @param  msz  map size
- * @return  mapped address
- */
-#if STACK_GROWS_UP
-# define MAP_BEGIN(t, msz) \
-	((uint8_t *)(t))
-#else
-# define MAP_BEGIN(t, msz) \
-	((uint8_t *)(t) + sizeof(struct xtask) - (msz))
-#endif
 
 #define SUSPENDED 0  /** new created or yielded */
 #define CURRENT   1  /** currently has context */
@@ -156,7 +122,11 @@ xmgr_init(struct xmgr *mgr, size_t tls, size_t stack, int flags)
 	// round up to nearest page size
 	map_size = (((map_size - 1) / PAGESIZE) + 1) * PAGESIZE;
 	// add extra locked page if requested
+#ifdef MAP_STACK
+	map_size += PAGESIZE;
+#else
 	if (flags & XTASK_FPROTECT) { map_size += PAGESIZE; }
+#endif
 
 	mgr->map_size = map_size;
 	mgr->stack_size = stack;
@@ -272,32 +242,30 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 	struct xtask *t = mgr->free_task;
 	size_t map_size = mgr->map_size;
 	size_t tls_size = mgr->tls_size;
-	uint8_t *map;
+	uint8_t *stack;
 
 	if (t != NULL) {
 		mgr->free_task = t->parent;
-		map = MAP_BEGIN(t, map_size);
+		stack = (uint8_t *)(void *)t + sizeof(*t) - map_size;
 	}
 	else {
-		map = mmap(NULL, map_size, PROT_READ|PROT_WRITE, MAP_FLAGS, -1, 0);
+		uint8_t *map = mmap(NULL, map_size, PROT_READ|PROT_WRITE, MAP_FLAGS, -1, 0);
 		if (map == MAP_FAILED) { return -XERRNO; }
-		if (mgr->flags & XTASK_FPROTECT) {
-#if STACK_GROWS_UP
-			int rc = mprotect(map+map_size-PAGESIZE, PAGESIZE, PROT_NONE);
+#ifdef MAP_STACK
+		stack = map - map_size;
 #else
+		if (mgr->flags & XTASK_FPROTECT) {
 			int rc = mprotect(map, PAGESIZE, PROT_NONE);
-#endif
 			if (rc < 0) {
 				rc = XERRNO;
 				munmap(map, map_size);
 				return rc;
 			}
 		}
-#if STACK_GROWS_UP
-		t = (struct xtask *)map;
-#else
-		t = (struct xtask *)(void *)(map + map_size - sizeof(*t));
+		stack = map;
+		map += map_size;
 #endif
+		t = (struct xtask *)(void *)(map - sizeof(*t));
 	}
 
 	t->value = XZERO;
@@ -310,11 +278,7 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 	t->state = SUSPENDED;
 	t->istop = false;
 
-#if STACK_GROWS_UP
-	map += sizeof(*t) + tls_size;
-#endif
-
-	xctx_init(&t->ctx, map, STACK_SIZE(t, map_size, tls_size),
+	xctx_init(&t->ctx, stack, map_size - sizeof(*t) - tls_size,
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
 
 #if HAS_DLADDR
