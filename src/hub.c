@@ -240,7 +240,7 @@ timeout:
 invoke:
 	unschedule(ent);
 	active_entry = ent;
-	rc = xresume(ent->t, XINT (val)).i;
+	rc = xresume(ent->t, XINT(val)).i;
 	active_entry = NULL;
 	if (!is_scheduled(ent) || !xtask_alive(ent->t)) {
 		xtask_free(&ent->t);
@@ -362,7 +362,7 @@ xsleep(unsigned ms)
 }
 
 void
-xexit (int ec)
+xexit(int ec)
 {
 	struct xtask *t = xtask_self();
 	if (t == NULL) { exit(ec); }
@@ -435,7 +435,7 @@ xreadn(int fd, void *buf, size_t len, int timeoutms)
 }
 
 ssize_t
-xwrite (int fd, const void *buf, size_t len, int timeoutms)
+xwrite(int fd, const void *buf, size_t len, int timeoutms)
 {
 	SEND(fd, timeoutms, write, buf, len);
 }
@@ -502,8 +502,7 @@ again:
 int
 xpipe(int fds[static 2])
 {
-	// TODO: improve feature detection
-#if defined(__linux__)
+#if HAS_PIPE2
 	int rc = pipe2(fds, O_NONBLOCK|O_CLOEXEC);
 	if (rc < 0) { return XERRNO; }
 	return 0;

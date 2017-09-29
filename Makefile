@@ -79,7 +79,7 @@ endif
 FLAGS_COMMON?= -march=native
 CFLAGS_COMMON?= $(FLAGS_COMMON) \
 	-DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_PATCH=$(VERSION_PATCH) \
-	-DHAS_EXECINFO=$(EXECINFO) -std=gnu11 -fPIC
+	-std=gnu11 -fPIC
 CFLAGS_DEBUG?= $(CFLAGS_COMMON) -g -Wall -Wextra -Wcast-align -pedantic -Werror
 CFLAGS_RELEASE?= $(CFLAGS_COMMON) -O2 -DNDEBUG -flto
 LDFLAGS_COMMON?= $(FLAGS_COMMON) $(LDFLAGS_EXECINFO)
@@ -251,8 +251,15 @@ test-%: $(BUILD_TMP)/test-%
 $(SRC): $(BUILD_TMP)/config.h
 
 # generate config.h
-$(BUILD_TMP)/config.h: bin/config.py | $(BUILD_TMP)
+$(BUILD_TMP)/config.h: bin/config.py Makefile | $(BUILD_TMP)
 	python $< > $@
+	echo "#define HAS_EXECINFO $(EXECINFO)" >> $@
+	echo "#define WITH_POLL $(WITH_POLL)" >> $@
+	echo "#define WITH_TASK $(WITH_TASK)" >> $@
+	echo "#define WITH_HUB $(WITH_HUB)" >> $@
+	echo "#define WITH_HTTP $(WITH_HTTP)" >> $@
+	echo "#define WITH_DNS $(WITH_DNS)" >> $@
+	echo "#define WITH_RESOLV $(WITH_RESOLV)" >> $@
 
 # create static library archive
 $(BUILD_LIB)/$(LIB): $(SRC_OBJ) | $(BUILD_LIB)

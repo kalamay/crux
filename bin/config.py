@@ -63,6 +63,13 @@ def has_epoll():
 		int main(void) { epoll_create (10); }
 	""")
 
+def has_pipe2():
+	return compiles("""
+		#include <fcntl.h>
+		#include <unistd.h>
+		int main(void) { int fd[2]; pipe2(fd, 0); }
+	""")
+
 def has_getrandom():
 	return compiles("""
 		#include <sys/random.h>
@@ -102,6 +109,8 @@ if has_kqueue():
 	print("#define HAS_KQUEUE 1")
 elif has_epoll():
 	print("#define HAS_EPOLL 1")
+if has_pipe2():
+	print("#define HAS_PIPE2 1")
 if has_getrandom():
 	print("#define HAS_GETRANDOM 1")
 if has_arc4():
