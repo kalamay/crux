@@ -22,6 +22,9 @@ xhub_run(struct xhub *hub);
 XEXTERN void
 xhub_stop(struct xhub *hub);
 
+XEXTERN void
+xhub_mark_close(struct xhub *hub, int fd);
+
 #define xspawn(hub, fn, data) \
 	xspawnf(hub, __FILE__, __LINE__, fn, data)
 
@@ -87,6 +90,9 @@ xsocket(int domain, int type, int protocol);
 
 XEXTERN int
 xaccept(int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms);
+
+XEXTERN int
+xclose(int fd);
 
 XEXTERN int
 xunblock(int fd);

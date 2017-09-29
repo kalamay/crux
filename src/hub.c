@@ -20,6 +20,7 @@ struct xhub {
 	struct xheap timeout;
 	struct xlist immediate;
 	struct xlist polled;
+	struct xlist closed;
 	bool running;
 };
 
@@ -94,6 +95,7 @@ unschedule(struct xhub_entry *ent)
 {
 	if (ent->poll_type) {
 		xpoll_ctl(&ent->hub->poll, XPOLL_DEL, ent->poll_type, ent->poll_id, NULL);
+		ent->poll_type = 0;
 	}
 
 	if (xlist_is_added(&ent->lent)) {
@@ -103,6 +105,13 @@ unschedule(struct xhub_entry *ent)
 	if (ent->hent.key != XHEAP_NONE) {
 		xheap_remove(&ent->hub->timeout, &ent->hent);
 	}
+}
+
+static void
+mark_closed(struct xhub_entry *ent)
+{
+	unschedule(ent);
+	xlist_add(&ent->hub->closed, &ent->lent, X_ASCENDING);
 }
 
 int
@@ -134,6 +143,7 @@ xhub_new(struct xhub **hubp)
 
 	xlist_init(&hub->immediate);
 	xlist_init(&hub->polled);
+	xlist_init(&hub->closed);
 	hub->running = false;
 
 	*hubp = hub;
@@ -194,14 +204,21 @@ run_once(struct xhub *hub)
 {
 	int rc, val = 0;
 	int64_t ms = -1;
-	struct xlist *immediate;
+	struct xlist *lent;
 	struct xheap_entry *wait;
 	struct xevent ev;
 	struct xhub_entry *ent;
 
-	immediate = xlist_first(&hub->immediate, X_ASCENDING);
-	if (immediate != NULL) {
-		ent = xcontainer(immediate, struct xhub_entry, lent);
+	lent = xlist_first(&hub->immediate, X_ASCENDING);
+	if (lent != NULL) {
+		ent = xcontainer(lent, struct xhub_entry, lent);
+		goto invoke;
+	}
+
+	lent = xlist_first(&hub->closed, X_ASCENDING);
+	if (lent != NULL) {
+		ent = xcontainer(lent, struct xhub_entry, lent);
+		val = XESYS(ECONNABORTED);
 		goto invoke;
 	}
 
@@ -276,6 +293,20 @@ void
 xhub_stop(struct xhub *hub)
 {
 	hub->running = false;
+}
+
+void
+xhub_mark_close(struct xhub *hub, int fd)
+{
+	struct xlist *lent;
+	struct xhub_entry *ent;
+	xlist_each(&hub->polled, lent, X_ASCENDING) {
+		ent = xcontainer(lent, struct xhub_entry, lent);
+		if ((ent->poll_type == XPOLL_IN || ent->poll_type == XPOLL_OUT)
+				&& ent->poll_id == fd) {
+			mark_closed(ent);
+		}
+	}
 }
 
 static union xvalue
@@ -584,6 +615,16 @@ xaccept(int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms)
 		}
 		return rc;
 	}
+}
+
+int
+xclose(int fd)
+{
+	if (fd < 0) { return 0; }
+	struct xhub_entry *ent = active_entry;
+	if (ent == NULL) { return XESYS(EPERM); }
+	xhub_mark_close(ent->hub, fd);
+	return close(fd);
 }
 
 int
