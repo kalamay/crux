@@ -199,7 +199,7 @@ INSTALL:= \
 	$(DESTDIR)$(PREFIX)/lib/$(SO_ANY) \
 	$(DESTDIR)$(PREFIX)/lib/$(LIB) \
 	$(INCLUDE:%=$(DESTDIR)$(PREFIX)/%) \
-	$(MAN:man/%=$(DESTDIR)$(PREFIX)/$(MANDIR)/%)
+	$(MAN:man/%=$(DESTDIR)$(PREFIX)/$(MANDIR)/%.gz)
 
 # object files mapped from source files
 SRC_OBJ:= $(SRC:src/%.c=$(BUILD_TMP)/crux-%.o)
@@ -210,7 +210,7 @@ TEST_BIN:= $(TEST:test/%.c=$(BUILD_TMP)/test-%)
 # build header files mapped from include files
 INCLUDE_OUT:=$(INCLUDE:%=$(BUILD_TYPE)/%)
 # build man pages mapped from man source files
-MAN_OUT:=$(MAN:man/%=$(BUILD_MAN)/%)
+MAN_OUT:=$(MAN:man/%=$(BUILD_MAN)/%.gz)
 
 all: static dynamic include man
 
@@ -282,8 +282,8 @@ $(BUILD_INCLUDE)/crux/version.h: include/crux/version.h Makefile | $(BUILD_INCLU
 	awk 'NR==4{print "$(VERSION_DEF_MAJOR)\n$(VERSION_DEF_MINOR)\n$(VERSION_DEF_PATCH)\n"}1' $< > $@
 
 # copy source headers into build directory
-$(BUILD_MAN)/%: man/% | $(BUILD_MAN)
-	cp $< $@
+$(BUILD_MAN)/%.gz: man/% | $(BUILD_MAN)
+	gzip < $< > $@
 
 # link test executables
 $(BUILD_TMP)/test-%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TMP)
