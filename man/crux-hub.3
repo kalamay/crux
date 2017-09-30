@@ -973,8 +973,6 @@ server(struct xhub *h, void *data)
 	printf("[%d] listening on stream://%s:%d\\n",
 			getpid(), inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
 
-	int conns = 0;
-
 	for (;;) {
 		struct sockaddr_in addr;
 		socklen_t len = sizeof(addr);
