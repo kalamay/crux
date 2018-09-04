@@ -21,14 +21,14 @@ parent(uint32_t key)
 
 	uint32_t mask, pidx;
 
-	mask = key & XHEAP_PAGEMASK;
-	if (key < XHEAP_PAGECOUNT || mask > 3) {
-		pidx = (key & ~XHEAP_PAGEMASK) | (mask >> 1);
+	mask = key & xheap_pagemask;
+	if (key < xheap_pagecount || mask > 3) {
+		pidx = (key & ~xheap_pagemask) | (mask >> 1);
 	}
 	else if (mask < 2) {
-		pidx = (key - XHEAP_PAGECOUNT) >> XHEAP_PAGESHIFT;
-		pidx += pidx & ~(XHEAP_PAGEMASK >> 1);
-		pidx |= XHEAP_PAGECOUNT / 2;
+		pidx = (key - xheap_pagecount) >> xheap_pageshift;
+		pidx += pidx & ~(xheap_pagemask >> 1);
+		pidx |= xheap_pagecount / 2;
 	}
 	else {
 		pidx = key - 2;
@@ -41,12 +41,12 @@ child(uint32_t key, uint32_t *a, uint32_t *b)
 {
 	uint32_t shift;
 
-	if (key > XHEAP_PAGEMASK && (key & (XHEAP_PAGEMASK - 1)) == 0) {
+	if (key > xheap_pagemask && (key & (xheap_pagemask - 1)) == 0) {
 		*a = *b = key + 2;
 	}
-	else if (key & (XHEAP_PAGECOUNT >> 1)) {
-		*a = (((key & ~XHEAP_PAGEMASK) >> 1) | (key & (XHEAP_PAGEMASK >> 1))) + 1;
-		shift = (uint32_t)*a << XHEAP_PAGESHIFT;
+	else if (key & (xheap_pagecount >> 1)) {
+		*a = (((key & ~xheap_pagemask) >> 1) | (key & (xheap_pagemask >> 1))) + 1;
+		shift = (uint32_t)*a << xheap_pageshift;
 		*a = (uint32_t)shift; // truncat back to 32 bits
 		if (*a == shift) { // check for overflow
 			*b = *a + 1;
@@ -57,7 +57,7 @@ child(uint32_t key, uint32_t *a, uint32_t *b)
 		}
 	}
 	else {
-		*a = key + (key & XHEAP_PAGEMASK);
+		*a = key + (key & xheap_pagemask);
 		*b = *a + 1;
 	}
 }

@@ -8,7 +8,9 @@
 #include "crux/task.h"
 #include "crux/hub.h"
 
-extern int
+XEXTERN size_t xpagesize;
+
+XEXTERN int
 xinit(void);
 
 #endif

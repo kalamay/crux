@@ -1,3 +1,4 @@
+#include "../include/crux.h"
 #include "../include/crux/buf.h"
 
 struct xbuf {
@@ -8,12 +9,12 @@ struct xbuf {
 };
 
 #define XBUF_REDZONE 64
-#define XBUF_MAX_COMPACT (2*PAGESIZE)
-#define XBUF_MIN_TRIM (2*PAGESIZE)
+#define XBUF_MAX_COMPACT (2*xpagesize)
+#define XBUF_MIN_TRIM (2*xpagesize)
 
-#define XBUF_INIT { NULL, NULL, NULL, 0 }
+#define XBUF_INIT (struct xbuf){ NULL, NULL, NULL, 0 }
 
-#define XBUF_HINT(h) (((h) + XBUF_REDZONE + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
+#define XBUF_HINT(h) (((h) + XBUF_REDZONE + xpagesize - 1) / xpagesize) * xpagesize
 #define XBUF_READ_OFFSET(b) ((b)->rd - (b)->map)
 #define XBUF_WRITE_OFFSET(b) ((b)->wr - (b)->map)
 #define XBUF_LENGTH(b) ((b)->wr - (b)->rd)

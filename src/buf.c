@@ -23,7 +23,7 @@ xbuf_new(struct xbuf **bufp, size_t cap)
 int
 xbuf_init(struct xbuf *buf, size_t cap)
 {
-	*buf = (struct xbuf)XBUF_INIT;
+	*buf = XBUF_INIT;
 	return xbuf_ensure(buf, cap);
 }
 
@@ -89,9 +89,6 @@ xbuf_ensure(struct xbuf *buf, size_t hint)
 	uint8_t *old = buf->map;
 	uint8_t *map = MAP_FAILED;
 	if (old != NULL) {
-#if XBUF_REDZONE == PAGESIZE
-		mprotect(old + buf->cap, PAGESIZE, PROT_READ|PROT_WRITE);
-#endif
 #ifdef MREMAP_MAYMOVE
 		map = mremap(old, XBUF_MAPSIZE(buf), size, MREMAP_MAYMOVE);
 #else
@@ -112,9 +109,6 @@ xbuf_ensure(struct xbuf *buf, size_t hint)
 	}
 
 	buf->cap = size - XBUF_REDZONE;
-#if XBUF_REDZONE == PAGESIZE
-	mprotect(buf->map + buf->cap, PAGESIZE, PROT_READ);
-#endif
 	return 0;
 }
 
@@ -147,10 +141,10 @@ xbuf_trim(struct xbuf *buf, size_t len)
 		size_t off = XBUF_READ_OFFSET(buf) + len;
 		buf->rd = buf->map + off;
 
-		ssize_t trim = (off) / PAGESIZE * PAGESIZE;
+		ssize_t trim = (off) / xpagesize * xpagesize;
 		if (trim > 0) {
 			ssize_t size = (ssize_t)XBUF_MAPSIZE(buf) - trim;
-			if (size < XBUF_MIN_TRIM) {
+			if (size < (ssize_t)XBUF_MIN_TRIM) {
 				trim -= XBUF_MIN_TRIM - size;
 			}
 			if (trim > 0 && munmap(buf->map, trim) == 0) {

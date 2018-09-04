@@ -17,14 +17,7 @@
 # include "ctx/x86_32.c"
 #endif
 
-#if defined(MAP_GROWSDOWN) && !defined(MAP_STACK)
-# define MAP_STACK MAP_GROWSDOWN
-#endif
-#ifdef MAP_STACK
-# define MAP_FLAGS (MAP_ANON|MAP_PRIVATE|MAP_STACK)
-#else
-# define MAP_FLAGS (MAP_ANON|MAP_PRIVATE)
-#endif
+#define MAP_FLAGS (MAP_ANON|MAP_PRIVATE)
 
 /**
  * @brief  Gets the task local storage
@@ -95,7 +88,7 @@ static thread_local struct xtask top = {
 int
 xmgr_new(struct xmgr **mgrp, size_t tls, size_t stack, int flags)
 {
-	struct xmgr *mgr = calloc(1, sizeof(*mgr));
+	struct xmgr *mgr = malloc(sizeof(*mgr));
 	if (mgr == NULL) { return -XERRNO; }
 	int rc = xmgr_init(mgr, tls, stack, flags);
 	if (rc < 0) { free(mgr); }
@@ -120,19 +113,17 @@ xmgr_init(struct xmgr *mgr, size_t tls, size_t stack, int flags)
 	// exact size would be the stack, local storage, and task object
 	map_size = stack + tls_size + sizeof(struct xtask);
 	// round up to nearest page size
-	map_size = (((map_size - 1) / PAGESIZE) + 1) * PAGESIZE;
+	map_size = (((map_size - 1) / xpagesize) + 1) * xpagesize;
 	// add extra locked page if requested
-#ifdef MAP_STACK
-	map_size += PAGESIZE;
-#else
-	if (flags & XTASK_FPROTECT) { map_size += PAGESIZE; }
-#endif
+	if (flags & XTASK_FPROTECT) { map_size += xpagesize; }
 
 	mgr->map_size = map_size;
 	mgr->stack_size = stack;
 	mgr->tls_size = tls_size;
 	mgr->tls_user = tls;
 	mgr->flags = flags;
+	mgr->free_defer = NULL;
+	mgr->free_task = NULL;
 
 	return 0;
 }
@@ -251,11 +242,8 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 	else {
 		uint8_t *map = mmap(NULL, map_size, PROT_READ|PROT_WRITE, MAP_FLAGS, -1, 0);
 		if (map == MAP_FAILED) { return -XERRNO; }
-#ifdef MAP_STACK
-		stack = map - map_size;
-#else
 		if (mgr->flags & XTASK_FPROTECT) {
-			int rc = mprotect(map, PAGESIZE, PROT_NONE);
+			int rc = mprotect(map, xpagesize, PROT_NONE);
 			if (rc < 0) {
 				rc = XERRNO;
 				munmap(map, map_size);
@@ -264,7 +252,6 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 		}
 		stack = map;
 		map += map_size;
-#endif
 		t = (struct xtask *)(void *)(map - sizeof(*t));
 	}
 
@@ -291,8 +278,10 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 #endif
 
 	if (tls_size > 0) {
-		if (tls) { memcpy(TLS(t, tls_size), tls, tls_size); }
-		else     { memset(TLS(t, tls_size), 0, tls_size); }
+		memset(TLS(t, tls_size), 0, tls_size);
+		if (tls) {
+			memcpy(TLS(t, tls_size), tls, mgr->tls_user);
+		}
 	}
 
 	*tp = t;

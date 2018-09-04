@@ -3,9 +3,6 @@
 import os, math, platform, resource, ctypes
 from subprocess import Popen, PIPE
 
-PAGESIZE = resource.getpagesize()
-PTRSIZE = ctypes.sizeof(ctypes.c_void_p)
-PAGEPTR = PAGESIZE / PTRSIZE
 ARCH = {
 	'x86_64': 'X86_64',
 	'AMD64': 'X86_64',
@@ -93,11 +90,6 @@ def has_mremap5():
 		#include <sys/mman.h>
 		int main(void) { mremap(0, 0, 0, 0, 0); }
 	""")
-
-print("#define XHEAP_PAGECOUNT %d" % PAGEPTR)
-print("#define XHEAP_PAGEMASK %d" % (PAGEPTR - 1))
-print("#define XHEAP_PAGESHIFT %d" % math.log(PAGEPTR, 2))
-print("#define PAGESIZE %d" % PAGESIZE)
 
 if has_clock_gettime():
 	print("#define HAS_CLOCK_GETTIME 1")

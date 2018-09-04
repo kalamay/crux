@@ -3,6 +3,7 @@
 #include "../include/crux/clock.h"
 #include "../include/crux/rand.h"
 #include "../include/crux/seed.h"
+#include "heap.h"
 
 #include "config.h"
 
@@ -11,6 +12,8 @@
 #include <time.h>
 #include <fcntl.h>
 #include <assert.h>
+
+size_t xpagesize;
 
 #if HAS_MACH_TIME
 # include <mach/mach_time.h>
@@ -118,6 +121,10 @@ random_open(void)
 int
 xinit(void)
 {
+	xpagesize = sysconf(_SC_PAGESIZE);
+	xheap_pagecount = xpagesize / sizeof(void *);
+	xheap_pagemask = xheap_pagecount - 1;
+	xheap_pageshift = log2(xheap_pagecount);
 #if HAS_MACH_TIME
 	(void)mach_timebase_info(&info);
 #endif
