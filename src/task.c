@@ -494,6 +494,31 @@ xdefer(void (*fn) (void *), void *data)
 	return 0;
 }
 
+#if defined(__BLOCKS__)
+
+#include <Block.h>
+
+static void
+defer_block(void *data)
+{
+	void (^block)(void) = data;
+	block();
+	Block_release(block);
+}
+
+int
+xdefer_b(void (^block)(void))
+{
+	void (^copy)(void) = Block_copy(block);
+	int rc = xdefer(defer_block, copy);
+	if (rc < 0) {
+		Block_release(copy);
+	}
+	return rc;
+}
+
+#endif
+
 static void *
 defer_free(void *val)
 {

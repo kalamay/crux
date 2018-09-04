@@ -86,6 +86,13 @@ xresume(struct xtask *t, union xvalue val);
 XEXTERN int
 xdefer(void (*fn) (void *), void *data);
 
+#if defined(__BLOCKS__)
+
+XEXTERN int
+xdefer_b(void (^block)(void));
+
+#endif
+
 XEXTERN void *
 xmalloc(size_t size);
 
