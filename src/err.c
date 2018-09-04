@@ -205,3 +205,4 @@ xerr_fabort(int code, const char *fmt, ...)
 	fputc('\n', stderr);
 	stack_abort();
 }
+

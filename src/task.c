@@ -1,7 +1,7 @@
-#include "task.h"
+#include "../include/crux.h"
 #include "../include/crux/ctx.h"
 #include "../include/crux/err.h"
-#include "../include/crux/def.h"
+#include "task.h"
 #include "config.h"
 
 #include <stdlib.h>
@@ -396,8 +396,8 @@ print_head(const struct xtask *t, FILE *out)
 extern int 
 print_tree(const struct xtask *t, FILE *out)
 {
-	static const char line[] = "└── ";
-	static const char space[] = "    ";
+	static const char line[] = "└ ";
+	static const char space[] = "  ";
 
 	int depth = 0;
 	if (t->parent) {

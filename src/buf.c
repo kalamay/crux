@@ -229,7 +229,7 @@ xbuf_print(const struct xbuf *buf, FILE *out)
 	for (ssize_t i = start; i <= end; i++) {
 		ssize_t mil = MOD(i, LINE);
 		if (mil == 0 || i == start) {
-			FMT("    %08zd: ", i);
+			FMT("  %08zd: ", i);
 			if (mil != 0) {
 				FMT("%.*s", (int)(mil*2 + mil/GROUP), space);
 			}

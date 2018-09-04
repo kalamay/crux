@@ -311,19 +311,19 @@
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
 			struct pref##_tier *t = map->tiers[i]; \
 			fprintf(out, \
-					"    <tier[%zu]:%p-%p count=%zu, size=%zu, remap=%zu>", \
+					"  <tier[%zu]:%p-%p count=%zu, size=%zu, remap=%zu>", \
 					i, (void *)t->arr, (void *)(t->arr + t->size), \
 					t->count, t->size, t->remap); \
 			if (fn) { \
 				fprintf(out, " {\n"); \
 				for (size_t j = 0; j < t->size; j++) { \
 					if (t->arr[j].h) { \
-						fprintf(out, "        %016" PRIx64 " = ", t->arr[j].h); \
+						fprintf(out, "    %016" PRIx64 " = ", t->arr[j].h); \
 						fn(map, &t->arr[j].entry, out); \
 						fprintf(out, "\n"); \
 					} \
 				} \
-				fprintf(out, "    }\n"); \
+				fprintf(out, "  }\n"); \
 			} \
 			else { \
 				fprintf(out, "\n"); \
