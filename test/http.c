@@ -26,51 +26,52 @@ typedef struct {
 	char body[256];
 } Message;
 
+static ssize_t
+next(struct xhttp *p, const struct xbuf *buf)
+{
+	return xhttp_next(p, xbuf_value(buf), xbuf_length(buf));
+}
+
 static bool
-parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, ssize_t speed)
+parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, size_t speed)
 {
 	memset(msg, 0, sizeof(*msg));
 
-	const uint8_t *buf = in;
-	size_t len, trim = 0;
+	struct xbuf *buf;
 	size_t body = 0;
 	ssize_t rc;
 	bool ok = true;
 
-	if (speed > 0) {
-		len = speed;
-	}
-	else {
-		len = inlen;
-	}
+	mu_assert_int_eq(xbuf_new(&buf, inlen), 0);
 
 	while (body > 0 || !xhttp_is_done(p)) {
-		mu_assert_uint_ge(len, trim);
-		if (len < trim) {
-			ok = false;
-			goto out;
+		if (inlen > 0) {
+			size_t n = speed && speed < inlen ? speed : inlen;
+			mu_assert_int_ge(xbuf_add(buf, in, inlen), 0);
+			in += n;
+			inlen -= n;
 		}
 
+		const char *val = xbuf_value(buf);
+		size_t len = xbuf_length(buf);
+
 		if (body > 0) {
-			rc = len - trim;
-			if (body < (size_t)rc) {
-				rc = body;
-			}
-			strncat(msg->body, (char *)buf, rc);
+			rc = body < len ? body : len;
+			strncat(msg->body, val, rc);
 			body -= rc;
 		}
 		else {
-			rc = xhttp_next(p, buf, len - trim);
+			rc = xhttp_next(p, val, len);
 
 			// normally rc could equal 0 if a full scan couldn't be completed
 			mu_assert_int_ge(rc, 0);
 
 			if (p->type == XHTTP_REQUEST) {
 				strncat(msg->as.request.method,
-						(char *)buf + p->as.request.method.off,
+						val + p->as.request.method.off,
 						p->as.request.method.len);
 				strncat(msg->as.request.uri,
-						(char *)buf + p->as.request.uri.off,
+						val + p->as.request.uri.off,
 						p->as.request.uri.len);
 				msg->as.request.version = p->as.request.version;
 			}
@@ -78,15 +79,15 @@ parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, ssize_t sp
 				msg->as.response.version = p->as.response.version;
 				msg->as.response.status = p->as.response.status;
 				strncat(msg->as.response.reason,
-						(char *)buf + p->as.response.reason.off,
+						val + p->as.response.reason.off,
 						p->as.response.reason.len);
 			}
 			else if (p->type == XHTTP_FIELD) {
 				strncat(msg->fields[msg->field_count].name,
-						(char *)buf + p->as.field.name.off,
+						val + p->as.field.name.off,
 						p->as.field.name.len);
 				strncat(msg->fields[msg->field_count].value,
-						(char *)buf + p->as.field.value.off,
+						val + p->as.field.value.off,
 						p->as.field.value.len);
 				msg->field_count++;
 			}
@@ -100,24 +101,15 @@ parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, ssize_t sp
 			}
 		}
 
-		// trim the buffer
-		buf += rc;
-		trim += rc;
-
-		if (speed > 0) {
-			len += speed;
-			if (len > inlen) {
-				len = inlen;
-			}
-		}
+		xbuf_trim(buf, rc);
 	}
 
-out:
+	xbuf_free(&buf);
 	return ok;
 }
 
 static void
-test_request(ssize_t speed)
+test_request(size_t speed)
 {
 	struct xhttp p;
 	xhttp_init_request(&p);
@@ -165,7 +157,7 @@ test_request(ssize_t speed)
 
 /*
 static void
-test_request_capture(ssize_t speed)
+test_request_capture(size_t speed)
 {
 	struct xhttp p;
 	xhttp_init_request(&p);
@@ -234,7 +226,7 @@ test_request_capture(ssize_t speed)
 */
 
 static void
-test_chunked_request(ssize_t speed)
+test_chunked_request(size_t speed)
 {
 	struct xhttp p;
 	xhttp_init_request(&p);
@@ -288,7 +280,7 @@ test_chunked_request(ssize_t speed)
 
 /*
 static void
-test_chunked_request_capture(ssize_t speed)
+test_chunked_request_capture(size_t speed)
 {
 	struct xhttp p;
 	xhttp_init_request(&p);
@@ -363,7 +355,7 @@ test_chunked_request_capture(ssize_t speed)
 */
 
 static void
-test_response(ssize_t speed)
+test_response(size_t speed)
 {
 	struct xhttp p;
 	xhttp_init_response(&p);
@@ -410,7 +402,7 @@ test_response(ssize_t speed)
 }
 
 static void
-test_chunked_response(ssize_t speed)
+test_chunked_response(size_t speed)
 {
 	struct xhttp p;
 	xhttp_init_response(&p);
@@ -474,13 +466,17 @@ test_invalid_header(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
-	rc = xhttp_next(&p, request + rc, sizeof(request) - 1 - rc);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSYNTAX);
 }
 
@@ -494,10 +490,13 @@ test_limit_method_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 54);
 }
 
@@ -511,10 +510,13 @@ test_exceed_method_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSIZE);
 }
 
@@ -528,13 +530,17 @@ test_limit_name_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
-	rc = xhttp_next(&p, request + rc, sizeof(request) - 1 - rc);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 265);
 }
 
@@ -548,13 +554,17 @@ test_exceed_name_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
-	rc = xhttp_next(&p, request + rc, sizeof(request) - 1 - rc);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSIZE);
 }
 
@@ -568,13 +578,17 @@ test_limit_value_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
-	rc = xhttp_next(&p, request + rc, sizeof(request) - 1 - rc);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 1031);
 }
 
@@ -588,13 +602,17 @@ test_exceed_value_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
 
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+
 	xhttp_init_request(&p);
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
-	rc = xhttp_next(&p, request + rc, sizeof(request) - 1 - rc);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSIZE);
 }
 
@@ -608,14 +626,18 @@ test_increase_value_size(void)
 		;
 
 	struct xhttp p;
+	struct xbuf *buf;
 	ssize_t rc;
+
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
 	p.max_value = 2048;
-	rc = xhttp_next(&p, request, sizeof(request) - 1);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
-	rc = xhttp_next(&p, request + rc, sizeof(request) - 1 - rc);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+	rc = next(&p, buf);
 	mu_assert_int_eq(rc, 1032);
 }
 
