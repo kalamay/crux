@@ -1,6 +1,4 @@
 #include "buf.h"
-#include "../include/crux/err.h"
-
 #include "config.h"
 
 #include <stdlib.h>
@@ -18,6 +16,19 @@ xbuf_new(struct xbuf **bufp, size_t cap)
 	if (rc < 0) { free(buf); }
 	else { *bufp = buf; }
 	return rc;
+}
+
+int
+xbuf_copy(struct xbuf **bufp, const void *ptr, size_t len)
+{
+	int rc = xbuf_new(bufp, len);
+	if (rc < 0) { return rc; }
+	rc = xbuf_add(*bufp, ptr, len);
+	if (rc < 0) {
+		xbuf_free(bufp);
+		return rc;
+	}
+	return 0;
 }
 
 int
