@@ -1,7 +1,7 @@
 #ifndef CRUX_TASK_H
 #define CRUX_TASK_H
 
-#include "def.h"
+#include "buf.h"
 
 #include <stdio.h>
 
@@ -98,6 +98,15 @@ xmalloc(size_t size);
 
 XEXTERN void *
 xcalloc(size_t count, size_t size);
+
+XEXTERN struct xbuf *
+xbuf(size_t cap);
+
+XEXTERN ssize_t
+xbuf_read(struct xbuf *buf, int fd, size_t len, int timeoutms);
+
+XEXTERN ssize_t
+xbuf_write(struct xbuf *buf, int fd, size_t len, int timeoutms);
 
 #endif
 

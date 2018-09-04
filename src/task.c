@@ -547,3 +547,48 @@ xcalloc(size_t count, size_t size)
 	return defer_free(calloc(count, size));
 }
 
+static void
+free_buf(void *ptr)
+{
+	struct xbuf *buf = ptr;
+	xbuf_free(&buf);
+}
+
+struct xbuf *
+xbuf(size_t cap)
+{
+	struct xbuf *buf;
+	int rc;
+
+	if ((rc = xbuf_new(&buf, cap)) < 0) {
+		xerr_abort(rc);
+	}
+
+	if ((rc = xdefer(free_buf, buf)) < 0) {
+		xbuf_free(&buf);
+		xerr_abort(rc);
+	}
+
+	return buf;
+}
+
+ssize_t
+xbuf_read(struct xbuf *buf, int fd, size_t len, int timeoutms)
+{
+	ssize_t rc = xbuf_ensure(buf, len);
+	if (rc < 0) { return rc; }
+	rc = xread(fd, xbuf_tail(buf), len, timeoutms);
+	if (rc > 0) { xbuf_bump(buf, rc); }
+	return rc;
+}
+
+ssize_t
+xbuf_write(struct xbuf *buf, int fd, size_t len, int timeoutms)
+{
+	size_t w = xbuf_length(buf);
+	if (len < w) { w = len; }
+	ssize_t rc = xwrite(fd, xbuf_value(buf), w, timeoutms);
+	if (rc > 0) { xbuf_trim(buf, rc); }
+	return rc;
+}
+

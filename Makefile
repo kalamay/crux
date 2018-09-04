@@ -137,6 +137,7 @@ INCLUDE:= \
 	include/crux/err.h \
 	include/crux/rand.h \
 	include/crux/seed.h \
+	include/crux/buf.h \
 	include/crux/list.h \
 	include/crux/vec.h \
 	include/crux/heap.h \
