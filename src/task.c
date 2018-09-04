@@ -522,10 +522,16 @@ xdefer_b(void (^block)(void))
 static void *
 defer_free(void *val)
 {
-	if (val != NULL && xdefer(free, val) < 0) {
-		free(val);
-		val = NULL;
+	if (val == NULL) {
+		xerr_abort(XERRNO);
 	}
+
+	int rc = xdefer(free, val);
+	if (rc < 0) {
+		free(val);
+		xerr_abort(rc);
+	}
+
 	return val;
 }
 
