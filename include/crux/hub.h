@@ -64,6 +64,13 @@ XEXTERN ssize_t
 xreadv(int fd, struct iovec *iov, int iovcnt, int timeoutms);
 
 XEXTERN ssize_t
+xrecv(int fd, void *buf, size_t len, int flags, int timeoutms);
+
+XEXTERN ssize_t
+xrecvfrom(int s, void *buf, size_t len, int flags,
+	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
+
+XEXTERN ssize_t
 xreadn(int fd, void *buf, size_t len, int timeoutms);
 
 XEXTERN ssize_t
@@ -73,15 +80,14 @@ XEXTERN ssize_t
 xwritev(int fd, const struct iovec *iov, int iovcnt, int timeoutms);
 
 XEXTERN ssize_t
-xwriten(int fd, const void *buf, size_t len, int timeoutms);
-
-XEXTERN ssize_t
-xrecvfrom(int s, void *buf, size_t len, int flags,
-	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms);
+xsend(int s, const void *buf, size_t len, int flags, int timeoutms);
 
 XEXTERN ssize_t
 xsendto(int s, const void *buf, size_t len, int flags,
 	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms);
+
+XEXTERN ssize_t
+xwriten(int fd, const void *buf, size_t len, int timeoutms);
 
 typedef ssize_t (*xio_fn) (int fd, void *buf, size_t len, int timeoutms);
 

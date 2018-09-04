@@ -467,48 +467,55 @@ xsignal(int signum, int timeoutms)
 	return rc;
 }
 
-#define RECV(fd, ms, fn, ...) do { \
-	ssize_t rc; \
-	for (;;) { \
-		rc = fn(fd, __VA_ARGS__); \
-		if (rc >= 0) { return rc; } \
-		rc = XERRNO; \
-		if (rc != XESYS(EAGAIN)) { return rc; } \
-		struct xhub_entry *ent = active_entry; \
-		if (ent == NULL) { return rc; } \
-		rc = schedule_poll(ent, fd, XPOLL_IN, ms); \
-		if (rc < 0) { return rc; } \
-		int val = xyield(XZERO).i; \
-		if (val < 0) { return (ssize_t)val; } \
-	} \
-} while (0)
+#define RECV_LOOP(fd, ms, fn, ...) for (;;) { \
+	ssize_t rc = fn(fd, __VA_ARGS__); \
+	if (rc >= 0) { return rc; } \
+	rc = XERRNO; \
+	if (rc != XESYS(EAGAIN)) { return rc; } \
+	struct xhub_entry *ent = active_entry; \
+	if (ent == NULL) { return rc; } \
+	rc = schedule_poll(ent, fd, XPOLL_IN, ms); \
+	if (rc < 0) { return rc; } \
+	int val = xyield(XZERO).i; \
+	if (val < 0) { return (ssize_t)val; } \
+}
 
-#define SEND(fd, ms, fn, ...) do { \
-	ssize_t rc; \
-	for (;;) { \
-		rc = fn(fd, __VA_ARGS__); \
-		if (rc >= 0) { return rc; } \
-		rc = XERRNO; \
-		if (rc != XESYS(EAGAIN)) { return rc; } \
-		struct xhub_entry *ent = active_entry; \
-		if (ent == NULL) { return rc; } \
-		rc = schedule_poll(ent, fd, XPOLL_OUT, ms); \
-		if (rc < 0) { return rc; } \
-		int val = xyield(XZERO).i; \
-		if (val < 0) { return (ssize_t)val; } \
-	} \
-} while (0)
+#define SEND_LOOP(fd, ms, fn, ...) for (;;) { \
+	ssize_t rc = fn(fd, __VA_ARGS__); \
+	if (rc >= 0) { return rc; } \
+	rc = XERRNO; \
+	if (rc != XESYS(EAGAIN)) { return rc; } \
+	struct xhub_entry *ent = active_entry; \
+	if (ent == NULL) { return rc; } \
+	rc = schedule_poll(ent, fd, XPOLL_OUT, ms); \
+	if (rc < 0) { return rc; } \
+	int val = xyield(XZERO).i; \
+	if (val < 0) { return (ssize_t)val; } \
+}
 
 ssize_t
 xread(int fd, void *buf, size_t len, int timeoutms)
 {
-	RECV(fd, timeoutms, read, buf, len);
+	RECV_LOOP(fd, timeoutms, read, buf, len);
 }
 
 extern ssize_t
 xreadv(int fd, struct iovec *iov, int iovcnt, int timeoutms)
 {
-	RECV(fd, timeoutms, readv, iov, iovcnt);
+	RECV_LOOP(fd, timeoutms, readv, iov, iovcnt);
+}
+
+ssize_t
+xrecv(int fd, void *buf, size_t len, int flags, int timeoutms)
+{
+	RECV_LOOP(fd, timeoutms, recv, buf, flags, len);
+}
+
+extern ssize_t
+xrecvfrom(int s, void *buf, size_t len, int flags,
+	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms)
+{
+	RECV_LOOP(s, timeoutms, recvfrom, buf, len, flags, src_addr, src_len);
 }
 
 ssize_t
@@ -520,33 +527,32 @@ xreadn(int fd, void *buf, size_t len, int timeoutms)
 ssize_t
 xwrite(int fd, const void *buf, size_t len, int timeoutms)
 {
-	SEND(fd, timeoutms, write, buf, len);
+	SEND_LOOP(fd, timeoutms, write, buf, len);
 }
 
 ssize_t
 xwritev(int fd, const struct iovec *iov, int iovcnt, int timeoutms)
 {
-	SEND(fd, timeoutms, writev, iov, iovcnt);
+	SEND_LOOP(fd, timeoutms, writev, iov, iovcnt);
 }
 
 ssize_t
-xwriten(int fd, const void *buf, size_t len, int timeoutms)
+xsend(int fd, const void *buf, size_t len, int flags, int timeoutms)
 {
-	return xio(fd, (void *)buf, len, timeoutms, (xio_fn)xwrite);
-}
-
-extern ssize_t
-xrecvfrom(int s, void *buf, size_t len, int flags,
-	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms)
-{
-	RECV(s, timeoutms, recvfrom, buf, len, flags, src_addr, src_len);
+	SEND_LOOP(fd, timeoutms, send, buf, len, flags);
 }
 
 ssize_t
 xsendto(int s, const void *buf, size_t len, int flags,
 	 const struct sockaddr *dest_addr, socklen_t dest_len, int timeoutms)
 {
-	SEND(s, timeoutms, sendto, buf, len, flags, dest_addr, dest_len);
+	SEND_LOOP(s, timeoutms, sendto, buf, len, flags, dest_addr, dest_len);
+}
+
+ssize_t
+xwriten(int fd, const void *buf, size_t len, int timeoutms)
+{
+	return xio(fd, (void *)buf, len, timeoutms, (xio_fn)xwrite);
 }
 
 ssize_t
