@@ -1,4 +1,5 @@
 #include "mu.h"
+#include "../include/crux/buf.h"
 #include "../include/crux/http.h"
 #include "../include/crux/err.h"
 

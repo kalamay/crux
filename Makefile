@@ -26,15 +26,15 @@
 #   EXECINFO_LIB: location of the execinfo library
 #   LDFLAGS_EXECINFO: override linker flags for execinfo
 #   
-#   FLAGS_COMMON: common compiler and linker flags for release and debug builds
-#   CFLAGS_COMMON: compiler flags for release and debug builds
-#   CFLAGS_DEBUG: debug only compiler flags
-#   CFLAGS_RELEASE: release only compiler flags
+#   FLAGS_common: common compiler and linker flags for release and debug builds
+#   CFLAGS_common: compiler flags for release and debug builds
+#   CFLAGS_debug: debug only compiler flags
+#   CFLAGS_release: release only compiler flags
 #   CFLAGS: override for final compiler flags
 #
-#   LDFLAGS_COMMON: linker flags for release and debug builds
-#   LDFLAGS_DEBUG: debug only linker flags
-#   LDFLAGS_RELEASE: release only linker flags
+#   LDFLAGS_common: linker flags for release and debug builds
+#   LDFLAGS_debug: debug only linker flags
+#   LDFLAGS_release: release only linker flags
 #   LDFLAGS: override for final linker flags
 
 -include Custom.mk
@@ -76,15 +76,15 @@ else
 endif
 
 # set default compiler and linker flags
-FLAGS_COMMON?= -march=native
-CFLAGS_COMMON?= $(FLAGS_COMMON) \
+FLAGS_common?= -march=native
+CFLAGS_common?= $(FLAGS_common) \
 	-DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_PATCH=$(VERSION_PATCH) \
 	-std=gnu11 -fPIC
-CFLAGS_DEBUG?= $(CFLAGS_COMMON) -g -Wall -Wextra -Wcast-align -pedantic -Werror
-CFLAGS_RELEASE?= $(CFLAGS_COMMON) -O2 -DNDEBUG -flto
-LDFLAGS_COMMON?= $(FLAGS_COMMON) $(LDFLAGS_EXECINFO)
-LDFLAGS_DEBUG?= $(LDFLAGS_COMMON)
-LDFLAGS_RELEASE?= $(LDFLAGS_COMMON) -flto -O2
+CFLAGS_debug?= $(CFLAGS_common) -g -Wall -Wextra -Wcast-align -pedantic -Werror -fno-omit-frame-pointer -fsanitize=address
+CFLAGS_release?= $(CFLAGS_common) -O3 -DNDEBUG
+LDFLAGS_common?= $(FLAGS_common) $(LDFLAGS_EXECINFO)
+LDFLAGS_debug?= $(LDFLAGS_common) -fsanitize=address
+LDFLAGS_release?= $(LDFLAGS_common) -O3
 
 # define static and dynamic library names and set platform library flags
 LIB:= libcrux.a
@@ -106,7 +106,6 @@ MANDIR:= share/man/man3
 # set build directory variables
 BUILD?= release
 BUILD_ROOT?= build
-BUILD_UPPER:= $(shell echo $(BUILD) | tr a-z A-Z)
 BUILD_TYPE:= $(BUILD_ROOT)/$(BUILD)
 BUILD_LIB:= $(BUILD_TYPE)/lib
 BUILD_INCLUDE:= $(BUILD_TYPE)/include
@@ -114,9 +113,9 @@ BUILD_MAN:= $(BUILD_TYPE)/$(MANDIR)
 BUILD_TMP:= $(BUILD_ROOT)/tmp/$(BUILD)
 
 # update final build flags
-CFLAGS?= $(CFLAGS_$(BUILD_UPPER))
+CFLAGS?= $(CFLAGS_$(BUILD))
 CFLAGS:= $(CFLAGS) -fno-omit-frame-pointer -MMD -MP -Iinclude -I$(BUILD_TMP)
-LDFLAGS?= $(LDFLAGS_$(BUILD_UPPER))
+LDFLAGS?= $(LDFLAGS_$(BUILD))
 
 # list of souce files to include in build
 SRC:= \
@@ -159,7 +158,8 @@ TEST:= \
 	test/hashmap.c \
 	test/map.c \
 	test/heap.c \
-	test/buf.c
+	test/buf.c \
+	test/http.c
 
 ifeq ($(WITH_POLL),1)
  SRC:=$(SRC) src/poll.c
@@ -277,10 +277,6 @@ $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY):
 # copy source headers into build directory
 $(BUILD_INCLUDE)/%: include/% | $(BUILD_INCLUDE)/crux
 	cp $< $@
-
-# override rule for version.h
-$(BUILD_INCLUDE)/crux/version.h: include/crux/version.h Makefile | $(BUILD_INCLUDE)/crux
-	awk 'NR==4{print "$(VERSION_DEF_MAJOR)\n$(VERSION_DEF_MINOR)\n$(VERSION_DEF_PATCH)\n"}1' $< > $@
 
 # copy source headers into build directory
 $(BUILD_MAN)/%.gz: man/% | $(BUILD_MAN)
