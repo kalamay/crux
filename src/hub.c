@@ -683,17 +683,7 @@ xclose(int fd)
 	// FIXME: why error if ent is NULL?
 	if (ent == NULL) { return XESYS(EPERM); }
 	xhub_mark_close(ent->hub, fd);
-	for (;;) {
-		int rc = close(fd);
-		if (rc < 0) {
-			if (errno != EINTR) {
-				return XERRNO;
-			}
-		}
-		else {
-			return 0;
-		}
-	}
+	return xerr(xretry(close(fd)));
 }
 
 int
