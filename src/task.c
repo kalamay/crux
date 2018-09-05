@@ -185,7 +185,7 @@ eol(struct xtask *t, union xvalue val, int ec)
 
 	while (def != NULL) {
 		struct xdefer *next = def->next;
-		def->fn(def->data);
+		def->fn(def->val);
 		def->next = mgr->free_defer;
 		mgr->free_defer = def;
 		def = next;
@@ -469,7 +469,7 @@ xresume(struct xtask *t, union xvalue val)
 }
 
 int
-xdefer(void (*fn) (void *), void *data)
+xdefer(void (*fn)(union xvalue), union xvalue val)
 {
 	assert(fn != NULL);
 
@@ -488,7 +488,7 @@ xdefer(void (*fn) (void *), void *data)
 
 	def->next = t->defer;
 	def->fn = fn;
-	def->data = data;
+	def->val = val;
 	t->defer = def;
 
 	return 0;
@@ -499,9 +499,9 @@ xdefer(void (*fn) (void *), void *data)
 #include <Block.h>
 
 static void
-defer_block(void *data)
+defer_block(union xvalue val)
 {
-	void (^block)(void) = data;
+	void (^block)(void) = val.ptr;
 	block();
 	Block_release(block);
 }
@@ -510,7 +510,7 @@ int
 xdefer_b(void (^block)(void))
 {
 	void (^copy)(void) = Block_copy(block);
-	int rc = xdefer(defer_block, copy);
+	int rc = xdefer(defer_block, XPTR(copy));
 	if (rc < 0) {
 		Block_release(copy);
 	}
@@ -519,6 +519,12 @@ xdefer_b(void (^block)(void))
 
 #endif
 
+static void
+free_ptr(union xvalue val)
+{
+	free(val.ptr);
+}
+
 static void *
 defer_free(void *val)
 {
@@ -526,7 +532,7 @@ defer_free(void *val)
 		xerr_abort(XERRNO);
 	}
 
-	int rc = xdefer(free, val);
+	int rc = xdefer(free_ptr, XPTR(val));
 	if (rc < 0) {
 		free(val);
 		xerr_abort(rc);
@@ -548,9 +554,9 @@ xcalloc(size_t count, size_t size)
 }
 
 static void
-free_buf(void *ptr)
+free_buf(union xvalue val)
 {
-	struct xbuf *buf = ptr;
+	struct xbuf *buf = val.ptr;
 	xbuf_free(&buf);
 }
 
@@ -564,7 +570,7 @@ xbuf(size_t cap)
 		xerr_abort(rc);
 	}
 
-	if ((rc = xdefer(free_buf, buf)) < 0) {
+	if ((rc = xdefer(free_buf, XPTR(buf))) < 0) {
 		xbuf_free(&buf);
 		xerr_abort(rc);
 	}

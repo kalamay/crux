@@ -2,6 +2,7 @@
 #define CRUX_HUB_H
 
 #include "def.h"
+#include "value.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -28,12 +29,12 @@ xhub_stop(struct xhub *hub);
 XEXTERN void
 xhub_mark_close(struct xhub *hub, int fd);
 
-#define xspawn(hub, fn, data) \
-	xspawnf(hub, __FILE__, __LINE__, fn, data)
+#define xspawn(hub, fn, val) \
+	xspawnf(hub, __FILE__, __LINE__, fn, val)
 
 XEXTERN int
 xspawnf(struct xhub *hub, const char *file, int line,
-		void (*fn)(struct xhub *, void *), void *data);
+		void (*fn)(struct xhub *, union xvalue), union xvalue val);
 
 #if defined(__BLOCKS__)
 

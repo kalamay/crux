@@ -125,7 +125,7 @@ The file descriptor value to inspect.
 
 .P
 .nf
-\fB#define xspawn\fR(\fIhup\fR, \fIfn\fR, \fIdata\fR)
+\fB#define xspawn\fR(\fIhup\fR, \fIfn\fR, \fIval\fR)
 .fi
 .RS
 The is the preffered way to spawn a new task object. It works identically
@@ -145,8 +145,8 @@ Hub to schedule the task on.
 \fIfn\fR
 Function pointer for the entry point to the task.
 .TP
-\fIdata\fR
-User data pointer. This gets passed to \fIfn\fR.
+\fIval\fR
+Arbitrary \fBunion xvalue\fR value. This gets passed to \fIfn\fR.
 .P
 Return values from this may be:
 .TP
@@ -164,7 +164,7 @@ The requested stack size outside the allowed range.
 .nf
 \fBint\fR
 \fBxspawnf\fR(\fBstruct xhub \fR*\fIhub\fR, \fBconst char \fR*\fIfile\fR, \fBint \fIline\fR,
-         \fBvoid\fR (*\fIfn\fR)(\fBstruct xhub\fR *, \fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
+         \fBvoid\fR (*\fIfn\fR)(\fBstruct xhub\fR *, \fBunion xvalue\fR), \fBunion xvalue\fR \fIval\fR);
 .fi
 .RS
 Creates a new task managed by the hub. This task will be scheduled for
@@ -178,8 +178,8 @@ Hub to schedule the task on.
 \fIfn\fR
 Function pointer for the entry point to the task.
 .TP
-\fIdata\fR
-User data pointer. This gets passed to \fIfn\fR.
+\fIval\fR
+Arbitrary \fBunion xvalue\fR value. This gets passed to \fIfn\fR.
 .P
 Return values from this function may be:
 .TP
@@ -939,21 +939,20 @@ possible errors.
 static int sock = -1;
 
 static void
-doclose(void *data)
+doclose(union xvalue val)
 {
-	close((int)(intptr_t)data);
+	xclose(val.i);
 }
 
 static void
-connection(struct xhub *h, void *data)
+connection(struct xhub *h, union xvalue val)
 {
-	int fd = (int)(intptr_t)data;
-	xdefer(doclose, data);
+	int fd = val.i;
+	xdefer(doclose, val);
 
-	char buf[1024];
-	ssize_t len;
-	while ((len = xread(fd, buf, sizeof(buf), -1)) > 0) {
-		fwrite(buf, 1, len, stdout);
+	struct xbuf *buf = xbuf(1024);
+	while (xbuf_read(buf, fd, 1024, -1) > 0) {
+		xbuf_write(buf, fd, SIZE_MAX, -1);
 	}
 }
 
@@ -979,7 +978,7 @@ server(struct xhub *h, void *data)
 		int fd = xcheck(xaccept(sock, (struct sockaddr *)&addr, &len, -1));
 		printf("[%d] accepted from stream://%s:%d\\n",
 				getpid(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-		xspawn(h, connection, (void *)(uintptr_t)fd);
+		xspawn(h, connection, XINT(fd));
 	}
 }
 

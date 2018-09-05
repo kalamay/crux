@@ -472,7 +472,7 @@ These are functions that may be called when a task has context.
 .P
 .nf
 \fBint\fR
-\fBxdefer\fR(\fBvoid\fR (*\fIfn\fR) (\fBvoid\fR *), \fBvoid\fR *\fIdata\fR);
+\fBxdefer\fR(\fBvoid\fR (*\fIfn\fR) (\fBunion xvalue\fR), \fBunion xvalue\fR \fIval\fR);
 .fi
 .RS
 .P
@@ -484,8 +484,8 @@ resume other tasks.
 \fIfn\fR
 The function pointer to call.
 .TP
-\fIdata\fR
-User pointer to pass to the function.
+\fIval\fR
+User value to pass to the function.
 .P
 Return values from this function may be:
 .TP
@@ -600,6 +600,14 @@ An \fBint\fR value.
 .fi
 .RS
 Declares a value containing zero
+.RE
+
+.P
+.nf
+\fB#define XNULL\fR
+.fi
+.RS
+Declares a value containing NULL
 .RE
 
 

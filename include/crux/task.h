@@ -69,7 +69,7 @@ XEXTERN union xvalue
 xresume(struct xtask *t, union xvalue val);
 
 XEXTERN int
-xdefer(void (*fn) (void *), void *data);
+xdefer(void (*fn)(union xvalue), union xvalue);
 
 #if defined(__BLOCKS__)
 

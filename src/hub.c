@@ -35,9 +35,9 @@ struct xhub_entry {
 	struct xheap_entry hent;
 	struct xlist lent;
 	struct xtask *t;
-	void *data;
+	union xvalue val;
 	struct xhub *hub;
-	void (*fn)(struct xhub *, void *);
+	void (*fn)(struct xhub *, union xvalue val);
 	int poll_id, poll_type;
 	bool detached;
 };
@@ -349,13 +349,13 @@ spawn_fn(void *tls, union xvalue val)
 {
 	(void)val;
 	struct xhub_entry *ent = tls;
-	ent->fn(ent->hub, ent->data);
+	ent->fn(ent->hub, ent->val);
 	return XZERO;
 }
 
 int
 xspawnf(struct xhub *hub, const char *file, int line,
-		void (*fn)(struct xhub *, void *), void *data)
+		void (*fn)(struct xhub *, union xvalue), union xvalue val)
 {
 	struct xtask *t;
 	struct xhub_entry *ent;
@@ -367,7 +367,7 @@ xspawnf(struct xhub *hub, const char *file, int line,
 	ent = xtask_local(t);
 	ent->magic = MAGIC;
 	ent->t = t;
-	ent->data = data;
+	ent->val = val;
 	ent->hub = hub;
 	ent->fn = fn;
 
@@ -379,10 +379,10 @@ xspawnf(struct xhub *hub, const char *file, int line,
 #include <Block.h>
 
 static void
-spawn_block(struct xhub *h, void *data)
+spawn_block(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	void (^block)(void) = data;
+	void (^block)(void) = val.ptr;
 	block();
 	Block_release(block);
 }
@@ -391,7 +391,7 @@ int
 xspawn_b(struct xhub *hub, void (^block)(void))
 {
 	void (^copy)(void) = Block_copy(block);
-	int rc = xspawnf(hub, NULL, 0, spawn_block, copy);
+	int rc = xspawnf(hub, NULL, 0, spawn_block, XPTR(copy));
 	if (rc < 0) {
 		Block_release(copy);
 	}

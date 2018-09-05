@@ -2,8 +2,8 @@
 
 struct xdefer {
 	struct xdefer *next;
-	void (*fn) (void *);
-	void *data;
+	void (*fn)(union xvalue);
+	union xvalue val;
 };
 
 struct xmgr {
