@@ -27,12 +27,6 @@ typedef struct {
 	char body[256];
 } Message;
 
-static ssize_t
-next(struct xhttp *p, const struct xbuf *buf)
-{
-	return xhttp_next(p, xbuf_value(buf), xbuf_length(buf));
-}
-
 static bool
 parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, size_t speed)
 {
@@ -62,7 +56,7 @@ parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, size_t spe
 			body -= rc;
 		}
 		else {
-			rc = xhttp_next(p, val, len);
+			rc = xhttp_next(p, buf);
 
 			// normally rc could equal 0 if a full scan couldn't be completed
 			mu_assert_int_ge(rc, 0);
@@ -473,11 +467,11 @@ test_invalid_header(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSYNTAX);
 }
 
@@ -497,7 +491,7 @@ test_limit_method_size(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 54);
 }
 
@@ -517,7 +511,7 @@ test_exceed_method_size(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSIZE);
 }
 
@@ -537,11 +531,11 @@ test_limit_name_size(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 265);
 }
 
@@ -561,11 +555,11 @@ test_exceed_name_size(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSIZE);
 }
 
@@ -585,11 +579,11 @@ test_limit_value_size(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 1031);
 }
 
@@ -609,11 +603,11 @@ test_exceed_value_size(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
 
 	xhttp_init_request(&p);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, XEHTTPSIZE);
 }
 
@@ -634,11 +628,11 @@ test_increase_value_size(void)
 
 	xhttp_init_request(&p);
 	p.max_value = 2048;
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
-	rc = next(&p, buf);
+	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 1032);
 }
 

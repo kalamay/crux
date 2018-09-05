@@ -7,18 +7,18 @@
 #include <arpa/inet.h>
 
 static void
-doclose(void *data)
+doclose(union xvalue val)
 {
-	close((int)(intptr_t)data);
+	close(val.i);
 }
 
 static int sleep_count = 0;
 
 static void
-dosleep(struct xhub *h, void *data)
+dosleep(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	xsleep((uintptr_t)data);
+	xsleep(val.i);
 	sleep_count++;
 }
 
@@ -30,9 +30,9 @@ test_concurrent_sleep(void)
 
 	mu_assert_int_eq(xhub_new(&hub), 0);
 
-	mu_assert_int_eq(xspawn(hub, dosleep, (void *)10), 0);
-	mu_assert_int_eq(xspawn(hub, dosleep, (void *)20), 0);
-	mu_assert_int_eq(xspawn(hub, dosleep, (void *)10), 0);
+	mu_assert_int_eq(xspawn(hub, dosleep, XINT(10)), 0);
+	mu_assert_int_eq(xspawn(hub, dosleep, XINT(20)), 0);
+	mu_assert_int_eq(xspawn(hub, dosleep, XINT(10)), 0);
 
 	xclock_mono(&start);
 	mu_assert_int_eq(xhub_run(hub), 0);
@@ -49,20 +49,20 @@ test_concurrent_sleep(void)
 }
 
 static void
-dosignal(struct xhub *h, void *data)
+dosignal(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	int signum = (intptr_t)data;
+	int signum = val.i;
 	int rc = xsignal(signum, -1);
 	mu_assert_int_eq(rc, signum);
 }
 
 static void
-dokill(struct xhub *h, void *data)
+dokill(struct xhub *h, union xvalue val)
 {
 	(void)h;
 	xsleep(10);
-	kill(getpid(), (intptr_t)data);
+	kill(getpid(), val.i);
 }
 
 static void
@@ -70,17 +70,17 @@ test_signal(void)
 {
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, dosignal, (void *)SIGHUP), 0);
-	mu_assert_int_eq(xspawn(hub, dokill, (void *)SIGHUP), 0);
+	mu_assert_int_eq(xspawn(hub, dosignal, XINT(SIGHUP)), 0);
+	mu_assert_int_eq(xspawn(hub, dokill, XINT(SIGHUP)), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
 }
 
 static void
-dowrite(struct xhub *h, void *data)
+dowrite(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	int fd = (intptr_t)data;
+	int fd = val.i;
 	for (int i = 0; i < 5; i++) {
 		xwrite(fd, "test", 4, -1);
 		xsleep(10);
@@ -89,10 +89,10 @@ dowrite(struct xhub *h, void *data)
 }
 
 static void
-doread(struct xhub *h, void *data)
+doread(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	int fd = (intptr_t)data;
+	int fd = val.i;
 
 	char buf[5];
 	memset(buf, 0, sizeof(buf));
@@ -113,22 +113,22 @@ test_pipe(void)
 
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, dowrite, (void *)(intptr_t)fds[1]), 0);
-	mu_assert_int_eq(xspawn(hub, doread, (void *)(intptr_t)fds[0]), 0);
+	mu_assert_int_eq(xspawn(hub, dowrite, XINT(fds[1])), 0);
+	mu_assert_int_eq(xspawn(hub, doread, XINT(fds[0])), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
 }
 
 static void
-dorecv(struct xhub *h, void *data)
+dorecv(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	const struct sockaddr_in *dest = data;
+	const struct sockaddr_in *dest = val.ptr;
 
 	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	mu_assert_call(s);
 	mu_assert_call(bind(s, (const struct sockaddr *)dest, sizeof(*dest)));
-	xdefer(doclose, (void *)(intptr_t)s);
+	xdefer(doclose, XINT(s));
 
 	struct sockaddr_in src;
 	socklen_t len = sizeof(src);
@@ -142,14 +142,14 @@ dorecv(struct xhub *h, void *data)
 }
 
 static void
-dosend(struct xhub *h, void *data)
+dosend(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	const struct sockaddr_in *dest = data;
+	const struct sockaddr_in *dest = val.ptr;
 
 	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	mu_assert_call(s);
-	xdefer(doclose, (void *)(intptr_t)s);
+	xdefer(doclose, XINT(s));
 
 	xsendto(s, "test", 4, 0, (struct sockaddr *)dest, sizeof(*dest), -1);
 }
@@ -166,23 +166,23 @@ test_udp(void)
 		.sin_addr.s_addr = inet_addr("0.0.0.0")
 	};
 
-	xspawn(hub, dorecv, &dest);
-	xspawn(hub, dosend, &dest);
+	xspawn(hub, dorecv, XPTR(&dest));
+	xspawn(hub, dosend, XPTR(&dest));
 
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
 }
 
 static void
-dorecv_timeout(struct xhub *h, void *data)
+dorecv_timeout(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	const struct sockaddr_in *dest = data;
+	const struct sockaddr_in *dest = val.ptr;
 
 	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	mu_assert_call(s);
 	mu_assert_call(bind(s, (const struct sockaddr *)dest, sizeof(*dest)));
-	xdefer(doclose, (void *)(intptr_t)s);
+	xdefer(doclose, XINT(s));
 
 	struct sockaddr_in src;
 	socklen_t len = sizeof(src);
@@ -209,14 +209,14 @@ dorecv_timeout(struct xhub *h, void *data)
 }
 
 static void
-dosend_timeout(struct xhub *h, void *data)
+dosend_timeout(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	const struct sockaddr_in *dest = data;
+	const struct sockaddr_in *dest = val.ptr;
 
 	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	mu_assert_call(s);
-	xdefer(doclose, (void *)(intptr_t)s);
+	xdefer(doclose, XINT(s));
 
 	xsleep(40);
 	int rc = xsendto(s, "test", 4, 0, (struct sockaddr *)dest, sizeof(*dest), -1);
@@ -235,8 +235,8 @@ test_udp_timeout(void)
 		.sin_addr.s_addr = inet_addr("0.0.0.0")
 	};
 
-	xspawn(hub, dorecv_timeout, &dest);
-	xspawn(hub, dosend_timeout, &dest);
+	xspawn(hub, dorecv_timeout, XPTR(&dest));
+	xspawn(hub, dosend_timeout, XPTR(&dest));
 
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);

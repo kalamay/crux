@@ -6,13 +6,15 @@
 static bool done = false;
 
 static void
-doresolv(struct xhub *h, void *res)
+doresolv(struct xhub *h, union xvalue val)
 {
 	(void)h;
 
+	struct xresolv *res = val.ptr;
+
 	struct xresolv_result rr[4];
 	int rc = xresolv(res, "www.google.com", rr, xlen(rr));
-	//int rc = xresolv(res, "_http._tcp.jeremy.imgix.com", rr, xlen(rr));
+	//int rc = xresolv(res, "_http._tcp.test.jeremylarkin.com", rr, xlen(rr));
 	printf("rc: %d\n", rc);
 	if (rc < 0) {
 		printf("error: %s\n", strerror(-rc));
@@ -40,11 +42,11 @@ doresolv(struct xhub *h, void *res)
 }
 
 static void
-dostuff(struct xhub *h, void *data)
+dostuff(struct xhub *h, union xvalue val)
 {
 	(void)h;
 
-	int *stuff = data;
+	int *stuff = val.ptr;
 	while (!done) {
 		stuff[0]++;
 		xsleep(1);
@@ -76,8 +78,8 @@ main(void)
 
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, doresolv, r), 0);
-	mu_assert_int_eq(xspawn(hub, dostuff, &stuff), 0);
+	mu_assert_int_eq(xspawn(hub, doresolv, XPTR(r)), 0);
+	mu_assert_int_eq(xspawn(hub, dostuff, XPTR(&stuff)), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 
 	mu_assert_int_gt(stuff, 0);

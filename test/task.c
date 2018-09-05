@@ -76,9 +76,9 @@ test_fibonacci(void)
 }
 
 static void
-defer_count(void *ptr)
+defer_count(union xvalue val)
 {
-	int *n = ptr;
+	int *n = val.ptr;
 	*n = *n + 1;
 }
 
@@ -86,9 +86,9 @@ static union xvalue
 defer_coro(void *tls, union xvalue val)
 {
 	(void)tls;
-	xdefer(defer_count, val.ptr);
-	xdefer(defer_count, val.ptr);
-	xdefer(defer_count, val.ptr);
+	xdefer(defer_count, val);
+	xdefer(defer_count, val);
+	xdefer(defer_count, val);
 	return XZERO;
 }
 
@@ -112,7 +112,7 @@ test_defer(void)
 }
 
 static void
-defer_fib(void *ptr)
+defer_fib(union xvalue val)
 {
 	struct xtask *t;
 	mu_assert_int_eq(xtask_new(&t, xmgr_self(), NULL, fib), 0);
@@ -124,7 +124,7 @@ defer_fib(void *ptr)
 	mu_assert_uint_eq(xresume(t, XZERO).u64, 3);
 	mu_assert_uint_eq(xresume(t, XZERO).u64, 5);
 	
-	*(int *)ptr = 1;
+	*(int *)val.ptr = 1;
 
 	xtask_free(&t);
 }
@@ -133,7 +133,7 @@ static union xvalue
 defer_resume_coro(void *tls, union xvalue val)
 {
 	(void)tls;
-	xdefer(defer_fib, val.ptr);
+	xdefer(defer_fib, val);
 	return XZERO;
 }
 
