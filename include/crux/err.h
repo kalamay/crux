@@ -100,9 +100,21 @@ xerr_fabort(int code, const char *fmt, ...);
  */
 #define xcheck_errno(f) __extension__ ({ \
 	int __code = (f); \
-	if (__code < 0) { \
+	if (__code == -1) { \
 		xerr_fabort(errno, "%s:%d: '%s' failed", __FILE__, __LINE__, #f); \
 	} \
+	__code; \
+})
+
+/**
+ * @brief  Converts a -1 return value into an `XERRNO` result
+ *
+ * @param  f  expressoint that result in a return code
+ * @return  the result from `f` or `XERRNO` if -1
+ */
+#define xerr(f) __extension__ ({ \
+	int __code = (f); \
+	if (__code == -1) { __code == XERRNO; } \
 	__code; \
 })
 
