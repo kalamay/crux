@@ -36,6 +36,17 @@
 #define xsym_make(x, y) xsym_concat(x, y)
 #define xsym(n) xsym_make(sym__##n##_, __LINE__)
 
+#ifdef TEMP_FAILURE_RETRY
+# define xretry TEMP_FAILURE_RETRY
+#else
+# define xretry(exp) __extension__ ({ \
+	int __code; \
+	do { __code = (exp); } \
+	while (__code == -1 && errno == EINTR); \
+	__code; \
+})
+#endif
+
 #define xpower2(n) __extension__ ({ \
 	uintmax_t __p2 = (n); \
 	if (__p2 > 0) { \
