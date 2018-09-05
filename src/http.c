@@ -388,6 +388,10 @@ xhttp_next(struct xhttp *p, const void *restrict buf, size_t len)
 		return 0;
 	}
 
+	if (IS_DONE(p->cs)) {
+		xerr_fabort(XEHTTPSTATE, "http parser not reset");
+	}
+
 	ssize_t rc;
 	p->scans++;
 	p->cscans++;
