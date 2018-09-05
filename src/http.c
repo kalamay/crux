@@ -385,7 +385,7 @@ xhttp_next(struct xhttp *p, const struct xbuf *buf)
 	assert(p != NULL);
 
 	if (IS_DONE(p->cs)) {
-		xerr_fabort(XEHTTPSTATE, "http parser not reset");
+		return XEHTTPSTATE;
 	}
 
 	const uint8_t *ptr = xbuf_value(buf);
