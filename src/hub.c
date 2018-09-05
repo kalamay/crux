@@ -680,9 +680,20 @@ xclose(int fd)
 {
 	if (fd < 0) { return 0; }
 	struct xhub_entry *ent = active_entry;
+	// FIXME: why error if ent is NULL?
 	if (ent == NULL) { return XESYS(EPERM); }
 	xhub_mark_close(ent->hub, fd);
-	return close(fd);
+	for (;;) {
+		int rc = close(fd);
+		if (rc < 0) {
+			if (errno != EINTR) {
+				return XERRNO;
+			}
+		}
+		else {
+			return 0;
+		}
+	}
 }
 
 int
