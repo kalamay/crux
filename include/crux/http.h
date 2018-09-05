@@ -3,6 +3,7 @@
 
 #include "def.h"
 #include "range.h"
+#include "buf.h"
 
 #include <stdio.h>
 
@@ -95,13 +96,13 @@ XEXTERN void
 xhttp_reset(struct xhttp *p);
 
 XEXTERN ssize_t
-xhttp_next(struct xhttp *p, const void *restrict buf, size_t len);
+xhttp_next(struct xhttp *p, const struct xbuf *buf);
 
 XEXTERN bool
 xhttp_is_done(const struct xhttp *p);
 
 XEXTERN void
-xhttp_print(const struct xhttp *p, const void *restrict buf, FILE *out);
+xhttp_print(const struct xhttp *p, const struct xbuf *buf, FILE *out);
 
 #endif
 

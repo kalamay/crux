@@ -380,26 +380,28 @@ xhttp_reset(struct xhttp *p)
 }
 
 ssize_t
-xhttp_next(struct xhttp *p, const void *restrict buf, size_t len)
+xhttp_next(struct xhttp *p, const struct xbuf *buf)
 {
 	assert(p != NULL);
 
-	if (len == 0) {
-		return 0;
-	}
-
 	if (IS_DONE(p->cs)) {
 		xerr_fabort(XEHTTPSTATE, "http parser not reset");
+	}
+
+	const uint8_t *ptr = xbuf_value(buf);
+	size_t len = xbuf_length(buf);
+	if (len == 0) {
+		return 0;
 	}
 
 	ssize_t rc;
 	p->scans++;
 	p->cscans++;
 
-	     if (p->cs & REQ) rc = parse_request_line(p, buf, len);
-	else if (p->cs & RES) rc = parse_response_line(p, buf, len);
-	else if (p->cs & FLD) rc = parse_field(p, buf, len);
-	else if (p->cs & CHK) rc = parse_chunk(p, buf, len);
+	     if (p->cs & REQ) rc = parse_request_line(p, ptr, len);
+	else if (p->cs & RES) rc = parse_response_line(p, ptr, len);
+	else if (p->cs & FLD) rc = parse_field(p, ptr, len);
+	else if (p->cs & CHK) rc = parse_chunk(p, ptr, len);
 	else { YIELD_ERROR(XEHTTPSTATE); }
 	if (rc > 0) {
 		p->cscans = 0;
@@ -419,7 +421,7 @@ xhttp_is_done(const struct xhttp *p)
 }
 
 void
-xhttp_print(const struct xhttp *p, const void *restrict buf, FILE *out)
+xhttp_print(const struct xhttp *p, const struct xbuf *buf, FILE *out)
 {
 	assert(p != NULL);
 
@@ -427,24 +429,26 @@ xhttp_print(const struct xhttp *p, const void *restrict buf, FILE *out)
 		out = stderr;
 	}
 
+	const uint8_t *ptr = xbuf_value(buf);
+
 	switch (p->type) {
 	case XHTTP_REQUEST:
 		fprintf(out, "> %.*s %.*s HTTP/1.%u\n",
-				(int)p->as.request.method.len, (char *)buf+p->as.request.method.off,
-				(int)p->as.request.uri.len, (char *)buf+p->as.request.uri.off,
+				(int)p->as.request.method.len, ptr+p->as.request.method.off,
+				(int)p->as.request.uri.len, ptr+p->as.request.uri.off,
 				p->as.request.version);
 		break;
 	case XHTTP_RESPONSE:
 		fprintf(out, "< HTTP/1.%u %u %.*s\n",
 				p->as.response.version,
 				p->as.response.status,
-				(int)p->as.response.reason.len, (char *)buf+p->as.response.reason.off);
+				(int)p->as.response.reason.len, ptr+p->as.response.reason.off);
 		break;
 	case XHTTP_FIELD:
 		fprintf(out, "%c %.*s: %.*s\n",
 				p->response ? '<' : '>',
-				(int)p->as.field.name.len, (char *)buf+p->as.field.name.off,
-				(int)p->as.field.value.len, (char *)buf+p->as.field.value.off);
+				(int)p->as.field.name.len, ptr+p->as.field.name.off,
+				(int)p->as.field.value.len, ptr+p->as.field.value.off);
 		break;
 	case XHTTP_BODY_START:
 	case XHTTP_TRAILER_END:
