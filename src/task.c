@@ -4,6 +4,10 @@
 #include "task.h"
 #include "config.h"
 
+#if WITH_HUB
+# include "../include/crux/hub.h"
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -520,25 +524,48 @@ xdefer_b(void (^block)(void))
 #endif
 
 static void
+close_fd(union xvalue val)
+{
+#if WITH_HUB
+	xclose(val.i);
+#else
+	xretry(close(val.i));
+#endif
+}
+
+int
+xdefer_close(int fd)
+{
+	return xdefer(close_fd, XINT(fd));
+}
+
+static void
 free_ptr(union xvalue val)
 {
 	free(val.ptr);
 }
 
-static void *
-defer_free(void *val)
+int
+xdefer_free(void *ptr)
 {
-	if (val == NULL) {
+	if (ptr == NULL) { return 0; }
+	return xdefer(free_ptr, XPTR(ptr));
+}
+
+static void *
+defer_free(void *ptr)
+{
+	if (ptr == NULL) {
 		xerr_abort(XERRNO);
 	}
 
-	int rc = xdefer(free_ptr, XPTR(val));
+	int rc = xdefer(free_ptr, XPTR(ptr));
 	if (rc < 0) {
-		free(val);
+		free(ptr);
 		xerr_abort(rc);
 	}
 
-	return val;
+	return ptr;
 }
 
 void *

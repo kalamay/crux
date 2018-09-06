@@ -6,12 +6,6 @@
 #include <crux/http.h>
 
 static void
-doclose(union xvalue val)
-{
-	xclose(val.i);
-}
-
-static void
 respond(union xvalue val)
 {
 	static const char resp[] =
@@ -31,7 +25,7 @@ connection(struct xhub *h, union xvalue val)
 {
 	(void)h;
 	int fd = val.i;
-	xdefer(doclose, XINT(fd));
+	xdefer_close(fd);
 
 	struct xhttp http;
 	xhttp_init_request(&http);

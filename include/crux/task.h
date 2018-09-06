@@ -78,6 +78,12 @@ xdefer_b(void (^block)(void));
 
 #endif
 
+XEXTERN int
+xdefer_close(int fd);
+
+XEXTERN int
+xdefer_free(void *ptr);
+
 XEXTERN void *
 xmalloc(size_t size);
 
