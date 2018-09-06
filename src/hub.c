@@ -682,14 +682,14 @@ xclose(int fd)
 {
 	if (fd < 0) { return 0; }
 	struct xhub_entry *ent = active_entry;
-	// FIXME: why error if ent is NULL?
-	if (ent == NULL) { return XESYS(EPERM); }
-	xhub_mark_close(ent->hub, fd);
+	if (ent != NULL) {
+		xhub_mark_close(ent->hub, fd);
+	}
 	return xerr(xretry(close(fd)));
 }
 
 int
-xunblock (int fd)
+xunblock(int fd)
 {
 	if (fd < 0) { return fd; }
 	int flags = fcntl(fd, F_GETFL, 0);
