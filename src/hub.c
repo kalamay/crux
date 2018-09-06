@@ -65,7 +65,6 @@ static int
 schedule_timeout(struct xhub_entry *ent, int ms)
 {
 	struct xhub *h = ent->hub;
-	// TODO: make prio milliseconds?
 	ent->hent.prio = X_MSEC_TO_NSEC((int64_t)ms) + XCLOCK_NSEC(&h->poll.clock);
 	ent->detached = false;
 	int rc = xheap_add(&h->timeout, &ent->hent);
@@ -237,31 +236,34 @@ run_once(struct xhub *hub)
 	struct xevent ev;
 	struct xhub_entry *ent;
 
-	lent = xlist_first(&hub->immediate, X_ASCENDING);
-	if (lent != NULL) {
+	// first clear all immediate tasks
+	if ((lent = xlist_first(&hub->immediate, X_ASCENDING))) {
 		ent = xcontainer(lent, struct xhub_entry, lent);
 		goto invoke;
 	}
 
-	lent = xlist_first(&hub->closed, X_ASCENDING);
-	if (lent != NULL) {
+	// special "closed" events are scheduled when xclose affects a scheduled task
+	if ((lent = xlist_first(&hub->closed, X_ASCENDING))) {
 		ent = xcontainer(lent, struct xhub_entry, lent);
 		val = XESYS(ECONNABORTED);
 		goto invoke;
 	}
 
-	wait = xheap_get(&hub->timeout, XHEAP_ROOT);
-	if (wait != NULL) {
-		// TODO: make prio milliseconds?
+	// then check for a timeout period
+	if ((wait = xheap_get(&hub->timeout, XHEAP_ROOT))) {
+		// there is some task scheduled with a timeout to get its value to pass to the poll
 		ms = X_NSEC_TO_MSEC(wait->prio - XCLOCK_NSEC(&hub->poll.clock));
+		// if the timeout has already expired, immediately invoke it as a timeout
 		if (ms < 0) {
 			ent = xcontainer(wait, struct xhub_entry, hent);
-			goto timeout;
+			goto invoke;
 		}
 	}
+	// if there are no polled tasks then there is nothing to do
 	else if (xlist_is_empty(&hub->polled)) {
 		return 0;
 	}
+	// if all polled tasks are deteched then invoke them as timed out
 	else if (hub->npolled == hub->ndetached) {
 		ent = xcontainer(xlist_first(&hub->polled, X_ASCENDING), struct xhub_entry, lent);
 		assert(ent->detached);
@@ -269,25 +271,25 @@ run_once(struct xhub *hub)
 		goto invoke;
 	}
 
+	// we have some pollable tasks
 	rc = xpoll_wait(&hub->poll, ms, &ev);
 	switch (rc) {
 	case 0:
+		// there was a timeout so get the task with the earliest scheduled timeout
 		ent = xcontainer(wait, struct xhub_entry, hent);
 		if (ent->poll_type) {
 			val = XESYS(ETIMEDOUT);
 		}
-		goto timeout;
+		break;
 	case 1:
+		// a pollable event occurred so extract the task to invoke
 		ent = ev.ptr;
 		ent->poll_type = 0;
 		uncount_poll(ent);
-		goto invoke;
+		break;
 	default:
 		return rc;
 	}
-
-timeout:
-	xheap_remove(&hub->timeout, wait);
 
 invoke:
 	unschedule(ent);
