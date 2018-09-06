@@ -20,6 +20,8 @@
 #   WITH_HTTP: include the http parser
 #   WITH_DNS: include the dns parser and data structures
 #   WITH_RESOLV: include the dns resolver (requires hub and dns)
+#   WITH_NET: include the network system (requires hub and resolv)
+#   WITH_READLINE: include the async readline (requires hub)
 #
 #   EXECINFO: 1 or 0 to override enabling or disabling execinfo
 #   EXECINFO_H: location of execinfo.h
@@ -45,12 +47,22 @@ WITH_HUB?=1
 WITH_HTTP?=1
 WITH_DNS?=1
 WITH_RESOLV?=1
+WITH_NET?=1
+WITH_READLINE?=1
 ifneq ($(WITH_POLL)$(WITH_TASK),11)
  WITH_HUB:=0
 endif
 ifneq ($(WITH_HUB)$(WITH_DNS),11)
- WITH_RESOLV=0
+ WITH_RESOLV:=0
 endif
+ifneq ($(WITH_HUB)$(WITH_RESOLV),11)
+ WITH_NET:=0
+endif
+ifneq ($(WITH_HUB),1)
+ WITH_READLINE:=0
+endif
+
+WITH:= $(WITH_POLL)$(WITH_TASK)$(WITH_HUB)$(WITH_HTTP)$(WITH_DNS)$(WITH_RESOLV)$(WITH_NET)$(WITH_READLINE)
 
 PREFIX?=/usr/local
 DESTDIR?=
@@ -133,7 +145,6 @@ INCLUDE:= \
 	include/crux/clock.h \
 	include/crux/range.h \
 	include/crux/value.h \
-	include/crux/ctx.h \
 	include/crux/def.h \
 	include/crux/err.h \
 	include/crux/rand.h \
@@ -146,6 +157,7 @@ INCLUDE:= \
 	include/crux/hashtier.h \
 	include/crux/hashmap.h \
 	include/crux/map.h
+
 
 # list of manual pages
 MAN:=
@@ -164,35 +176,39 @@ TEST:= \
 	test/http.c
 
 ifeq ($(WITH_POLL),1)
- SRC:=$(SRC) src/poll.c
- INCLUDE:=$(INCLUDE) include/crux/poll.h
- TEST:=$(TEST) test/poll.c
+ SRC+= src/poll.c
+ INCLUDE+= include/crux/poll.h
+ TEST+= test/poll.c
 endif
 ifeq ($(WITH_TASK),1)
- SRC:=$(SRC) src/task.c
- INCLUDE:=$(INCLUDE) include/crux/task.h
- MAN:= $(MAN) man/crux-task.3
- TEST:=$(TEST) test/task.c
+ SRC+= src/task.c
+ INCLUDE+= include/crux/ctx.h include/crux/task.h
+ MAN+= man/crux-task.3
+ TEST+= test/task.c
 endif
 ifeq ($(WITH_HUB),1)
- SRC:=$(SRC) src/hub.c
- INCLUDE:=$(INCLUDE) include/crux/hub.h
- MAN:= $(MAN) man/crux-hub.3
- TEST:=$(TEST) test/hub.c
+ SRC+= src/hub.c
+ INCLUDE+= include/crux/hub.h
+ MAN+= man/crux-hub.3
+ TEST+= test/hub.c
 endif
 ifeq ($(WITH_HTTP),1)
- SRC:=$(SRC) src/http.c
- INCLUDE:=$(INCLUDE) include/crux/http.h
+ SRC+= src/http.c
+ INCLUDE+= include/crux/http.h
 endif
 ifeq ($(WITH_DNS),1)
- SRC:=$(SRC) src/dns.c src/dnsc.c
- INCLUDE:=$(INCLUDE) include/crux/dns.h include/crux/dnsc.h
- TEST:=$(TEST) test/dns.c
+ SRC+= src/dns.c src/dnsc.c
+ INCLUDE+= include/crux/dns.h include/crux/dnsc.h
+ TEST+= test/dns.c
 endif
 ifeq ($(WITH_RESOLV),1)
- SRC:=$(SRC) src/resolv.c
- INCLUDE:=$(INCLUDE) include/crux/resolv.h
- TEST:=$(TEST) test/resolv.c
+ SRC+= src/resolv.c
+ INCLUDE+= include/crux/resolv.h
+ TEST+= test/resolv.c
+endif
+ifeq ($(WITH_READLINE),1)
+ SRC+= src/readline.c
+ INCLUDE+= include/crux/readline.h
 endif
 
 # list of files to install
@@ -256,13 +272,17 @@ $(SRC): $(BUILD_TMP)/config.h
 # generate config.h
 $(BUILD_TMP)/config.h: bin/config.py Makefile | $(BUILD_TMP)
 	python $< > $@
-	echo "#define HAS_EXECINFO $(EXECINFO)" >> $@
+	echo "#ifndef HAS_EXECINFO" >> $@
+	echo "# define HAS_EXECINFO $(EXECINFO)" >> $@
+	echo "#endif" >> $@
 	echo "#define WITH_POLL $(WITH_POLL)" >> $@
 	echo "#define WITH_TASK $(WITH_TASK)" >> $@
 	echo "#define WITH_HUB $(WITH_HUB)" >> $@
 	echo "#define WITH_HTTP $(WITH_HTTP)" >> $@
 	echo "#define WITH_DNS $(WITH_DNS)" >> $@
 	echo "#define WITH_RESOLV $(WITH_RESOLV)" >> $@
+	echo "#define WITH_NET $(WITH_NET)" >> $@
+	echo "#define WITH_READLINE $(WITH_READLINE)" >> $@
 
 # create static library archive
 $(BUILD_LIB)/$(LIB): $(SRC_OBJ) | $(BUILD_LIB)
