@@ -667,3 +667,23 @@ xcloexec(int fd)
 	return fcntl(fd, F_SETFD, flags|FD_CLOEXEC) < 0 ? XERRNO : fd;
 }
 
+ssize_t
+xbuf_read(struct xbuf *buf, int fd, size_t len, int timeoutms)
+{
+	ssize_t rc = xbuf_ensure(buf, len);
+	if (rc < 0) { return rc; }
+	rc = xread(fd, xbuf_tail(buf), len, timeoutms);
+	if (rc > 0) { xbuf_bump(buf, rc); }
+	return rc;
+}
+
+ssize_t
+xbuf_write(struct xbuf *buf, int fd, size_t len, int timeoutms)
+{
+	size_t w = xbuf_length(buf);
+	if (len < w) { w = len; }
+	ssize_t rc = xwrite(fd, xbuf_value(buf), w, timeoutms);
+	if (rc > 0) { xbuf_trim(buf, rc); }
+	return rc;
+}
+

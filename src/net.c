@@ -1,5 +1,4 @@
 #include "../include/crux/net.h"
-#include "../include/crux/hub.h"
 #include "../include/crux/err.h"
 #include "../include/crux/poll.h"
 

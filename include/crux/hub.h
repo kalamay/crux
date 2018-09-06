@@ -2,6 +2,8 @@
 #define CRUX_HUB_H
 
 #include "def.h"
+#include "buf.h"
+#include "task.h"
 #include "value.h"
 
 #include <sys/socket.h>
@@ -109,6 +111,12 @@ xunblock(int fd);
 
 XEXTERN int
 xcloexec(int fd);
+
+XEXTERN ssize_t
+xbuf_read(struct xbuf *buf, int fd, size_t len, int timeoutms);
+
+XEXTERN ssize_t
+xbuf_write(struct xbuf *buf, int fd, size_t len, int timeoutms);
 
 #endif
 

@@ -1,7 +1,7 @@
 #ifndef CRUX_NET_H
 #define CRUX_NET_H
 
-#include "def.h"
+#include "hub.h"
 
 #include <stdbool.h>
 #include <sys/types.h>

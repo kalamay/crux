@@ -87,11 +87,5 @@ xcalloc(size_t count, size_t size);
 XEXTERN struct xbuf *
 xbuf(size_t cap);
 
-XEXTERN ssize_t
-xbuf_read(struct xbuf *buf, int fd, size_t len, int timeoutms);
-
-XEXTERN ssize_t
-xbuf_write(struct xbuf *buf, int fd, size_t len, int timeoutms);
-
 #endif
 

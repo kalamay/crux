@@ -1,6 +1,7 @@
 #include "mu.h"
 
 #include "../include/crux.h"
+#include "../include/crux/net.h"
 
 #include <signal.h>
 #include <math.h>
@@ -125,7 +126,7 @@ dorecv(struct xhub *h, union xvalue val)
 	(void)h;
 	const struct sockaddr_in *dest = val.ptr;
 
-	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	mu_assert_call(bind(s, (const struct sockaddr *)dest, sizeof(*dest)));
 	xdefer(doclose, XINT(s));
@@ -147,7 +148,7 @@ dosend(struct xhub *h, union xvalue val)
 	(void)h;
 	const struct sockaddr_in *dest = val.ptr;
 
-	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	xdefer(doclose, XINT(s));
 
@@ -179,7 +180,7 @@ dorecv_timeout(struct xhub *h, union xvalue val)
 	(void)h;
 	const struct sockaddr_in *dest = val.ptr;
 
-	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	mu_assert_call(bind(s, (const struct sockaddr *)dest, sizeof(*dest)));
 	xdefer(doclose, XINT(s));
@@ -214,7 +215,7 @@ dosend_timeout(struct xhub *h, union xvalue val)
 	(void)h;
 	const struct sockaddr_in *dest = val.ptr;
 
-	int s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	xdefer(doclose, XINT(s));
 
