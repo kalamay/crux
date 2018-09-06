@@ -201,28 +201,42 @@ open_sock(const char *net, int type, int flags, int timeoutms, union xaddr *addr
 		return open_fd(fd, type, flags, addr);
 	}
 
+	char host[256];
+	const char *serv, *start, *end;
+
+	/* If net start with an open bracket then the host is delimited by the
+	 * closing bracket. This allows support for IPv6 format, but does not
+	 * require it. */
+	if (*net == '[') {
+		start = net + 1;
+		end = strchr(start, ']');
+		if (end == NULL) { return XEADDR(EAI_NONAME); }
+		if (end[1] != ':') { return XEADDR(EAI_SERVICE); }
+		serv = end + 2;
+	}
 	/* Otherwise search for a ':' character separating the host name and the
 	 * service name or port number. If no such character is found, treat net
 	 * as a path for a UNIX socket. */
-	const char *serv = strchr(net, ':');
-	if (serv == NULL) {
-		return open_un(net, type, flags, addr);
+	else {
+		start = net;
+		end = strchr(start, ':');
+		if (end == NULL) {
+			return open_un(net, type, flags, addr);
+		}
+		serv = end + 1;
 	}
 
-	char host[256];
-	if (serv - net > (ssize_t)sizeof(host) - 1) {
+	if (end - start >= (ssize_t)sizeof(host)) {
 		return XESYS(ENAMETOOLONG);
 	}
 
 	/* If net omits the the host, default to INADDR_ANY. */
-	if (serv == net) {
+	if (start == end) {
 		strcpy(host, "0.0.0.0");
 	}
 	else {
-		strncpy(host, net, serv - net);
+		strncpy(host, start, end - start);
 	}
-
-	serv++;
 
 	/* If the service is empty, default to INPORT_ANY. */
 	if (*serv == '\0') {
@@ -326,8 +340,12 @@ xaddrstr(const union xaddr *addr)
 		break;
 
 	case AF_INET6:
-		rc = inet_ntop(AF_INET6, &addr->in6.sin6_addr, buf, sizeof(buf));
+		rc = inet_ntop(AF_INET6, &addr->in6.sin6_addr, buf+1, sizeof(buf)-2);
 		port = addr->in6.sin6_port;
+		if (rc) {
+			buf[0] = '[';
+			rc = strncat(buf, "]", sizeof(buf)-1);
+		}
 		break;
     }
 
