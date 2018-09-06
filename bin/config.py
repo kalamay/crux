@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, math, platform, resource, ctypes
+import os, platform
 from subprocess import Popen, PIPE
 
 ARCH = {
@@ -12,103 +12,67 @@ ARCH = {
 CC = ['cc', '-D_GNU_SOURCE', '-ldl', '-x', 'c', '-o', '/dev/null', '-']
 DEVNULL = open(os.devnull, 'w')
 
-def memoize(f):
-	class memodict(dict):
-		def __missing__(self, key):
-			ret = self[key] = f(key)
-			return ret 
-	return memodict().__getitem__
+def print_flag(name, val="1"):
+	print("""#ifndef HAS_%s
+# define HAS_%s %s
+#endif""" % (name, name, val))
 
 def arch(machine=platform.machine()):
 	return ARCH.get(machine) or machine.upper()
 
-@memoize
 def compiles(c):
 	p = Popen(CC, stdin=PIPE, stdout=DEVNULL, stderr=DEVNULL)
 	p.communicate(input=c)
 	return p.returncode == 0
 
-def has_clock_gettime():
+def has_function(name, args, *hdrs):
+	inc = ["#include <%s>" % h for h in hdrs]
 	return compiles("""
-		#include <time.h>
-		struct timespec tp;
-		int main(void) { clock_gettime (CLOCK_REALTIME, &tp); }
+		%s
+		int main(void) { %s(%s); }
+	""" % ("\n".join(inc), name, ",".join(["0"] * args)))
+
+def has_sock_flags():
+	return compiles("""
+		#include <sys/socket.h>
+		int main(void) { socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0); }
 	""")
+
+def has_accept4():
+	return has_function("accept4", 4, "sys/socket.h")
+
+def has_clock_gettime():
+	return has_function("clock_gettime", 2, "time.h")
 
 def has_mach_time():
-	return compiles("""
-		#include <mach/mach_time.h>
-		int main(void) { mach_absolute_time (); }
-	""")
+	return has_function("mach_absolute_time", 0, "mach/mach_time.h")
 
 def has_dlsym():
-	return compiles("""
-		#include <dlfcn.h>
-		Dl_info info;
-		int main(void) { dladdr (main, &info); }
-	""")
+	return has_function("dladdr", 2, "dlfcn.h")
 
 def has_kqueue():
-	return compiles("""
-		#include <sys/event.h>
-		int main(void) { kqueue (); }
-	""")
+	return has_function("kqueue", 0, "sys/event.h")
 
 def has_epoll():
-	return compiles("""
-		#include <sys/epoll.h>
-		int main(void) { epoll_create (10); }
-	""")
+	return has_function("epoll_create", 1, "sys/epoll.h")
 
 def has_pipe2():
-	return compiles("""
-		#include <fcntl.h>
-		#include <unistd.h>
-		int main(void) { int fd[2]; pipe2(fd, 0); }
-	""")
+	return has_function("pipe2", 2, "fcntl.h", "unistd.h")
 
 def has_getrandom():
-	return compiles("""
-		#include <sys/random.h>
-		int main(void) { char buf[8]; getrandom(buf, 8, 0); }
-	""")
+	return has_function("getrandom", 3, "sys/random.h")
 
 def has_arc4():
-	return compiles("""
-		#include <stdlib.h>
-		int main(void) { char buf[8]; arc4random_buf(buf, 8); }
-	""")
+	return has_function("arc4random_buf", 2, "stdlib.h")
 
 def has_mremap4():
-	return compiles("""
-		#include <sys/mman.h>
-		int main(void) { mremap(0, 0, 0, 0); }
-	""")
+	return has_function("mremap", 4, "sys/mman.h")
 
 def has_mremap5():
-	return compiles("""
-		#include <sys/mman.h>
-		int main(void) { mremap(0, 0, 0, 0, 0); }
-	""")
+	return has_function("mremap", 5, "sys/mman.h")
 
-if has_clock_gettime():
-	print("#define HAS_CLOCK_GETTIME 1")
-if has_mach_time():
-	print("#define HAS_MACH_TIME 1")
-if has_dlsym():
-	print("#define HAS_DLADDR 1")
-if has_kqueue():
-	print("#define HAS_KQUEUE 1")
-elif has_epoll():
-	print("#define HAS_EPOLL 1")
-if has_pipe2():
-	print("#define HAS_PIPE2 1")
-if has_getrandom():
-	print("#define HAS_GETRANDOM 1")
-if has_arc4():
-	print("#define HAS_ARC4 1")
-if has_mremap4() or has_mremap5():
-	print("#define HAS_MREMAP 1")
+def has_mremap():
+	return has_mremap4() or has_mremap5()
 
 print(("""
 #if defined (__aarch64__)
@@ -130,3 +94,16 @@ print(("""
 # define HAS_POSIX _POSIX_VERSION
 #endif
 """).strip())
+
+if has_sock_flags():    print_flag("SOCK_FLAGS")
+if has_accept4():       print_flag("ACCEPT4")
+if has_clock_gettime(): print_flag("CLOCK_GETTIME")
+if has_mach_time():     print_flag("MACH_TIME")
+if has_dlsym():         print_flag("DLADDR")
+if has_kqueue():        print_flag("KQUEUE")
+if has_epoll():         print_flag("EPOLL")
+if has_pipe2():         print_flag("PIPE2")
+if has_getrandom():     print_flag("GETRANDOM")
+if has_arc4():          print_flag("ARC4")
+if has_mremap():        print_flag("MREMAP")
+
