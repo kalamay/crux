@@ -255,6 +255,7 @@ run_once(struct xhub *hub)
 		ms = X_NSEC_TO_MSEC(wait->prio - XCLOCK_NSEC(&hub->poll.clock));
 		// if the timeout has already expired, immediately invoke it as a timeout
 		if (ms < 0) {
+			// TODO: should we give the task a 0-timeout poll if its scheduled for polling?
 			ent = xcontainer(wait, struct xhub_entry, hent);
 			goto invoke;
 		}
@@ -406,6 +407,29 @@ const struct xclock *
 xclock(void)
 {
 	return active_hub ? &active_hub->poll.clock : NULL;
+}
+
+int
+xwait(int fd, int polltype, int timeoutms)
+{
+	struct xhub_entry *ent = active_entry;
+	if (ent == NULL) { return XESYS(EAGAIN); }
+
+	int rc;
+	if (polltype > 0) {
+		rc = schedule_poll(ent, fd, polltype, timeoutms);
+	}
+	else if (timeoutms >= 0) {
+		rc = schedule_timeout(ent, timeoutms);
+	}
+	else {
+		rc = schedule_immediate(ent);
+	}
+
+	if (rc == 0) {
+		rc = xyield(XZERO).i;
+	}
+	return rc;
 }
 
 int
@@ -610,71 +634,6 @@ error:
 	close(fds[1]);
 	return rc;
 #endif
-}
-
-int
-xsocket(int domain, int type, int protocol)
-{
-	int s, rc;
-
-#if HAS_SOCK_FLAGS
-	s = socket(domain, type|SOCK_NONBLOCK|SOCK_CLOEXEC, protocol);
-	if (s < 0) { return XERRNO; }
-#else
-	s = socket(domain, type, protocol);
-	if (s < 0) { return XERRNO; }
-	rc = xcloexec(xunblock(s));
-	if (rc < 0) { goto error; }
-#endif
-
-	rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
-	if (rc < 0) {
-		rc = XERRNO;
-		goto error;
-	}
-
-	return s;
-
-error:
-	close(s);
-	return rc;
-}
-
-int
-xaccept(int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms)
-{
-	for (;;) {
-#if HAS_ACCEPT4
-		int fd = accept4(s, addr, addrlen, SOCK_NONBLOCK|SOCK_CLOEXEC);
-		if (fd >= 0) {
-			return fd;
-		}
-#else
-		int fd = accept(s, addr, addrlen);
-		if (fd >= 0) {
-			int rc = xcloexec(xunblock (fd));
-			if (rc < 0) {
-				close(fd);
-				return rc;
-			}
-			return fd;
-		}
-#endif
-
-		int rc = XERRNO;
-		if (rc == XESYS(EAGAIN)) {
-			struct xhub_entry *ent = active_entry;
-			if (ent != NULL) {
-				rc = schedule_poll(ent, s, XPOLL_IN, timeoutms);
-				if (rc == 0) {
-					int val = xyield(XZERO).i;
-					if (val < 0) { return (ssize_t)val; }
-					continue;
-				}
-			}
-		}
-		return rc;
-	}
 }
 
 int

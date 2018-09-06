@@ -18,9 +18,9 @@
 #   WITH_TASK: include coroutines
 #   WITH_HUB: include the hub (requires poll and task)
 #   WITH_HTTP: include the http parser
+#   WITH_NET: include the network system (requires hub)
 #   WITH_DNS: include the dns parser and data structures
-#   WITH_RESOLV: include the dns resolver (requires hub and dns)
-#   WITH_NET: include the network system (requires hub and resolv)
+#   WITH_RESOLV: include the dns resolver (requires hub, net, and dns)
 #   WITH_READLINE: include the async readline (requires hub)
 #
 #   EXECINFO: 1 or 0 to override enabling or disabling execinfo
@@ -45,24 +45,24 @@ WITH_POLL?=1
 WITH_TASK?=1
 WITH_HUB?=1
 WITH_HTTP?=1
+WITH_NET?=1
 WITH_DNS?=1
 WITH_RESOLV?=1
-WITH_NET?=1
 WITH_READLINE?=1
 ifneq ($(WITH_POLL)$(WITH_TASK),11)
  WITH_HUB:=0
 endif
-ifneq ($(WITH_HUB)$(WITH_DNS),11)
- WITH_RESOLV:=0
-endif
-ifneq ($(WITH_HUB)$(WITH_RESOLV),11)
+ifneq ($(WITH_HUB),1)
  WITH_NET:=0
+endif
+ifneq ($(WITH_HUB)$(WITH_DNS)$(WITH_NET),111)
+ WITH_RESOLV:=0
 endif
 ifneq ($(WITH_HUB),1)
  WITH_READLINE:=0
 endif
 
-WITH:= $(WITH_POLL)$(WITH_TASK)$(WITH_HUB)$(WITH_HTTP)$(WITH_DNS)$(WITH_RESOLV)$(WITH_NET)$(WITH_READLINE)
+WITH:= $(WITH_POLL)$(WITH_TASK)$(WITH_HUB)$(WITH_HTTP)$(WITH_NET)$(WITH_DNS)$(WITH_RESOLV)$(WITH_READLINE)
 
 PREFIX?=/usr/local
 DESTDIR?=
@@ -196,6 +196,10 @@ ifeq ($(WITH_HTTP),1)
  SRC+= src/http.c
  INCLUDE+= include/crux/http.h
 endif
+ifeq ($(WITH_NET),1)
+ SRC+= src/net.c
+ INCLUDE+= include/crux/net.h
+endif
 ifeq ($(WITH_DNS),1)
  SRC+= src/dns.c src/dnsc.c
  INCLUDE+= include/crux/dns.h include/crux/dnsc.h
@@ -279,9 +283,9 @@ $(BUILD_TMP)/config.h: bin/config.py Makefile | $(BUILD_TMP)
 	echo "#define WITH_TASK $(WITH_TASK)" >> $@
 	echo "#define WITH_HUB $(WITH_HUB)" >> $@
 	echo "#define WITH_HTTP $(WITH_HTTP)" >> $@
+	echo "#define WITH_NET $(WITH_NET)" >> $@
 	echo "#define WITH_DNS $(WITH_DNS)" >> $@
 	echo "#define WITH_RESOLV $(WITH_RESOLV)" >> $@
-	echo "#define WITH_NET $(WITH_NET)" >> $@
 	echo "#define WITH_READLINE $(WITH_READLINE)" >> $@
 
 # create static library archive

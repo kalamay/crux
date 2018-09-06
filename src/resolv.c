@@ -2,6 +2,7 @@
 #include "../include/crux/hub.h"
 #include "../include/crux/err.h"
 #include "../include/crux/def.h"
+#include "../include/crux/net.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -71,8 +72,9 @@ xresolv_final(struct xresolv *r)
 static int
 rr_cmp(const void *p1, const void *p2)
 {
-	return (int)((struct xresolv_result *)p1)->priority -
-		(int)((struct xresolv_result *)p2)->priority;
+	uint16_t prio1 = ((struct xresolv_result *)p1)->priority;
+	uint16_t prio2 = ((struct xresolv_result *)p2)->priority;
+	return (int)prio1 - (int)prio2;
 }
 
 static int
@@ -158,7 +160,7 @@ xresolv(struct xresolv *r, const char *name, struct xresolv_result *rr, int coun
 		s = r->fdpool[--r->fdpos];
 	}
 	else {
-		s = xsocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		s = xsocket(AF_INET, SOCK_DGRAM);
 		if (s < 0) { return s; }
 	}
 

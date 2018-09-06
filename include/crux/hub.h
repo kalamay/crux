@@ -53,6 +53,9 @@ XEXTERN const struct xclock *
 xclock(void);
 
 XEXTERN int
+xwait(int fd, int polltype, int timeoutms);
+
+XEXTERN int
 xsleep(unsigned ms);
 
 XEXTERN int
@@ -97,12 +100,6 @@ xio(int fd, void *buf, size_t len, int timeoutms, xio_fn fn);
 
 XEXTERN int
 xpipe(int fds[static 2]);
-
-XEXTERN int
-xsocket(int domain, int type, int protocol);
-
-XEXTERN int
-xaccept(int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms);
 
 XEXTERN int
 xclose(int fd);
