@@ -617,7 +617,7 @@ xsocket(int domain, int type, int protocol)
 {
 	int s, rc;
 
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+#if HAS_SOCK_FLAGS
 	s = socket(domain, type|SOCK_NONBLOCK|SOCK_CLOEXEC, protocol);
 	if (s < 0) { return XERRNO; }
 #else
@@ -644,7 +644,7 @@ int
 xaccept(int s, struct sockaddr *addr, socklen_t *addrlen, int timeoutms)
 {
 	for (;;) {
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+#if HAS_ACCEPT4
 		int fd = accept4(s, addr, addrlen, SOCK_NONBLOCK|SOCK_CLOEXEC);
 		if (fd >= 0) {
 			return fd;
