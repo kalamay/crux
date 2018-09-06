@@ -276,17 +276,17 @@ $(SRC): $(BUILD_TMP)/config.h
 # generate config.h
 $(BUILD_TMP)/config.h: bin/config.py Makefile | $(BUILD_TMP)
 	python $< > $@
-	echo "#ifndef HAS_EXECINFO" >> $@
-	echo "# define HAS_EXECINFO $(EXECINFO)" >> $@
-	echo "#endif" >> $@
-	echo "#define WITH_POLL $(WITH_POLL)" >> $@
-	echo "#define WITH_TASK $(WITH_TASK)" >> $@
-	echo "#define WITH_HUB $(WITH_HUB)" >> $@
-	echo "#define WITH_HTTP $(WITH_HTTP)" >> $@
-	echo "#define WITH_NET $(WITH_NET)" >> $@
-	echo "#define WITH_DNS $(WITH_DNS)" >> $@
-	echo "#define WITH_RESOLV $(WITH_RESOLV)" >> $@
-	echo "#define WITH_READLINE $(WITH_READLINE)" >> $@
+	@echo "#ifndef HAS_EXECINFO" >> $@
+	@echo "# define HAS_EXECINFO $(EXECINFO)" >> $@
+	@echo "#endif" >> $@
+	@echo "#define WITH_POLL $(WITH_POLL)" >> $@
+	@echo "#define WITH_TASK $(WITH_TASK)" >> $@
+	@echo "#define WITH_HUB $(WITH_HUB)" >> $@
+	@echo "#define WITH_HTTP $(WITH_HTTP)" >> $@
+	@echo "#define WITH_NET $(WITH_NET)" >> $@
+	@echo "#define WITH_DNS $(WITH_DNS)" >> $@
+	@echo "#define WITH_RESOLV $(WITH_RESOLV)" >> $@
+	@echo "#define WITH_READLINE $(WITH_READLINE)" >> $@
 
 # create static library archive
 $(BUILD_LIB)/$(LIB): $(SRC_OBJ) | $(BUILD_LIB)
