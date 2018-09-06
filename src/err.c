@@ -206,3 +206,10 @@ xerr_fabort(int code, const char *fmt, ...)
 	stack_abort();
 }
 
+void
+xfail(const char *exp, const char *file, int line)
+{
+    fprintf(stderr, "%s:%u: failed assertion '%s'\n", file, line, exp);
+	stack_abort();
+}
+

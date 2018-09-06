@@ -37,6 +37,13 @@ enum xerr_type {
 #define XEHTTPTOOSHORT  XEHTTP(4)
 #define XEHTTPBUFS      XEHTTP(5)
 
+#ifdef NDEBUG
+# define xassert(e) ((void)0)
+#else
+# define xassert(e) \
+	((void)((e) ? ((void)0) : xfail(#e, __FILE__, __LINE__)))
+#endif
+
 XEXTERN const char *
 xerr_type(int code);
 
@@ -70,6 +77,16 @@ xerr_abort(int code);
  */
 XEXTERN void __attribute__ ((format(printf, 2, 3)))
 xerr_fabort(int code, const char *fmt, ...);
+
+/**
+ * @brief  Reports a failed assertion and aborts.
+ *
+ * @param  exp  failing assertion
+ * @param  file  file path string
+ * @param  line  file line number
+ */
+XEXTERN void
+xfail(const char *exp, const char *file, int line);
 
 /**
  * @brief  Checks the return code from a function and aborts on error
