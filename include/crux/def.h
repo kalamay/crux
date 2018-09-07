@@ -74,5 +74,10 @@ XEXTERN const uint64_t XPOWER2_PRIMES[64];
 	(((((n) - 1) / __quant) + 1) * __quant); \
 })
 
+XEXTERN size_t xpagesize;
+
+#define xpagetrunc(n) ((n) & (~(xpagesize - 1)))
+#define xpageround(n) xpagetrunc((n) + (xpagesize - 1))
+
 #endif
 

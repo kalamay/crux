@@ -7,8 +7,6 @@
 #include "crux/clock.h"
 #include "crux/buf.h"
 
-XEXTERN size_t xpagesize;
-
 XEXTERN int
 xinit(void);
 
