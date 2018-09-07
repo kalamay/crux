@@ -8,10 +8,10 @@
 struct xbuf;
 
 XEXTERN int
-xbuf_new(struct xbuf **bufp, size_t cap);
+xbuf_new(struct xbuf **bufp, size_t cap, bool ring);
 
 XEXTERN int
-xbuf_copy(struct xbuf **bufp, const void *ptr, size_t len);
+xbuf_copy(struct xbuf **bufp, const void *ptr, size_t len, bool ring);
 
 XEXTERN void
 xbuf_free(struct xbuf **bufp);

@@ -10,7 +10,7 @@ static void
 test_grow(void)
 {
 	struct xbuf *buf;
-	mu_assert_int_eq(xbuf_new(&buf, 0), 0);
+	mu_assert_int_eq(xbuf_new(&buf, 0, false), 0);
 
 	ssize_t rsize = 0;
 
@@ -37,7 +37,7 @@ static void
 test_unused(void)
 {
 	struct xbuf *buf;
-	mu_assert_int_eq(xbuf_new(&buf, 8000), 0);
+	mu_assert_int_eq(xbuf_new(&buf, 8000, false), 0);
 
 	ssize_t unused = xbuf_unused(buf);
 	ssize_t rsize = 0, wsize = unused;
@@ -66,6 +66,46 @@ test_unused(void)
 	xbuf_free(&buf);
 }
 
+static void
+test_ring(void)
+{
+	struct xbuf *buf;
+	mu_assert_int_eq(xbuf_new(&buf, 4000, true), 0);
+
+	ssize_t unused = xbuf_unused(buf);
+	ssize_t rsize = 0, wsize = unused;
+
+	mu_assert_int_eq(rsize, xbuf_length(buf));
+	mu_assert_int_gt(wsize, 4000);
+
+	mu_assert_int_eq(xbuf_addch(buf, 'x', unused), 0);
+
+	mu_assert_int_eq(xbuf_length(buf), unused);
+	mu_assert_int_eq(xbuf_unused(buf), unused);
+
+	mu_assert_int_eq(xbuf_addch(buf, 'y', unused), 0);
+
+	xbuf_free(&buf);
+}
+
+static void
+test_ring_wrap(void)
+{
+	struct xbuf *buf;
+	mu_assert_int_eq(xbuf_new(&buf, 4000, true), 0);
+	ssize_t unused = xbuf_unused(buf);
+
+	mu_assert_int_eq(0, xbuf_addch(buf, 'x', unused - 10));
+	mu_assert_int_eq(0, xbuf_trim(buf, unused - 11));
+	mu_assert_int_eq(1, xbuf_length(buf));
+
+	mu_assert_int_eq(add(buf, str), 0);
+	mu_assert_str_eq((const char *)xbuf_data(buf) + 1, str);
+	mu_assert_ptr_gt(xbuf_data(buf), xbuf_tail(buf));
+
+	xbuf_free(&buf);
+}
+
 int
 main(void)
 {
@@ -73,5 +113,7 @@ main(void)
 
 	mu_run(test_grow);
 	mu_run(test_unused);
+	mu_run(test_ring);
+	mu_run(test_ring_wrap);
 }
 

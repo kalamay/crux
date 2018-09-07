@@ -37,7 +37,7 @@ parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, size_t spe
 	ssize_t rc;
 	bool ok = true;
 
-	mu_assert_int_eq(xbuf_new(&buf, inlen), 0);
+	mu_assert_int_eq(xbuf_new(&buf, inlen, false), 0);
 
 	while (body > 0 || !xhttp_is_done(p)) {
 		if (inlen > 0) {
@@ -464,7 +464,7 @@ test_invalid_header(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -488,7 +488,7 @@ test_limit_method_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -508,7 +508,7 @@ test_exceed_method_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -528,7 +528,7 @@ test_limit_name_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -552,7 +552,7 @@ test_exceed_name_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -576,7 +576,7 @@ test_limit_value_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -600,7 +600,7 @@ test_exceed_value_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
@@ -624,7 +624,7 @@ test_increase_value_size(void)
 	struct xbuf *buf;
 	ssize_t rc;
 
-	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1), 0);
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p);
 	p.max_value = 2048;

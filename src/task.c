@@ -588,12 +588,12 @@ free_buf(union xvalue val)
 }
 
 struct xbuf *
-xbuf(size_t cap)
+xbuf(size_t cap, bool ring)
 {
 	struct xbuf *buf;
 	int rc;
 
-	if ((rc = xbuf_new(&buf, cap)) < 0) {
+	if ((rc = xbuf_new(&buf, cap, ring)) < 0) {
 		xerr_abort(rc);
 	}
 

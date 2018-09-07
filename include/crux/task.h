@@ -91,7 +91,7 @@ XEXTERN void *
 xcalloc(size_t count, size_t size);
 
 XEXTERN struct xbuf *
-xbuf(size_t cap);
+xbuf(size_t cap, bool ring);
 
 #endif
 
