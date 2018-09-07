@@ -74,6 +74,17 @@ def has_mremap5():
 def has_mremap():
 	return has_mremap4() or has_mremap5()
 
+def has_memfd():
+	return compiles("""
+		#include <unistd.h>
+		#include <linux/memfd.h>
+		#include <sys/syscall.h>
+		int main(void) { return syscall(__NR_memfd_create, "crux", 0); }
+	""")
+
+def has_vm_map():
+	return has_function("vm_map", 11, "mach/mach.h", "mach/vm_map.h")
+
 print(("""
 #if defined (__aarch64__)
 # define HAS_ARM_64 1
@@ -106,4 +117,6 @@ if has_pipe2():         print_flag("PIPE2")
 if has_getrandom():     print_flag("GETRANDOM")
 if has_arc4():          print_flag("ARC4")
 if has_mremap():        print_flag("MREMAP")
+if has_vm_map():        print_flag("VM_MAP")
+if has_memfd():         print_flag("MEMFD")
 
