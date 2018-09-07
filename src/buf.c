@@ -53,7 +53,7 @@ xbuf_free(struct xbuf **bufp)
 const void *
 xbuf_value(const struct xbuf *buf)
 {
-	return buf->rd;
+	return XBUF_HEAD(buf);
 }
 
 size_t
@@ -65,7 +65,7 @@ xbuf_length(const struct xbuf *buf)
 void *
 xbuf_tail(const struct xbuf *buf)
 {
-	return buf->wr;
+	return XBUF_TAIL(buf);
 }
 
 size_t
@@ -111,12 +111,12 @@ xbuf_ensure(struct xbuf *buf, size_t hint)
 		size = XBUF_HINT(hint);
 		map = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (map == MAP_FAILED) { return XERRNO; }
-		memcpy(map, buf->rd, len);
+		memcpy(map, XBUF_HEAD(buf), len);
 		if (old) {
 			munmap(old, XBUF_MAPSIZE(buf));
 		}
-		buf->wr = map + len;
-		buf->map = buf->rd = map;
+		buf->map = map;
+		XBUF_COMPACT(buf, len);
 	}
 
 	buf->cap = size - XBUF_REDZONE;
@@ -128,15 +128,15 @@ xbuf_add(struct xbuf *buf, const void *ptr, size_t len)
 {
 	int rc = xbuf_ensure(buf, len);
 	if (rc < 0) { return rc; }
-	memcpy(buf->wr, ptr, len);
-	buf->wr += len;
+	memcpy(XBUF_TAIL(buf), ptr, len);
+	XBUF_BUMP_TAIL(buf, len);
 	return 0;
 }
 
 void
 xbuf_reset(struct xbuf *buf)
 {
-	buf->rd = buf->wr = buf->map;
+	XBUF_COMPACT(buf, 0);
 }
 
 int
@@ -150,7 +150,7 @@ xbuf_trim(struct xbuf *buf, size_t len)
 	}
 	else {
 		size_t off = XBUF_READ_OFFSET(buf) + len;
-		buf->rd = buf->map + off;
+		XBUF_SET_HEAD(buf, off);
 
 		ssize_t trim = (off) / xpagesize * xpagesize;
 		if (trim > 0) {
@@ -172,7 +172,7 @@ xbuf_bump(struct xbuf *buf, size_t len)
 {
 	size_t max = XBUF_CAPACITY(buf);
 	if (len > max) { return XESYS(ERANGE); }
-	buf->wr += len;
+	XBUF_BUMP_TAIL(buf, len);
 	return 0;
 }
 
@@ -181,10 +181,9 @@ xbuf_compact(struct xbuf *buf)
 {
 	size_t len = XBUF_LENGTH(buf);
 	if (len > 0) {
-		memmove(buf->map, buf->rd, len);
+		memmove(buf->map, XBUF_HEAD(buf), len);
 	}
-	buf->rd = buf->map;
-	buf->wr = buf->map + len;
+	XBUF_COMPACT(buf, len);
 }
 
 void
@@ -217,7 +216,7 @@ xbuf_print(const struct xbuf *buf, FILE *out)
 	static const char space[64] =
 		"                                "
 		"                                ";
-	const uint8_t *p = buf->rd;
+	const uint8_t *p = XBUF_HEAD(buf);
 	ssize_t start = -XBUF_READ_OFFSET(buf);
 	ssize_t end = XBUF_LENGTH(buf) - 1;
 	ssize_t mark;
