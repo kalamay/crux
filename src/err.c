@@ -10,6 +10,10 @@
 #include <stdarg.h>
 #include <string.h>
 
+#if __APPLE__
+# include <mach/mach_error.h>
+#endif
+
 /* Fallback definitions to simplify compiling.
  * These won't ever be used because they aren't defined (and thus not used)
  * in linux. These definitions just allow the x-macro to be much simpler.
@@ -31,6 +35,7 @@
 	XX(SYS,               "system") \
 	XX(ADDR,              "address information") \
 	XX(HTTP,              "http") \
+	XX(KERN,              "kern") \
 
 #define XERR_SYS_MAP(XX) \
 	XX(EPERM,              "operation not permitted") \
@@ -164,6 +169,10 @@ xerr_str(int code)
 #undef XX
 		}
 		break;
+	case XERR_KERN:
+#if __APPLE__
+		return mach_error_string(XECODE(code));
+#endif
 	}
 
 	return "undefined error";

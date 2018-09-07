@@ -10,6 +10,7 @@ enum xerr_type {
 	XERR_SYS  = 0,
 	XERR_ADDR = 1,
 	XERR_HTTP = 2,
+	XERR_KERN = 3,
 };
 
 #define XETYPE(n) ((enum xerr_type)(-(n) >> 16) & 0xff)
@@ -23,11 +24,13 @@ enum xerr_type {
 # define XEADDR(n) (XEMAKE(ADDR, n))
 #endif
 #define XEHTTP(n) (XEMAKE(HTTP, n))
+#define XEKERN(n) (XEMAKE(KERN, n))
 
 #define XEIS(T, n) (XETYPE(n) == XERR_##T)
 #define XEISSYS(n) (XEIS(SYS, n))
 #define XEISADDR(n) (XEIS(ADDR, n))
 #define XEISHTTP(n) (XEIS(HTTP, n))
+#define XEISKERN(n) (XEIS(KERN, n))
 
 #define XERRNO XESYS(errno)
 
