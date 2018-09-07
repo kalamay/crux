@@ -17,7 +17,7 @@ XEXTERN void
 xbuf_free(struct xbuf **bufp);
 
 XEXTERN const void *
-xbuf_value(const struct xbuf *buf);
+xbuf_data(const struct xbuf *buf);
 
 XEXTERN size_t
 xbuf_length(const struct xbuf *buf);
@@ -26,10 +26,10 @@ XEXTERN void *
 xbuf_tail(const struct xbuf *buf);
 
 XEXTERN size_t
-xbuf_capacity(const struct xbuf *buf);
+xbuf_unused(const struct xbuf *buf);
 
 XEXTERN int
-xbuf_ensure(struct xbuf *buf, size_t len);
+xbuf_ensure(struct xbuf *buf, size_t unused);
 
 XEXTERN int
 xbuf_add(struct xbuf *buf, const void *ptr, size_t len);

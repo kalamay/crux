@@ -388,7 +388,7 @@ xhttp_next(struct xhttp *p, const struct xbuf *buf)
 		return XEHTTPSTATE;
 	}
 
-	const uint8_t *ptr = xbuf_value(buf);
+	const uint8_t *ptr = xbuf_data(buf);
 	size_t len = xbuf_length(buf);
 	if (len == 0) {
 		return 0;
@@ -429,7 +429,7 @@ xhttp_print(const struct xhttp *p, const struct xbuf *buf, FILE *out)
 		out = stderr;
 	}
 
-	const uint8_t *ptr = xbuf_value(buf);
+	const uint8_t *ptr = xbuf_data(buf);
 
 	switch (p->type) {
 	case XHTTP_REQUEST:

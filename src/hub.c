@@ -682,7 +682,7 @@ xbuf_write(struct xbuf *buf, int fd, size_t len, int timeoutms)
 {
 	size_t w = xbuf_length(buf);
 	if (len < w) { w = len; }
-	ssize_t rc = xwrite(fd, xbuf_value(buf), w, timeoutms);
+	ssize_t rc = xwrite(fd, xbuf_data(buf), w, timeoutms);
 	if (rc > 0) { xbuf_trim(buf, rc); }
 	return rc;
 }

@@ -47,7 +47,7 @@ parse(struct xhttp *p, Message *msg, const uint8_t *in, size_t inlen, size_t spe
 			inlen -= n;
 		}
 
-		const char *val = xbuf_value(buf);
+		const char *val = xbuf_data(buf);
 		size_t len = xbuf_length(buf);
 
 		if (body > 0) {
