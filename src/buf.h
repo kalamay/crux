@@ -5,8 +5,7 @@
 #define XBUF_MAX_COMPACT (2*xpagesize)
 #define XBUF_MIN_TRIM (2*xpagesize)
 
-#define XBUF_ROUND(sz) ((((sz) + xpagesize - 1) / xpagesize) * xpagesize)
-#define XBUF_HINT(h) XBUF_ROUND((h) + XBUF_REDZONE)
+#define XBUF_HINT(h) xpagetruc((h) + XBUF_REDZONE)
 
 struct xbuf {
 	uint8_t *wr;                   /**< Write pointer offset from #map **/
@@ -19,6 +18,8 @@ struct xbuf {
 	(struct xbuf){ NULL, NULL, NULL, 0 }
 
 #define XBUF_MSIZE(b) ((b)->cap + XBUF_REDZONE)
+
+#define XBUF_EMPTY(b) ((b)->rd != (b)->wr)
 
 #define XBUF_RSIZE(b) ((b)->wr - (b)->rd)
 #define XBUF_RDATA(b) ((b)->rd)

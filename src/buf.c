@@ -50,6 +50,12 @@ xbuf_free(struct xbuf **bufp)
 	free(buf);
 }
 
+bool
+xbuf_empty(const struct xbuf *buf)
+{
+	return XBUF_EMPTY(buf);
+}
+
 const void *
 xbuf_data(const struct xbuf *buf)
 {
@@ -129,6 +135,16 @@ xbuf_add(struct xbuf *buf, const void *ptr, size_t len)
 	int rc = xbuf_ensure(buf, len);
 	if (rc < 0) { return rc; }
 	memcpy(XBUF_WDATA(buf), ptr, len);
+	XBUF_WBUMP(buf, len);
+	return 0;
+}
+
+int
+xbuf_addch(struct xbuf *buf, char ch, size_t len)
+{
+	int rc = xbuf_ensure(buf, len);
+	if (rc < 0) { return rc; }
+	memset(XBUF_WDATA(buf), ch, len);
 	XBUF_WBUMP(buf, len);
 	return 0;
 }

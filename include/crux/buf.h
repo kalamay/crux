@@ -16,6 +16,9 @@ xbuf_copy(struct xbuf **bufp, const void *ptr, size_t len);
 XEXTERN void
 xbuf_free(struct xbuf **bufp);
 
+XEXTERN bool
+xbuf_empty(const struct xbuf *buf);
+
 XEXTERN const void *
 xbuf_data(const struct xbuf *buf);
 
@@ -33,6 +36,9 @@ xbuf_ensure(struct xbuf *buf, size_t unused);
 
 XEXTERN int
 xbuf_add(struct xbuf *buf, const void *ptr, size_t len);
+
+XEXTERN int
+xbuf_addch(struct xbuf *buf, char ch, size_t len);
 
 XEXTERN void
 xbuf_reset(struct xbuf *buf);
