@@ -166,9 +166,10 @@ xvm_reallocsub(void **const ptr, size_t oldsz, size_t newsz, size_t off, size_t 
 	uint8_t *old = *ptr, *p;
 
 	if (xunlikely(oldsz >= newsz)) {
+		size_t trunc = xpagetrunc(oldsz - newsz);
 		memmove(old, old + off, len);
-		if (oldsz != newsz) {
-			munmap(old + newsz, oldsz - newsz);
+		if (trunc) {
+			munmap(old + newsz, trunc);
 		}
 		return 0;
 	}
