@@ -235,7 +235,7 @@
 	void \
 	pref##_print(const TVec *vec, FILE *out, void (*fn)(TEnt *, FILE *out)) \
 	{ \
-		if (out == NULL) { out == stdout; } \
+		if (out == NULL) { out = stdout; } \
 		fprintf(out, "<crux:vec:" #pref "(" #TEnt "):"); \
 		if (vec == NULL) { fprintf(out, "(null)>\n"); } \
 		else { \

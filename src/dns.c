@@ -607,7 +607,7 @@ xdns_res_json(const struct xdns_res *res, char *buf, size_t len)
 		break;
 	case XDNS_TXT:
 		fmt(",\n      \"txt\": \"%.*s\"\n",
-			(int)res->rdata.txt.length, res->rdata.txt.data);
+			(int)res->rdata.txt.length, (char *)res->rdata.txt.data);
 		break;
 	case XDNS_AAAA:
 		fmt(",\n      \"aaaa\": \"%s\"\n",

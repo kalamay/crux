@@ -134,7 +134,7 @@ xfail(const char *exp, const char *file, int line);
  */
 #define xerr(f) __extension__ ({ \
 	int __code = (f); \
-	if (__code == -1) { __code == XERRNO; } \
+	if (__code == -1) { __code = XERRNO; } \
 	__code; \
 })
 
