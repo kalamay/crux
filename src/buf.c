@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/mman.h>
 
 int
@@ -30,6 +32,47 @@ xbuf_copy(struct xbuf **bufp, const void *ptr, size_t len, bool ring)
 		return rc;
 	}
 	return 0;
+}
+
+int
+xbuf_open(struct xbuf **bufp, const char *path, off_t off, size_t len)
+{
+	int fd = open(path, O_RDONLY);
+	if (fd < 0) { return XERRNO; }
+
+	int rc = 0;
+	size_t sz = 0;
+	uint8_t *p = MAP_FAILED;
+
+	if (len == 0) {
+		struct stat sbuf;
+		if (fstat(fd, &sbuf) < 0) { goto error; }
+		if (off > sbuf.st_size) {
+			errno = EINVAL;
+			goto error;
+		}
+		len = (size_t)(sbuf.st_size - off);
+	}
+
+	sz = XBUF_FILE_SIZE(len);
+	p = mmap(NULL, sz, PROT_READ, MAP_SHARED, fd, off);
+	if (p == MAP_FAILED) { goto error; }
+
+	madvise(p, sz, MADV_SEQUENTIAL);
+
+	struct xbuf *buf = malloc(sizeof(*buf));
+	if (buf == NULL) { goto error; }
+	*buf = (struct xbuf){ p, 0, len, len, sz, XBUF_FILE };
+	*bufp = buf;
+	goto done;
+
+error:
+	rc = XERRNO;
+	if (p != MAP_FAILED) { munmap(p, sz); }
+
+done:
+	xretry(close(fd));
+	return rc;
 }
 
 int
@@ -189,7 +232,7 @@ xbuf_addch(struct xbuf *buf, char ch, size_t len)
 void
 xbuf_reset(struct xbuf *buf)
 {
-	XBUF_COMPACT(buf, 0);
+	XBUF_COMPACT(buf, buf->mode == XBUF_FILE ? buf->w : 0);
 }
 
 int
@@ -216,14 +259,16 @@ xbuf_bump(struct xbuf *buf, size_t len)
 	return 0;
 }
 
-void
+int
 xbuf_compact(struct xbuf *buf)
 {
+	if (buf->mode == XBUF_FILE) { return XESYS(ENOTSUP); }
 	size_t len = XBUF_RSIZE(buf);
 	if (len > 0) {
 		memmove(buf->map, XBUF_RDATA(buf), len);
 	}
 	XBUF_COMPACT(buf, len);
+	return 0;
 }
 
 void

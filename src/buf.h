@@ -29,12 +29,12 @@ struct xbuf {
 
 #define XBUF_RSIZE(b) ((b)->w - (b)->r)
 #define XBUF_RDATA(b) ((b)->map + XBUF_ROFFSET(b))
-#define XBUF_ROFFSET(b) ((b)->r % (b)->cap)
+#define XBUF_ROFFSET(b) ((b)->mode == XBUF_RING ? (b)->r % (b)->cap : (b)->r)
 #define XBUF_RBUMP(b, len) ((b)->r += (len))
 
 #define XBUF_WSIZE(b) ((b)->cap - XBUF_WOFFSET(b))
 #define XBUF_WDATA(b) ((b)->map + XBUF_WOFFSET(b))
-#define XBUF_WOFFSET(b) ((b)->w % (b)->cap)
+#define XBUF_WOFFSET(b) ((b)->mode == XBUF_RING ? (b)->w % (b)->cap : (b)->w)
 #define XBUF_WBUMP(b, len) ((b)->w += (len))
 
 #define XBUF_COMPACT(b, len) do { \

@@ -113,6 +113,35 @@ test_ring_wrap(void)
 	xbuf_free(&buf);
 }
 
+static void
+test_open(void)
+{
+	struct xbuf *buf;
+	mu_assert_int_eq(xbuf_open(&buf, __FILE__, 0, 0), 0);
+
+	mu_assert_int_eq(xbuf_unused(buf), 0);
+
+	ssize_t len = xbuf_length(buf);
+	mu_assert_int_gt(len, 15);
+
+	char head[16];
+	memcpy(head, xbuf_data(buf), 15);
+	head[15] = 0;
+	mu_assert_int_eq(xbuf_trim(buf, 15), 0);
+	mu_assert_int_eq(xbuf_length(buf), len - 15);
+
+	mu_assert_str_eq(head, "#include \"mu.h\"");
+
+	xbuf_reset(buf);
+	mu_assert_int_eq(xbuf_length(buf), len);
+
+	mu_assert_int_ne(xbuf_bump(buf, 10), 0);
+	mu_assert_int_ne(xbuf_compact(buf), 0);
+	mu_assert_int_ne(xbuf_add(buf, "test", 4), 0);
+
+	xbuf_free(&buf);
+}
+
 int
 main(void)
 {
@@ -122,5 +151,6 @@ main(void)
 	mu_run(test_unused);
 	mu_run(test_ring);
 	mu_run(test_ring_wrap);
+	mu_run(test_open);
 }
 

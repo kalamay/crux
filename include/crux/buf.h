@@ -13,6 +13,9 @@ xbuf_new(struct xbuf **bufp, size_t cap, bool ring);
 XEXTERN int
 xbuf_copy(struct xbuf **bufp, const void *ptr, size_t len, bool ring);
 
+XEXTERN int
+xbuf_open(struct xbuf **bufp, const char *path, off_t off, size_t len);
+
 XEXTERN void
 xbuf_free(struct xbuf **bufp);
 
@@ -49,7 +52,7 @@ xbuf_trim(struct xbuf *buf, size_t len);
 XEXTERN int
 xbuf_bump(struct xbuf *buf, size_t len);
 
-XEXTERN void
+XEXTERN int
 xbuf_compact(struct xbuf *buf);
 
 XEXTERN void
