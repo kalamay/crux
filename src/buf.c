@@ -48,7 +48,7 @@ xbuf_free(struct xbuf **bufp)
 
 	if (buf->map) {
 		if (buf->mode == XBUF_RING) {
-			xvm_unmap_ring(buf->map, buf->sz);
+			xvm_dealloc_ring(buf->map, buf->sz);
 		}
 		else {
 			munmap(buf->map, buf->sz);
@@ -107,13 +107,20 @@ ensure_line(struct xbuf *buf, size_t unused)
 		}
 	}
 
+	size_t off = XBUF_ROFFSET(buf);
 	size_t sz = XBUF_LINE_SIZE(full + XBUF_ROFFSET(buf));
-	int rc = xvm_remap((void **)&buf->map, buf->sz, sz);
-	if (rc == 0) {
-		buf->cap = sz - XBUF_REDZONE;
-		buf->sz = sz;
+	ssize_t rc = xvm_reallocsub((void **)&buf->map, buf->sz, sz, off, len);
+
+	if (rc < 0) {
+		return (int)rc;
 	}
-	return rc;
+
+	buf->cap = sz - XBUF_REDZONE;
+	buf->sz = sz;
+	buf->r = rc;
+	buf->w = rc + len;
+
+	return 0;
 }
 
 static int
@@ -130,14 +137,14 @@ ensure_ring(struct xbuf *buf, size_t unused)
 	size_t sz = XBUF_RING_SIZE(unused);
 
 	uint8_t *map;
-	int rc = xvm_map_ring((void **)&map, sz);
+	int rc = xvm_alloc_ring((void **)&map, sz);
 	if (rc < 0) { return rc; }
 
 	size_t len = XBUF_RSIZE(buf);
 	memcpy(map, XBUF_RDATA(buf), len);
 
 	if (buf->map) {
-		xvm_unmap_ring(buf->map, buf->sz);
+		xvm_dealloc_ring(buf->map, buf->sz);
 	}
 
 	buf->map = map;

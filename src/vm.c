@@ -15,7 +15,7 @@
 } while(0)
 
 int
-xvm_map_ring(void **const ptr, size_t sz)
+xvm_alloc_ring(void **const ptr, size_t sz)
 {
 	const mach_port_t port = mach_task_self();
 	vm_address_t p = 0, half;
@@ -71,7 +71,7 @@ open_tmp()
 # endif
 
 int
-xvm_map_ring(void **const ptr, size_t sz)
+xvm_alloc_ring(void **const ptr, size_t sz)
 {
 	void *p = NULL;
 	int fd = -1, ec = 0;
@@ -110,10 +110,13 @@ error:
 
 #endif
 
+#define MAP(addr, size, flags) \
+	mmap((addr), (size), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON|(flags), -1, 0)
+
 int
-xvm_map(void **const ptr, size_t sz)
+xvm_alloc(void **const ptr, size_t sz)
 {
-	void *p = mmap(NULL, sz, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+	void *p = MAP(NULL, sz, 0);
 	if (p == MAP_FAILED) {
 		return XERRNO;
 	}
@@ -122,45 +125,89 @@ xvm_map(void **const ptr, size_t sz)
 }
 
 int
-xvm_remap(void **const ptr, size_t oldsz, size_t newsz)
+xvm_realloc(void **const ptr, size_t oldsz, size_t newsz)
 {
-	if (*ptr == NULL) {
-		return xvm_map(ptr, newsz);
+	if (xunlikely(*ptr == NULL)) {
+		return xvm_alloc(ptr, newsz);
 	}
 
-#if HAS_MREMAP4
-	void *p = mremap(*ptr, oldsz, newsz, MREMAP_MAYMOVE);
-#elif HAS_MREMAP5
-	void *p = mremap(*ptr, oldsz, NULL, newsz, 0);
-#else
-	if (oldsz > newsz) {
-		int rc = munmap((char *)*ptr + newsz, oldsz - newsz);
-		return rc == 0 ? 0 : XERRNO;
-	}
-	void *p = MAP_FAILED;
-#endif
-	if (p == MAP_FAILED) {
-		p = mmap(NULL, newsz, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-		if (p == MAP_FAILED) {
-			return XERRNO;
+	uint8_t *old = *ptr, *p;
+
+	if (xunlikely(oldsz >= newsz)) {
+		if (oldsz != newsz) {
+			int rc = munmap(old + newsz, oldsz - newsz);
+			if (rc < 0) { return XERRNO; }
 		}
-		memcpy(p, *ptr, oldsz);
-		munmap(*ptr, oldsz);
+		return 0;
 	}
+
+#if HAS_MREMAP
+# if HAS_MREMAP4
+	p = mremap(old, oldsz, newsz, MREMAP_MAYMOVE);
+# elif HAS_MREMAP5
+	p = mremap(old, oldsz, NULL, newsz, 0);
+# endif
+	if (p == MAP_FAILED) { return XERRNO; }
+#else
+	p = MAP(NULL, newsz, 0);
+	if (p == MAP_FAILED) { return XERRNO; }
+
+	memcpy(p, old, oldsz);
+	munmap(old, oldsz);
+#endif
+
 	*ptr = p;
 	return 0;
 }
 
+ssize_t
+xvm_reallocsub(void **const ptr, size_t oldsz, size_t newsz, size_t off, size_t len)
+{
+	uint8_t *old = *ptr, *p;
+
+	if (xunlikely(oldsz >= newsz)) {
+		memmove(old, old + off, len);
+		if (oldsz != newsz) {
+			munmap(old + newsz, oldsz - newsz);
+		}
+		return 0;
+	}
+
+#if HAS_MREMAP
+	size_t trunc = xpagetrunc(off);
+# if HAS_MREMAP4
+	p = mremap(old, oldsz, newsz + trunc, MREMAP_MAYMOVE);
+# elif HAS_MREMAP5
+	p = mremap(old, oldsz, NULL, newsz + trunc, 0);
+# endif
+	if (p == MAP_FAILED) { return XERRNO; }
+	if (trunc && munmap(p, trunc) < 0) {
+		trunc = 0;
+	}
+	*ptr = p + trunc;
+	return (ssize_t)(off - trunc);
+#else
+	p = MAP(NULL, newsz, 0);
+	if (p == MAP_FAILED) { return XERRNO; }
+
+	memcpy(p, old + off, len);
+	munmap(old, oldsz);
+
+	*ptr = p;
+	return 0;
+#endif
+}
+
 int
-xvm_unmap(void *ptr, size_t sz)
+xvm_dealloc(void *ptr, size_t sz)
 {
 	int rc = munmap(ptr, sz);
 	return rc == 0 ? 0 : XERRNO;
 }
 
 int
-xvm_unmap_ring(void *ptr, size_t sz)
+xvm_dealloc_ring(void *ptr, size_t sz)
 {
-	return xvm_unmap(ptr, 2*sz);
+	return xvm_dealloc(ptr, 2*sz);
 }
 
