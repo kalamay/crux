@@ -17,7 +17,14 @@ test_grow(void)
 	mu_assert_int_eq(xbuf_length(buf), rsize);
 
 	for (int i = 0; i < 1000; i++) {
+		size_t len = xbuf_length(buf);
+		const char *before = strndup(xbuf_data(buf), len);
+
 		mu_assert_int_eq(add(buf, str), 0);
+
+		const char *after = strndup(xbuf_data(buf), len);
+		mu_assert_str_eq(before, after);
+
 		rsize += sizeof(str);
 		mu_assert_int_eq(xbuf_length(buf), rsize);
 

@@ -136,6 +136,7 @@ SRC:= \
 	src/map.c \
 	src/heap.c \
 	src/hash.c \
+	src/vm.c \
 	src/buf.c
 
 # list of header files to include in build
@@ -149,6 +150,7 @@ INCLUDE:= \
 	include/crux/err.h \
 	include/crux/rand.h \
 	include/crux/seed.h \
+	include/crux/vm.h \
 	include/crux/buf.h \
 	include/crux/list.h \
 	include/crux/vec.h \

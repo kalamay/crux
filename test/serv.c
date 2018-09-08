@@ -30,7 +30,7 @@ connection(struct xhub *h, union xvalue val)
 	struct xhttp http;
 	xhttp_init_request(&http);
 
-	struct xbuf *buf = xbuf(8000);
+	struct xbuf *buf = xbuf(8000, true);
 	while (xbuf_read(buf, fd, 4096, 2000) > 0) {
 		for (;;) {
 			ssize_t n = xcheck(xhttp_next(&http, buf));
