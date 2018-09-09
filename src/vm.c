@@ -50,6 +50,13 @@ error:
 	return XEKERN(rc);
 }
 
+int
+xvm_dealloc_ring(void *ptr, size_t sz)
+{
+	kern_return_t rc = vm_deallocate(mach_task_self(), (vm_address_t)ptr, 2*sz);
+	return rc == KERN_SUCCESS ? 0 : XEKERN(rc);
+}
+
 #else
 
 # if HAS_MEMFD
@@ -107,6 +114,12 @@ error:
 	if (p != MAP_FAILED) { munmap(p, 2*sz); }
 	if (fd > -1) { close(fd); }
 	return ec;
+}
+
+int
+xvm_dealloc_ring(void *ptr, size_t sz)
+{
+	return xvm_dealloc(ptr, 2*sz);
 }
 
 #endif
@@ -209,11 +222,5 @@ xvm_dealloc(void *ptr, size_t sz)
 {
 	int rc = munmap(ptr, sz);
 	return rc == 0 ? 0 : XERRNO;
-}
-
-int
-xvm_dealloc_ring(void *ptr, size_t sz)
-{
-	return xvm_dealloc(ptr, 2*sz);
 }
 
