@@ -151,7 +151,7 @@ ensure_line(struct xbuf *buf, size_t unused)
 	}
 
 	size_t off = XBUF_ROFFSET(buf);
-	size_t sz = XBUF_LINE_SIZE(full + XBUF_ROFFSET(buf));
+	size_t sz = XBUF_LINE_SIZE(full + off);
 	ssize_t rc = xvm_reallocsub((void **)&buf->map, buf->sz, sz, off, len);
 
 	if (rc < 0) {

@@ -3,6 +3,7 @@
 
 #include "config.h"
 
+#include <string.h>
 #include <sys/mman.h>
 
 #if HAS_VM_MAP
@@ -163,6 +164,10 @@ xvm_realloc(void **const ptr, size_t oldsz, size_t newsz)
 ssize_t
 xvm_reallocsub(void **const ptr, size_t oldsz, size_t newsz, size_t off, size_t len)
 {
+	if (xunlikely(*ptr == NULL)) {
+		return xvm_alloc(ptr, newsz);
+	}
+
 	uint8_t *old = *ptr, *p;
 
 	if (xunlikely(oldsz >= newsz)) {

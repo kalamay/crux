@@ -20,7 +20,7 @@ size_t xpagesize;
 static mach_timebase_info_data_t info = { 1, 1 };
 #endif
 
-#if !HAS_ARC4
+#if !HAS_ARC4 && !HAS_GETRANDOM
 # include <unistd.h>
 # include <sys/stat.h>
 static int randfd = -1;
@@ -158,7 +158,7 @@ xmono(void)
 #else
 # if HAS_CLOCK_GETTIME
 	struct xclock c;
-	if (clock_gettime(CLOCK_MONOTONIC, &c->ts) == 0) {
+	if (clock_gettime(CLOCK_MONOTONIC, &c.ts) == 0) {
 		return XCLOCK_NSEC(&c);
 	}
 # endif
@@ -271,10 +271,12 @@ xtimeout(struct xtimeout *t, const struct xclock *c)
 
 #if HAS_GETRANDOM
 
+#include <sys/random.h>
+
 int
 xrand(void *const restrict dst, size_t len)
 {
-	return getrandom(void *buf, size_t buflen, unsigned int flags);
+	return getrandom(dst, len, 0);
 }
 
 #elif HAS_ARC4

@@ -91,10 +91,10 @@ endif
 FLAGS_common?= -march=native
 CFLAGS_common?= $(FLAGS_common) \
 	-DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_PATCH=$(VERSION_PATCH) \
-	-std=gnu11 -fPIC
+	-std=gnu11 -fPIC -D_GNU_SOURCE
 CFLAGS_debug?= $(CFLAGS_common) -g -Wall -Wextra -Wcast-align -Werror -fno-omit-frame-pointer -fsanitize=address -Wno-implicit-fallthrough
 CFLAGS_release?= $(CFLAGS_common) -O3 -DNDEBUG 
-LDFLAGS_common?= $(FLAGS_common) $(LDFLAGS_EXECINFO)
+LDFLAGS_common?= $(FLAGS_common) $(LDFLAGS_EXECINFO) -lm
 LDFLAGS_debug?= $(LDFLAGS_common) -fsanitize=address
 LDFLAGS_release?= $(LDFLAGS_common) -O3
 
@@ -296,7 +296,7 @@ $(BUILD_LIB)/$(LIB): $(SRC_OBJ) | $(BUILD_LIB)
 
 # link shared library
 $(BUILD_LIB)/$(SO): $(SRC_OBJ) | $(BUILD_LIB)
-	$(CC) $(LDFLAGS) $(SOFLAGS) $^ -o $@
+	$(CC) $(SOFLAGS) $^ -o $@ $(LDFLAGS)
 
 # create symbolic link for shared library
 $(BUILD_LIB)/$(SO_COMPAT) $(BUILD_LIB)/$(SO_ANY):
@@ -312,7 +312,7 @@ $(BUILD_MAN)/%.gz: man/% | $(BUILD_MAN)
 
 # link test executables
 $(BUILD_TMP)/test-%: $(BUILD_TMP)/crux-test-%.o $(SRC_OBJ) | $(BUILD_TMP)
-	$(CC) $(LDFLAGS) $^ -o $@
+	$(CC) $^ -o $@ $(LDFLAGS)
 
 # compile main object files
 $(BUILD_TMP)/crux-%.o: src/%.c Makefile | $(BUILD_TMP)
