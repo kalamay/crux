@@ -6,6 +6,7 @@
 
 struct xpoll {
 	struct xclock clock;
+	sigset_t sigset;
 	int fd;
 	uint16_t rpos, rlen, wpos;
 	struct kevent events[64];
@@ -18,6 +19,7 @@ struct xpoll {
 struct xpoll {
 	struct xclock clock;
 	void *sig[31];
+	sigset_t sigset;
 	int fd, sigfd;
 	uint16_t rpos, rlen;
 	struct epoll_event events[64];

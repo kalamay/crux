@@ -82,7 +82,6 @@ xpoll__next(struct xpoll *poll, struct xevent *dst)
 		return 0;
 	}
 
-	dst->poll = poll;
 	dst->ptr = src->udata;
 	dst->id = (int)src->ident;
 #if EVFILT_READ == 0
@@ -90,10 +89,6 @@ xpoll__next(struct xpoll *poll, struct xevent *dst)
 #else
 	dst->type = -src->filter; // FreeBSD, OpenBSD, DflyBSD, macOS
 #endif
-
-	if (dst->type == XPOLL_SIG) {
-		signal(dst->id, SIG_DFL);
-	}
 
 	if (src->flags & EV_ERROR) {
 		dst->type |= XPOLL_ERR;
@@ -117,13 +112,11 @@ xpoll__ctl(struct xpoll *poll, int op, int type, int id, void *ptr)
 #endif
 
 	// if deleting, find matching events in the pending list and "disable" them
-	if (op == XPOLL_DEL && poll->rlen > 0) {
-		struct kevent *p = poll->events, *pe = p + poll->rlen;
-		for (; p < pe; p++) {
-			if (p->filter == type && p->ident == (uintptr_t)id) {
-				p->flags |= EV_ERROR;
-				p->data = 0;
-			}
+	struct kevent *p = poll->events, *pe = p + poll->rlen;
+	for (; p < pe; p++) {
+		if (p->filter == type && p->ident == (uintptr_t)id) {
+			p->flags |= EV_ERROR;
+			p->data = 0;
 		}
 	}
 
@@ -132,9 +125,7 @@ xpoll__ctl(struct xpoll *poll, int op, int type, int id, void *ptr)
 		struct kevent ev;
 		EV_SET(&ev, id, type, op|EV_ONESHOT, 0, 0, ptr);
 		int rc = kevent(poll->fd, &ev, 1, NULL, 0, &zero);
-		if (rc < 0) { return XERRNO; }
-		signal(id, XPOLL_ADD ? SIG_IGN : SIG_DFL);
-		return 0;
+		return rc < 0 ? XERRNO : 0;
 	}
 
 	// queue up the event change for the next xpoll__update

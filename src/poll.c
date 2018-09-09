@@ -112,6 +112,7 @@ xpoll_init(struct xpoll *poll)
 {
 	int rc = xclock_mono(&poll->clock);
 	if (rc < 0) { return rc; }
+	sigemptyset(&poll->sigset);
 	return xpoll__init(poll);
 }
 
@@ -141,19 +142,45 @@ xpoll_ctl(struct xpoll *poll, int op, int type, int id, void *ptr)
 
 	if (op != XPOLL_ADD && op != XPOLL_DEL) { return XESYS(EINVAL); }
 
+	sigset_t prev;
+	bool change = false;
+
 	switch (type) {
 	case XPOLL_IN:
 	case XPOLL_OUT:
 		if (id < 0) { return XESYS(EBADF); }
 		break;
 	case XPOLL_SIG:
-		if (id < 1 || id > 31) { return XESYS (EINVAL); }
+		if (id < 1 || id > 31) { return XESYS(EINVAL); }
+		if (op == XPOLL_ADD) {
+			if (!sigismember(&poll->sigset, id)) {
+				sigaddset(&poll->sigset, id);
+				change = true;
+			}
+		}
+		else {
+			if (sigismember(&poll->sigset, id)) {
+				sigdelset(&poll->sigset, id);
+				change = true;
+			}
+		}
+		if (change && sigprocmask(SIG_SETMASK, &poll->sigset, &prev) < 0) {
+			poll->sigset = prev;
+			return XERRNO;
+		}
 		break;
 	default:
 		return XESYS(EINVAL);
 	}
 
-	return xpoll__ctl(poll, op, type, id, ptr);
+	int rc = xpoll__ctl(poll, op, type, id, ptr);
+	if (change) {
+		if (rc < 0) {
+			sigprocmask(SIG_SETMASK, &prev, NULL);
+			poll->sigset = prev;
+		}
+	}
+	return rc;
 }
 
 int
@@ -184,8 +211,8 @@ poll:
 	XCLOCK_SET_MSEC(&wait, xtimeout(&timeo, &poll->clock));
 
 	rc = xpoll__update(poll, tsp);
-	if (rc > 0)       { goto read; }
-	if (rc == -EINTR) { goto poll; }
+	if (rc > 0)             { goto read; }
+	if (rc == XESYS(EINTR)) { goto poll; }
 
 done:
 	xclock_mono(&poll->clock);
