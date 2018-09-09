@@ -16,12 +16,25 @@ struct xpoll {
 #elif HAS_EPOLL
 #include <sys/epoll.h>
 
+#include "../include/crux/hashmap.h"
+
+struct fdent {
+	int fd;
+	int events;
+	void *ptr[2];
+};
+
+struct fdmap {
+	XHASHMAP(fdmap, struct fdent, 2);
+};
+
 struct xpoll {
 	struct xclock clock;
 	void *sig[31];
 	sigset_t sigset;
 	int fd, sigfd;
 	uint16_t rpos, rlen;
+	struct fdmap fdmap;
 	struct epoll_event events[64];
 };
 

@@ -1,6 +1,9 @@
 #include "mu.h"
 
-#include "../src/poll.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include "../include/crux/poll.h"
 
 static void
 test_signal(void)
@@ -85,6 +88,66 @@ test_remove(void)
 	xpoll_free(&p);
 }
 
+static void
+test_remove2(void)
+{
+	struct xpoll *p;
+	struct xevent ev;
+	int fd[2];
+	int match[4] = { 0, 0, 0, 0 };
+
+	mu_assert_call(socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+
+	mu_assert_int_eq(xpoll_new(&p), 0);
+
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[0], &match[0]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[0], &match[1]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[1], &match[2]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[1], &match[3]), 0);
+
+	mu_assert_int_eq(write(fd[0], "test", 4), 4);
+	mu_assert_int_eq(write(fd[1], "test", 4), 4);
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
+	mu_assert_int_eq(*(int *)ev.ptr, 0);
+	(*(int *)ev.ptr)++;
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
+	mu_assert_int_eq(*(int *)ev.ptr, 0);
+	(*(int *)ev.ptr)++;
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
+	mu_assert_int_eq(*(int *)ev.ptr, 0);
+	(*(int *)ev.ptr)++;
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
+	mu_assert_int_eq(*(int *)ev.ptr, 0);
+	(*(int *)ev.ptr)++;
+
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[0], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[0], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[1], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[1], NULL), 0);
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 0);
+
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[0], &match[0]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[0], &match[1]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[1], &match[2]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[1], &match[3]), 0);
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
+
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[0], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[0], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[1], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[1], NULL), 0);
+
+	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 0);
+
+	xpoll_free(&p);
+}
+
 int
 main(void)
 {
@@ -92,5 +155,6 @@ main(void)
 	mu_run(test_signal);
 	mu_run(test_io);
 	mu_run(test_remove);
+	mu_run(test_remove2);
 }
 
