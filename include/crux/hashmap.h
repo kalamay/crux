@@ -5,6 +5,9 @@
 
 #include <math.h> 
 
+#define XHASHMAP_RESERVE_NEW 0
+#define XHASHMAP_RESERVE_UPD 1
+
 #define XHASHMAP(pref, TEnt, ntiers) \
 	struct pref##_tier { \
 		XHASHTIER(TEnt); \
