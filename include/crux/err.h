@@ -7,22 +7,23 @@
 #include <netdb.h>
 
 enum xerr_type {
-	XERR_SYS  = 0,
-	XERR_ADDR = 1,
-	XERR_HTTP = 2,
-	XERR_KERN = 3,
+	XERR_SYS  = -1,
+	XERR_ADDR = -2,
+	XERR_HTTP = -3,
+	XERR_KERN = -4,
 };
 
-#define XETYPE(n) ((enum xerr_type)(-(n) >> 16) & 0xff)
-#define XECODE(n) ((-(int)(n)) & 0xffff)
+union xerr {
+	int value;
+	struct { short code, type; };
+};
 
-#define XEMAKE(T, n) (-((XERR_##T << 16) | ((n) & 0xffff)))
+#define XETYPE(n) (((union xerr){ .value=(n) }).type)
+#define XECODE(n) (((union xerr){ .value=(n) }).code)
+
+#define XEMAKE(T, n) (((union xerr){ .code=(n), .type=XERR_##T }).value)
 #define XESYS(n) (XEMAKE(SYS, n))
-#if EAI_FAIL < 0
-# define XEADDR(n) (XEMAKE(ADDR, -(n)))
-#else
-# define XEADDR(n) (XEMAKE(ADDR, n))
-#endif
+#define XEADDR(n) (XEMAKE(ADDR, n))
 #define XEHTTP(n) (XEMAKE(HTTP, n))
 #define XEKERN(n) (XEMAKE(KERN, n))
 
@@ -34,11 +35,11 @@ enum xerr_type {
 
 #define XERRNO XESYS(errno)
 
-#define XEHTTPSYNTAX    XEHTTP(1)
-#define XEHTTPSIZE      XEHTTP(2)
-#define XEHTTPSTATE     XEHTTP(3)
-#define XEHTTPTOOSHORT  XEHTTP(4)
-#define XEHTTPBUFS      XEHTTP(5)
+#define XESYNTAX    1
+#define XESIZE      2
+#define XESTATE     3
+#define XETOOSHORT  4
+#define XEBUFS      5
 
 #ifdef NDEBUG
 # define xassert(e) ((void)0)

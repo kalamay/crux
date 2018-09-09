@@ -28,7 +28,7 @@ test_addr(void)
 static void
 test_http(void)
 {
-	int rc = XEHTTPTOOSHORT;
+	int rc = XEHTTP(XETOOSHORT);
 	mu_assert_int_lt(rc, 0);
 	mu_assert_int_eq(XEISSYS(rc), 0);
 	mu_assert_int_eq(XEISADDR(rc), 0);

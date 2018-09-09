@@ -113,7 +113,7 @@
 	XX(BADHINTS,           "invalid value for hints") \
 	XX(PROTOCOL,           "resolved protocol is unknown") \
 
-#define XERR_HTTP_MAP(XX) \
+#define XERR_MAP(XX) \
 	XX(SYNTAX,             "invalid syntax") \
 	XX(SIZE,               "size of value exceeded maximum allowed") \
 	XX(STATE,              "parser state is invalid") \
@@ -164,8 +164,8 @@ xerr_str(int code)
 	case XERR_HTTP:
 		switch (code) {
 #define XX(sym, msg) \
-			case XEHTTP##sym: return msg;
-	XERR_HTTP_MAP(XX)
+			case XE##sym: return msg;
+	XERR_MAP(XX)
 #undef XX
 		}
 		break;
@@ -173,6 +173,7 @@ xerr_str(int code)
 #if __APPLE__
 		return mach_error_string(XECODE(code));
 #endif
+		break;
 	}
 
 	return "undefined error";
