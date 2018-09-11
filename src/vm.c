@@ -67,6 +67,23 @@ open_tmp()
 {
     return syscall(__NR_memfd_create, "crux", MFD_CLOEXEC);
 }
+# elif HAS_SHM_OPEN
+#  include <fcntl.h>
+static int
+open_tmp()
+{
+	for (;;) {
+		char path[] = "/tmp/crux.XXXXXX";
+		mktemp(path);
+		int fd = shm_open(path, O_RDWR|O_CREAT|O_EXCL|O_CLOEXEC, 0600);
+		if (fd < 0) {
+			if (errno == EEXIST) { continue; }
+			return XERRNO;
+		}
+		shm_unlink(path);
+		return fd;
+	}
+}
 # else
 static int
 open_tmp()

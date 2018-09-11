@@ -98,6 +98,9 @@ def has_memfd():
 def has_vm_map():
 	return has_function("vm_map", 11, "mach/mach.h", "mach/vm_map.h")
 
+def has_shm_open():
+	return has_function("shm_open", 5, "sys/mman.h", "fcntl.h")
+
 print(("""
 #if defined (__aarch64__)
 # define HAS_ARM_64 1
@@ -134,4 +137,5 @@ elif has_mremap5():     print_flag("MREMAP5")
 if has_mremap():        print_flag("MREMAP")
 if has_vm_map():        print_flag("VM_MAP")
 if has_memfd():         print_flag("MEMFD")
+if has_shm_open():      print_flag("SHM_OPEN")
 
