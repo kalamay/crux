@@ -216,7 +216,6 @@
 		size_t idx = pref##_tier_reserve(map->tiers[0], k, kn, h, &full); \
 		if (!full) { \
 			for (size_t i = 1; i < xlen(map->tiers) && map->tiers[i]; i++) { \
-				if (map->tiers[i] == NULL) { break; } \
 				ssize_t sidx = pref##_tier_get(map->tiers[i], k, kn, h); \
 				if (sidx >= 0) { \
 					map->tiers[0]->arr[idx].entry = map->tiers[i]->arr[sidx].entry; \
