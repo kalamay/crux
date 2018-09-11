@@ -84,9 +84,6 @@ def has_mremap4():
 def has_mremap5():
 	return has_function("mremap", 5, "sys/mman.h")
 
-def has_mremap():
-	return has_mremap4() or has_mremap5()
-
 def has_memfd():
 	return compiles("""
 		#include <unistd.h>
@@ -134,7 +131,6 @@ if has_getrandom():     print_flag("GETRANDOM")
 if has_arc4():          print_flag("ARC4")
 if has_mremap4():       print_flag("MREMAP4")
 elif has_mremap5():     print_flag("MREMAP5")
-if has_mremap():        print_flag("MREMAP")
 if has_vm_map():        print_flag("VM_MAP")
 if has_memfd():         print_flag("MEMFD")
 if has_shm_open():      print_flag("SHM_OPEN")

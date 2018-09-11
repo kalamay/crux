@@ -172,10 +172,10 @@ xvm_realloc(void **const ptr, size_t oldsz, size_t newsz)
 		return 0;
 	}
 
-#if HAS_MREMAP
+#if HAS_MREMAP4 || HAS_MREMAP5
 # if HAS_MREMAP4
 	p = mremap(old, oldsz, newsz, MREMAP_MAYMOVE);
-# elif HAS_MREMAP5
+# else
 	p = mremap(old, oldsz, NULL, newsz, 0);
 # endif
 	if (p == MAP_FAILED) { return XERRNO; }
@@ -209,11 +209,11 @@ xvm_reallocsub(void **const ptr, size_t oldsz, size_t newsz, size_t off, size_t 
 		return 0;
 	}
 
-#if HAS_MREMAP
+#if HAS_MREMAP4 || HAS_MREMAP5
 	size_t trunc = xpagetrunc(off);
 # if HAS_MREMAP4
 	p = mremap(old, oldsz, newsz + trunc, MREMAP_MAYMOVE);
-# elif HAS_MREMAP5
+# else
 	p = mremap(old, oldsz, NULL, newsz + trunc, 0);
 # endif
 	if (p == MAP_FAILED) { return XERRNO; }
