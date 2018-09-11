@@ -1,48 +1,44 @@
 #include "../include/crux/poll.h"
+#include "../include/crux/hashmap.h"
+
 #include "config.h"
 
 #if HAS_KQUEUE
-#include <sys/event.h>
-
-struct xpoll {
-	struct xclock clock;
-	sigset_t sigset;
-	int fd;
-	uint16_t rpos, rlen, wpos;
-	struct kevent events[64];
-};
-
-
+# include <sys/event.h>
 #elif HAS_EPOLL
-#include <sys/epoll.h>
+# include <sys/epoll.h>
+#else
+# error unsupported platform
+#endif
 
-#include "../include/crux/hashmap.h"
-
-struct fdent {
+struct xfdent {
 	int fd;
-	int events;
+	bool ein;  // is event scheduled for EPOLLIN/EVFILT_READ
+	bool eout; // is event scheduled for EPOLLOUT/EVFILT_WRITE
+	bool din;  // has dispatched EPOLLIN/EVFILT_READ
+	bool dout; // has dispatched EPOLLOUT/EVFILT_WRITE
 	void *ptr[2];
 };
 
-struct fdmap {
-	XHASHMAP(fdmap, struct fdent, 2);
+struct xfdmap {
+	XHASHMAP(xfdmap, struct xfdent, 2);
 };
 
 struct xpoll {
 	struct xclock clock;
+	struct xfdmap fdmap;
 	void *sig[31];
 	sigset_t sigset;
-	int fd, sigfd;
+	int fd;
+#if HAS_KQUEUE
+	uint16_t rpos, rlen, wpos;
+	struct kevent events[64];
+#elif HAS_EPOLL
+	int sigfd;
 	uint16_t rpos, rlen;
-	struct fdmap fdmap;
 	struct epoll_event events[64];
-};
-
-
-#else
-#error unsupported platform
-
 #endif
+};
 
 extern int
 xpoll_init(struct xpoll *poll);

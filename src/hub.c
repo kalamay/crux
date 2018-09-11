@@ -234,7 +234,7 @@ run_once(struct xhub *hub)
 	struct xlist *lent;
 	struct xheap_entry *wait;
 	struct xevent ev;
-	struct xhub_entry *ent;
+	struct xhub_entry *ent, *tmp;
 
 	// first clear all immediate tasks
 	if ((lent = xlist_first(&hub->immediate, X_ASCENDING))) {
@@ -294,14 +294,12 @@ run_once(struct xhub *hub)
 
 invoke:
 	unschedule(ent);
+	tmp = active_entry;
 	active_entry = ent;
-	rc = xresume(ent->t, XINT(val)).i;
-	active_entry = NULL;
+	xresume(ent->t, XINT(val));
+	active_entry = tmp;
 	if (!is_scheduled(ent) || !xtask_alive(ent->t)) {
 		xtask_free(&ent->t);
-		if (rc < 0) {
-			return rc;
-		}
 	}
 	return 1;
 }
@@ -345,6 +343,7 @@ xhub_mark_close(struct xhub *hub, int fd)
 			mark_closed(ent);
 		}
 	}
+	xpoll_ctl(&hub->poll, XPOLL_DEL, XPOLL_IN|XPOLL_OUT, fd, NULL);
 }
 
 static union xvalue

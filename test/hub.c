@@ -63,7 +63,7 @@ dokill(struct xhub *h, union xvalue val)
 {
 	(void)h;
 	xsleep(10);
-	kill(getpid(), val.i);
+	mu_assert_call(kill(getpid(), val.i));
 }
 
 static void
@@ -82,11 +82,13 @@ dowrite(struct xhub *h, union xvalue val)
 {
 	(void)h;
 	int fd = val.i;
+
+	xdefer_close(fd);
+
 	for (int i = 0; i < 5; i++) {
 		xwrite(fd, "test", 4, -1);
 		xsleep(10);
 	}
-	close(fd);
 }
 
 static void
@@ -94,6 +96,8 @@ doread(struct xhub *h, union xvalue val)
 {
 	(void)h;
 	int fd = val.i;
+
+	xdefer_close(fd);
 
 	char buf[5];
 	memset(buf, 0, sizeof(buf));
@@ -103,7 +107,6 @@ doread(struct xhub *h, union xvalue val)
 		n++;
 	}
 	mu_assert_int_eq(n, 5);
-	close(fd);
 }
 
 static void
@@ -124,11 +127,11 @@ static void
 dorecv(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	const struct sockaddr_in *dest = val.ptr;
+	const struct sockaddr_in *addr = val.ptr;
 
 	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
-	mu_assert_call(bind(s, (const struct sockaddr *)dest, sizeof(*dest)));
+	mu_assert_call(bind(s, (const struct sockaddr *)addr, sizeof(*addr)));
 	xdefer(doclose, XINT(s));
 
 	struct sockaddr_in src;
@@ -146,13 +149,13 @@ static void
 dosend(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	const struct sockaddr_in *dest = val.ptr;
+	const struct sockaddr_in *addr = val.ptr;
 
 	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	xdefer(doclose, XINT(s));
 
-	xsendto(s, "test", 4, 0, (struct sockaddr *)dest, sizeof(*dest), -1);
+	xsendto(s, "test", 4, 0, (struct sockaddr *)addr, sizeof(*addr), -1);
 }
 
 static void
@@ -161,14 +164,14 @@ test_udp(void)
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
 
-	struct sockaddr_in dest = {
+	struct sockaddr_in addr = {
 		.sin_family = AF_INET,
 		.sin_port = htons(3333),
 		.sin_addr.s_addr = inet_addr("0.0.0.0")
 	};
 
-	xspawn(hub, dorecv, XPTR(&dest));
-	xspawn(hub, dosend, XPTR(&dest));
+	xspawn(hub, dorecv, XPTR(&addr));
+	xspawn(hub, dosend, XPTR(&addr));
 
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);

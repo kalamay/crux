@@ -1,6 +1,7 @@
 #include "mu.h"
 #include "../include/crux/resolv.h"
 #include "../include/crux/hub.h"
+#include "../include/crux/err.h"
 #include "../src/resolv.h"
 
 static bool done = false;
@@ -17,19 +18,19 @@ doresolv(struct xhub *h, union xvalue val)
 	//int rc = xresolv(res, "_http._tcp.test.jeremylarkin.com", rr, xlen(rr));
 	printf("rc: %d\n", rc);
 	if (rc < 0) {
-		printf("error: %s\n", strerror(-rc));
+		printf("error: %s\n", xerr_str(rc));
 	}
 	for (int i = 0; i < rc; i++) {
 		char buf[64];
 		switch (rr[i].type) {
 		case XDNS_A:
-			printf("IPv4: %s:%d, ttl=%d, priority=%u, weight=%u\n",
+			printf("IPv4 [%s]:%d, ttl=%d, priority=%u, weight=%u\n",
 				inet_ntop(AF_INET, &rr[i].in.sin_addr, buf, sizeof(buf)),
 				ntohs(rr[i].in.sin_port),
 				rr[i].ttl, rr[i].priority, rr[i].weight);
 			break;
 		case XDNS_AAAA:
-			printf("IPv6: %s:%d, ttl=%d, priority=%u, weight=%u\n",
+			printf("IPv6 [%s]:%d, ttl=%d, priority=%u, weight=%u\n",
 				inet_ntop(AF_INET6, &rr[i].in6.sin6_addr, buf, sizeof(buf)),
 				ntohs(rr[i].in6.sin6_port),
 				rr[i].ttl, rr[i].priority, rr[i].weight);

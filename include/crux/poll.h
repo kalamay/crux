@@ -6,17 +6,19 @@
 
 #include <signal.h>
 
-#define XPOLL_ADD 0x0001 /** Operation to add an event */
-#define XPOLL_DEL 0x0002 /** Operation to remove an event */
+#define XPOLL_ADD 1 /** Operation to add an event */
+#define XPOLL_DEL 2 /** Operation to remove an event */
 
-#define XPOLL_IN  0x0001 /** Type for file descriptor readability */
-#define XPOLL_OUT 0x0002 /** Type for file descriptor writeability */
-#define XPOLL_SIG 0x0006 /** Type for signal readyness */
+#define XPOLL_IN  (1<<0) /** Type for file descriptor readability */
+#define XPOLL_OUT (1<<1) /** Type for file descriptor writeability */
+#define XPOLL_SIG (1<<2) /** Type for signal readyness */
 
-#define XPOLL_ERR 0x0100 /** Flag to indicate an error with the event */
-#define XPOLL_EOF 0x0200 /** Flag ti indicate an end-of-file state */
+#define XPOLL_INOUT (XPOLL_IN|XPOLL_OUT)
 
-#define XPOLL_TYPE(n)  (int)((n) & 0x000F)
+#define XPOLL_ERR (1<<16) /** Flag to indicate an error with the event */
+#define XPOLL_EOF (1<<17) /** Flag ti indicate an end-of-file state */
+
+#define XPOLL_TYPE(n)  (int)((n) & 0xFFFF)
 #define XPOLL_ISERR(n) (!!((n) & XPOLL_ERR))
 #define XPOLL_ISEOF(n) (!!((n) & XPOLL_EOF))
 
@@ -85,6 +87,17 @@ xpoll_free(struct xpoll **pollp);
  */
 XEXTERN int
 xpoll_ctl(struct xpoll *poll, int op, int type, int id, void *ptr);
+
+/**
+ * @brief  Gets the pointer associated with an event
+ *
+ * @param  poll  poll pointer
+ * @param  type  event type (XPOLL_IN, XPOLL_OUT, or XPOLL_SIG)
+ * @param  id    file descriptor or signal number
+ * @return  pointer or NULL
+ */
+XEXTERN void *
+xpoll_get(struct xpoll *poll, int type, int id);
 
 /**
  * @brief  Reads the next event from the poller
