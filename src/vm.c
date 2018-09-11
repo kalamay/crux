@@ -65,14 +65,14 @@ xvm_dealloc_ring(void *ptr, size_t sz)
 static int
 open_tmp()
 {
-    return syscall(__NR_memfd_create, "crux", 0);
+    return syscall(__NR_memfd_create, "crux", MFD_CLOEXEC);
 }
 # else
 static int
 open_tmp()
 {
 	char path[] = "/tmp/crux.XXXXXX";
-	int fd = mkstemp(path);
+	int fd = mkostemp(path, O_CLOEXEC);
 	if (fd >= 0) { unlink(path); }
 	return fd;
 }
