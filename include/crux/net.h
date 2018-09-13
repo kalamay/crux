@@ -39,5 +39,11 @@ xaccept(int s, int flags, int timeoutms, union xaddr *addr);
 XEXTERN const char *
 xaddrstr(const union xaddr *addr);
 
+XEXTERN int
+xsockaddr(int fd, union xaddr *addr);
+
+XEXTERN int
+xpeeraddr(int fd, union xaddr *addr);
+
 #endif
 

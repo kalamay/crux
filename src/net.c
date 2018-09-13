@@ -359,3 +359,19 @@ xaddrstr(const union xaddr *addr)
 	return rc;
 }
 
+int
+xsockaddr(int fd, union xaddr *addr)
+{
+	socklen_t len = sizeof(addr->ss);
+	int rc = getsockname(fd, &addr->sa, &len);
+	return rc == 0 ? 0 : XERRNO;
+}
+
+int
+xpeeraddr(int fd, union xaddr *addr)
+{
+	socklen_t len = sizeof(addr->ss);
+	int rc = getpeername(fd, &addr->sa, &len);
+	return rc == 0 ? 0 : XERRNO;
+}
+
