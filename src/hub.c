@@ -357,12 +357,19 @@ static int
 invoke_sig(struct xhub *hub, struct xevent *ev)
 {
 	struct xhub_sig *sig = get_sig(hub, ev->id);
-	struct xlist *pent;
+	struct xlist list, *pent;
 	struct xhub_entry *ent;
 
-	xlist_each(&sig->in, pent, X_ASCENDING) {
-		ent = xcontainer(pent, struct xhub_entry, pent);
-		invoke_direct(ent, XINT(ev->id));
+	if (xlist_is_empty(&sig->in)) {
+		xpoll_ctl(&hub->poll, ev->id, XPOLL_SIG, XPOLL_NONE);
+		kill(getpid(), ev->id);
+	}
+	else {
+		xlist_replace(&list, &sig->in);
+		xlist_each(&list, pent, X_ASCENDING) {
+			ent = xcontainer(pent, struct xhub_entry, pent);
+			invoke_direct(ent, XINT(ev->id));
+		}
 	}
 	
 	return 1;
@@ -372,7 +379,7 @@ static int
 invoke_io(struct xhub *hub, struct xevent *ev)
 {
 	struct xhub_io *io = get_io(hub, ev->id);
-	struct xlist *pent;
+	struct xlist inlist, outlist, *pent;
 	struct xhub_entry *ent;
 	union xvalue val = XZERO;
 	bool in = false, out = false;
@@ -380,27 +387,30 @@ invoke_io(struct xhub *hub, struct xevent *ev)
 	if (ev->type & XPOLL_ERR) {
 		val = XINT(ev->errcode);
 		in = out = true;
+		io->type = 0;
 	}
 	else if (ev->type & XPOLL_EOF) {
 		val = XINT(XESYS(ECONNRESET));
 		in = out = true;
+		io->type = 0;
 	}
 	else {
 		in = (ev->type & XPOLL_IN);
 		out = (ev->type & XPOLL_OUT);
 	}
 
-	io->type &= ~ev->type;
+	if (in) { xlist_replace(&inlist, &io->in); }
+	if (out) { xlist_replace(&outlist, &io->out); }
 
 	if (in) {
-		xlist_each(&io->in, pent, X_ASCENDING) {
+		xlist_each(&inlist, pent, X_ASCENDING) {
 			ent = xcontainer(pent, struct xhub_entry, pent);
 			invoke_direct(ent, val);
 		}
 	}
 
 	if (out) {
-		xlist_each(&io->out, pent, X_ASCENDING) {
+		xlist_each(&outlist, pent, X_ASCENDING) {
 			ent = xcontainer(pent, struct xhub_entry, pent);
 			invoke_direct(ent, val);
 		}
