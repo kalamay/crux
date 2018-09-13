@@ -92,7 +92,6 @@ static int
 schedule_timeout(struct xhub_entry *ent, int ms)
 {
 	struct xhub *h = ent->hub;
-	xclock_mono(&h->poll.clock);
 	ent->hent.prio = X_MSEC_TO_NSEC((int64_t)ms) + XCLOCK_NSEC(&h->poll.clock);
 	ent->detached = false;
 	int rc = xheap_add(&h->timeout, &ent->hent);
@@ -332,13 +331,19 @@ static int
 invoke_direct(struct xhub_entry *ent, union xvalue val)
 {
 	unschedule(ent);
+
 	struct xhub_entry *tmp = active_entry;
 	active_entry = ent;
 	xresume(ent->t, val);
 	active_entry = tmp;
-	if (!is_scheduled(ent) || !xtask_alive(ent->t)) {
+
+	if (!xtask_alive(ent->t)) {
 		xtask_free(&ent->t);
 	}
+	else if (!is_scheduled(ent)) {
+		schedule_immediate(ent);
+	}
+
 	return 1;
 }
 
