@@ -3,6 +3,8 @@
 
 #include "def.h"
 
+#include <stdio.h>
+
 /**
  * @brief  Opaque type for a binary heap
  *
@@ -45,11 +47,6 @@ struct xheap_entry {
 	uint32_t key;  /** key into the heap */
 	uint32_t user; /** any custom user value */
 };
-
-/**
- * @brief  Callback function used for clearing the heap
- */
-typedef void (*xheap_fn)(struct xheap_entry *ent, void *data);
 
 /**
  * @brief  Value representing an invalid key
@@ -168,7 +165,10 @@ xheap_update(const struct xheap *heap, struct xheap_entry *e);
  * @param  data  user pointer to pass to `fn`
  */
 XEXTERN void
-xheap_clear(struct xheap *heap, xheap_fn fn, void *data);
+xheap_clear(struct xheap *heap, void (*fn)(struct xheap_entry *, void *), void *data);
+
+XEXTERN void
+xheap_print(struct xheap *heap, FILE *out, void (*fn)(struct xheap_entry *, FILE *));
 
 #endif
 

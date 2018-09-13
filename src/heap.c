@@ -294,7 +294,7 @@ xheap_update(const struct xheap *heap, struct xheap_entry *e)
 }
 
 void
-xheap_clear(struct xheap *heap, xheap_fn fn, void *data)
+xheap_clear(struct xheap *heap, void (*fn)(struct xheap_entry *, void *), void *data)
 {
 	assert(heap != NULL);
 
@@ -309,5 +309,32 @@ xheap_clear(struct xheap *heap, xheap_fn fn, void *data)
 	}
 	heap->next = XHEAP_ROOT;
 	heap->capacity = ROW_WIDTH;
+}
+
+void
+xheap_print(struct xheap *heap, FILE *out, void (*fn)(struct xheap_entry *, FILE *))
+{
+	if (out == NULL) { out = stdout; }
+
+	fprintf(out, "<crux:heap:");
+	if (heap == NULL) {
+		fprintf(out, "(null)>\n");
+		return;
+	}
+
+	fprintf(out, "%p count=%u> {", (void *)heap, xheap_count(heap));
+	fprintf(out, " {\n");
+	for (uint32_t i = XHEAP_ROOT; i < heap->next; i++) {
+		struct xheap_entry *ent = ENTRY(heap, i);
+		if (fn) {
+			fprintf(out, "  %" PRIi64 " = ", ent->prio);
+			fn(ent, out);
+			fprintf(out, "\n");
+		}
+		else {
+			fprintf(out, "  %" PRIi64 "\n", ent->prio);
+		}
+	}
+	fprintf(out, "}\n");
 }
 
