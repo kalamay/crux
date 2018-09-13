@@ -24,6 +24,7 @@ static void
 connection(struct xhub *h, union xvalue val)
 {
 	(void)h;
+
 	int fd = val.i;
 	xdefer_close(fd);
 
@@ -48,10 +49,10 @@ connection(struct xhub *h, union xvalue val)
 static void
 intr(struct xhub *h, union xvalue val)
 {
-	(void)h;
-	(void)val;
 	xsignal(SIGINT, XTIMEOUT_DETACH);
-	printf("[%d] stopping\n", getpid());
+	union xaddr addr;
+	xsockaddr(val.i, &addr);
+	printf("[%d] stopping %s\n", getpid(), xaddrstr(&addr));
 	xhub_stop(h);
 }
 
@@ -59,18 +60,19 @@ static void
 term(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	(void)val;
+
 	xsignal(SIGTERM, XTIMEOUT_DETACH);
-	printf("[%d] terminating\n", getpid());
+	union xaddr addr;
+	xsockaddr(val.i, &addr);
+	printf("[%d] terminating %s\n", getpid(), xaddrstr(&addr));
 	xclose(val.i);
 }
 
 static void
 server(struct xhub *h, union xvalue val)
 {
-	(void)val;
 	union xaddr addr;
-	int s = xcheck(xbind(":3333", SOCK_STREAM, XREUSEADDR, &addr));
+	int s = xcheck(xbind(val.cptr, SOCK_STREAM, XREUSEADDR, &addr));
 
 	xspawn(h, intr, XINT(s));
 	xspawn(h, term, XINT(s));
@@ -86,12 +88,15 @@ server(struct xhub *h, union xvalue val)
 }
 
 int
-main(void)
+main(int argc, char *const *argv)
 {
+	const char *net = argc > 1 ? argv[1] : ":3333";
+
 	struct xhub *hub;
 	xcheck(xhub_new(&hub));
-	xspawn(hub, server, XNULL);
+	xspawn(hub, server, XCPTR(net));
 	xhub_run(hub);
 	xhub_free(&hub);
 	return 0;
 }
+
