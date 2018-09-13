@@ -6,40 +6,39 @@
 #include <stdio.h>
 #include <netdb.h>
 
-enum xerr_type {
-	XERR_SYS  = -1,
-	XERR_ADDR = -2,
-	XERR_HTTP = -3,
-	XERR_KERN = -4,
-};
-
-union xerr {
-	int value;
-	struct { short code, type; };
-};
-
-#define XETYPE(n) (((union xerr){ .value=(n) }).type)
-#define XECODE(n) (((union xerr){ .value=(n) }).code)
-
-#define XEMAKE(T, n) (((union xerr){ .code=(n), .type=XERR_##T }).value)
-#define XESYS(n) (XEMAKE(SYS, n))
-#define XEADDR(n) (XEMAKE(ADDR, n))
-#define XEHTTP(n) (XEMAKE(HTTP, n))
-#define XEKERN(n) (XEMAKE(KERN, n))
-
+#define XEMAKE_TYPE(n) ((int32_t)((((uint32_t)(n))&0x7fff)<<16))
+#define XEMAKE(T, n) (-((int32_t)(XERR_##T | (((uint16_t)n) & 0xffff))))
+#define XETYPE(n) ((int32_t)(((uint32_t)-((int32_t)n)) & 0x7fff0000))
+#define XECODE(n) ((int16_t)(((uint32_t)-((int32_t)n)) & 0xffff))
 #define XEIS(T, n) (XETYPE(n) == XERR_##T)
-#define XEISSYS(n) (XEIS(SYS, n))
-#define XEISADDR(n) (XEIS(ADDR, n))
-#define XEISHTTP(n) (XEIS(HTTP, n))
-#define XEISKERN(n) (XEIS(KERN, n))
+
+enum xerr_type {
+	XERR_SYS  = XEMAKE_TYPE(0),
+	XERR_ADDR = XEMAKE_TYPE(1),
+	XERR_KERN = XEMAKE_TYPE(2),
+	XERR_IO   = XEMAKE_TYPE(3),
+	XERR_HTTP = XEMAKE_TYPE(4),
+};
+
+#define XESYS(n)  XEMAKE(SYS, n)
+#define XEADDR(n) XEMAKE(ADDR, n)
+#define XEKERN(n) XEMAKE(KERN, n)
+#define XEIO(n)   XEMAKE(IO, n)
+#define XEHTTP(n) XEMAKE(HTTP, n)
+
+#define XEISSYS(n)  XEIS(SYS, n)
+#define XEISADDR(n) XEIS(ADDR, n)
+#define XEISKERN(n) XEIS(KERN, n)
+#define XEISIO(n)   XEIS(IO, n)
+#define XEISHTTP(n) XEIS(HTTP, n)
 
 #define XERRNO XESYS(errno)
 
-#define XESYNTAX    1
-#define XESIZE      2
-#define XESTATE     3
-#define XETOOSHORT  4
-#define XEBUFS      5
+#define XECLOSE     1
+#define XESYNTAX    2
+#define XESIZE      3
+#define XESTATE     4
+#define XETOOSHORT  5
 
 #ifdef NDEBUG
 # define xassert(e) ((void)0)

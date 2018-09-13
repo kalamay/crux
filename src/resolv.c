@@ -183,7 +183,7 @@ xresolv(struct xresolv *r, const char *name, struct xresolv_result *rr, int coun
 			rc = read_packet(r, &dns, rr, count);
 			break;
 		}
-		if (rc != -ETIMEDOUT) { break; }
+		if (rc != XESYS(ETIMEDOUT)) { break; }
 	}
 
 	if (r->fdpos < xlen(r->fdpool)) {

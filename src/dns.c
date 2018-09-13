@@ -45,12 +45,12 @@ xdns_encode_name(uint8_t *enc, ssize_t len, const char *name)
 	ssize_t nlen = strnlen(name, XDNS_MAX_NAME+1);
 	ssize_t rlen = (nlen == 0 || name[nlen-1] != '.') ? nlen+1 : nlen;
 	if (rlen == 1) {
-		if (len == 0) { return -ENOBUFS; }
+		if (len == 0) { return XESYS(ENOBUFS); }
 		enc[0] = 0;
 		return 1;
 	}
-	if (rlen > XDNS_MAX_NAME) { return -EINVAL; }
-	if (rlen >= len) { return -ENOBUFS; }
+	if (rlen > XDNS_MAX_NAME) { return XESYS(EINVAL); }
+	if (rlen >= len) { return XESYS(ENOBUFS); }
 
 	memcpy(enc+1, name, nlen);
 	enc[rlen] = '.';
@@ -60,7 +60,7 @@ xdns_encode_name(uint8_t *enc, ssize_t len, const char *name)
 		if (enc[i] == '.') {
 			ssize_t label = i - mark - 1;
 			if (label > XDNS_MAX_LABEL) {
-				return -EINVAL;
+				return XESYS(EINVAL);
 			}
 			enc[mark] = (uint8_t)label;
 			mark = i;
@@ -105,13 +105,13 @@ read_name(const uint8_t *buf, size_t pos, size_t len, char name[static 256])
 	}
 
 error:
-	return -EINVAL;
+	return XESYS(EINVAL);
 }
 
 static ssize_t
 read_query(const uint8_t *buf, size_t pos, size_t len, struct xdns_query *q)
 {
-	if (pos + sizeof(*q) > len) { return -EINVAL; }
+	if (pos + sizeof(*q) > len) { return XESYS(EINVAL); }
 	const struct xdns_query *qs = (const struct xdns_query *)(buf + pos);
 	q->qtype = ntohs(qs->qtype);
 	q->qclass = ntohs(qs->qclass);
@@ -121,7 +121,7 @@ read_query(const uint8_t *buf, size_t pos, size_t len, struct xdns_query *q)
 static ssize_t
 read_a(const uint8_t *buf, size_t pos, size_t len, struct in_addr *a)
 {
-	if (pos + sizeof(*a) > len) { return -EINVAL; }
+	if (pos + sizeof(*a) > len) { return XESYS(EINVAL); }
 	memcpy(a, buf+pos, sizeof(*a));
 	return pos + sizeof(*a);
 }
@@ -134,7 +134,7 @@ read_soa(const uint8_t *buf, size_t pos, size_t len, struct xdns_soa *soa)
 	if (rc < 0) { return rc; }
 	rc = read_name(buf, rc, len, soa->rname);
 	if (rc < 0) { return rc; }
-	if ((size_t)rc + 20 > len) { return -EINVAL; }
+	if ((size_t)rc + 20 > len) { return XESYS(EINVAL); }
 	soa->serial = u32(buf+rc); rc += 4;
 	soa->refresh = u32(buf+rc); rc += 4;
 	soa->retry = u32(buf+rc); rc += 4;
@@ -146,7 +146,7 @@ read_soa(const uint8_t *buf, size_t pos, size_t len, struct xdns_soa *soa)
 static ssize_t
 read_mx(const uint8_t *buf, size_t pos, size_t len, struct xdns_mx *mx)
 {
-	if (pos + 2 > len) { return -EINVAL; }
+	if (pos + 2 > len) { return XESYS(EINVAL); }
 	mx->preference = u16(buf+pos); pos += 2;
 	return read_name(buf, pos, len, mx->host);
 }
@@ -154,7 +154,7 @@ read_mx(const uint8_t *buf, size_t pos, size_t len, struct xdns_mx *mx)
 static ssize_t
 read_aaaa(const uint8_t *buf, size_t pos, size_t len, struct in6_addr *aaaa)
 {
-	if (pos + sizeof(*aaaa) > len) { return -EINVAL; }
+	if (pos + sizeof(*aaaa) > len) { return XESYS(EINVAL); }
 	memcpy(aaaa, buf+pos, sizeof(*aaaa));
 	return pos + sizeof(*aaaa);
 }
@@ -162,7 +162,7 @@ read_aaaa(const uint8_t *buf, size_t pos, size_t len, struct in6_addr *aaaa)
 static ssize_t
 read_srv(const uint8_t *buf, size_t pos, size_t len, struct xdns_srv *srv)
 {
-	if (pos + 6 > len) { return -EINVAL; }
+	if (pos + 6 > len) { return XESYS(EINVAL); }
 	srv->priority = u16(buf+pos); pos += 2;
 	srv->weight = u16(buf+pos); pos += 2;
 	srv->port = u16(buf+pos); pos += 2;
@@ -228,7 +228,7 @@ read_rr(const uint8_t *buf, size_t pos, size_t len,
 	return npos;
 
 error:
-	return -EINVAL;
+	return XESYS(EINVAL);
 }
 
 void
@@ -270,7 +270,7 @@ ssize_t
 xdns_add_query(struct xdns *p, const char *host, enum xdns_type type)
 {
 	if (p->hdr->ancount || p->hdr->nscount || p->hdr->arcount) {
-		return -EPERM;
+		return XESYS(EPERM);
 	}
 
 	struct xdns_query q;
@@ -321,11 +321,11 @@ ssize_t
 xdns_add_opt(struct xdns *p, struct xdns_opt opt, const void *rdata)
 {
 	if (opt.rtype != XDNS_OPT || opt.udpmax < 512 || 4096 < opt.udpmax) {
-		return -EINVAL;
+		return XESYS(EINVAL);
 	}
 	
 	if (opt.version != 0 || opt.dof) {
-		return -ENOTSUP;
+		return XESYS(ENOTSUP);
 	}
 
 	struct xdns_rr rr;
@@ -463,7 +463,7 @@ xdns_print(const struct xdns *p, FILE *out)
 #define fmt(...) do { \
 	int n = snprintf(buf, len, __VA_ARGS__); \
 	if (n < 0) { return -errno; } \
-	if ((size_t)n > len) { return -ENOBUFS; } \
+	if ((size_t)n > len) { return XESYS(ENOBUFS); } \
 	buf += n; \
 	len -= (size_t)n; \
 } while (0)
@@ -471,7 +471,7 @@ xdns_print(const struct xdns *p, FILE *out)
 ssize_t
 xdns_json(const struct xdns *p, char *buf, size_t len)
 {
-	if (p == NULL || buf == NULL) { return -EINVAL; }
+	if (p == NULL || buf == NULL) { return XESYS(EINVAL); }
 
 	char *start = buf;
 
