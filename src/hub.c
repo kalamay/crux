@@ -101,8 +101,8 @@ struct xhub {
 	struct xhub_io io[0];
 };
 
-static thread_local struct xhub *active_hub = NULL;
-static thread_local struct xhub_entry *active_entry = NULL;
+static thread_local struct xhub *current_hub = NULL;
+static thread_local struct xhub_entry *current_entry = NULL;
 
 static struct xhub_sig *
 get_sig(struct xhub *hub, int signo)
@@ -339,7 +339,7 @@ xhub_free(struct xhub **hubp)
 
 	struct xhub *hub = *hubp;
 	if (hub != NULL) {
-		struct xhub_entry *ent = active_entry;
+		struct xhub_entry *ent = current_entry;
 		if (ent && ent->hub == hub) { return; }
 
 		*hubp = NULL;
@@ -377,10 +377,10 @@ invoke_direct(struct xhub_entry *ent, union xvalue val)
 {
 	unschedule(ent);
 
-	struct xhub_entry *tmp = active_entry;
-	active_entry = ent;
+	struct xhub_entry *tmp = current_entry;
+	current_entry = ent;
 	xresume(ent->t, val);
-	active_entry = tmp;
+	current_entry = tmp;
 
 	if (!xtask_alive(ent->t)) {
 		xtask_free(&ent->t);
@@ -541,7 +541,7 @@ xhub_run(struct xhub *hub)
 		return XESYS(EPERM);
 	}
 
-	active_hub = hub;
+	current_hub = hub;
 	hub->running = true;
 
 	int rc;
@@ -550,7 +550,7 @@ xhub_run(struct xhub *hub)
 	} while (hub->running && rc == 1);
 
 	hub->running = false;
-	active_hub = NULL;
+	current_hub = NULL;
 
 	return rc;
 }
@@ -601,9 +601,9 @@ xhub_print(struct xhub *hub, FILE *out)
 
 	fprintf(out, "<crux:hub:%p> {\n", (void *)hub);
 
-	ent = active_entry;
+	ent = current_entry;
 	if (ent) {
-		fprintf(out, "  active = {\n");
+		fprintf(out, "  current = {\n");
 		xtask_print_val(ent->t, out, 2);
 		fprintf(out, "\n  }\n");
 	}
@@ -741,13 +741,13 @@ xspawn_b(struct xhub *hub, void (^block)(void))
 const struct timespec *
 xclock(void)
 {
-	return active_hub ? &active_hub->poll.clock : NULL;
+	return current_hub ? &current_hub->poll.clock : NULL;
 }
 
 int
 xwait(int fd, int polltype, int timeoutms)
 {
-	struct xhub_entry *ent = active_entry;
+	struct xhub_entry *ent = current_entry;
 	if (ent == NULL) { return XESYS(EAGAIN); }
 
 	int rc;
@@ -770,7 +770,7 @@ xwait(int fd, int polltype, int timeoutms)
 int
 xsleep(unsigned ms)
 {
-	struct xhub_entry *ent = active_entry;
+	struct xhub_entry *ent = current_entry;
 	if (ent == NULL) {
 		struct timespec c = XCLOCK_MAKE_MSEC(ms);
 		int rc;
@@ -818,7 +818,7 @@ xabort(void)
 int
 xsignal(int signum, int timeoutms)
 {
-	struct xhub_entry *ent = active_entry;
+	struct xhub_entry *ent = current_entry;
 	if (ent == NULL) { return XESYS(EPERM); }
 	int rc = schedule_poll(ent, signum, XPOLL_SIG, timeoutms);
 	if (rc == 0) {
@@ -833,7 +833,7 @@ xsignal(int signum, int timeoutms)
 	if (rc >= 0) { return rc; } \
 	rc = XERRNO; \
 	if (rc != XESYS(EAGAIN)) { return rc; } \
-	struct xhub_entry *ent = active_entry; \
+	struct xhub_entry *ent = current_entry; \
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll(ent, fd, XPOLL_IN, ms); \
 	if (rc < 0) { return rc; } \
@@ -846,7 +846,7 @@ xsignal(int signum, int timeoutms)
 	if (rc >= 0) { return rc; } \
 	rc = XERRNO; \
 	if (rc != XESYS(EAGAIN)) { return rc; } \
-	struct xhub_entry *ent = active_entry; \
+	struct xhub_entry *ent = current_entry; \
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll(ent, fd, XPOLL_OUT, ms); \
 	if (rc < 0) { return rc; } \
@@ -975,7 +975,7 @@ int
 xclose(int fd)
 {
 	if (fd < 0) { return 0; }
-	struct xhub_entry *ent = active_entry;
+	struct xhub_entry *ent = current_entry;
 	if (ent != NULL) {
 		xhub_remove_io(ent->hub, fd);
 	}
