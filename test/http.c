@@ -472,8 +472,8 @@ test_invalid_header(void)
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
 	rc = xhttp_next(&p, buf);
-	mu_assert_int_eq(XETYPE(rc), XERR_HTTP);
-	mu_assert_int_eq(XECODE(rc), XESYNTAX);
+	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
+	mu_assert_int_eq(xerr_code(rc), XESYNTAX);
 }
 
 static void
@@ -513,8 +513,8 @@ test_exceed_method_size(void)
 
 	xhttp_init_request(&p);
 	rc = xhttp_next(&p, buf);
-	mu_assert_int_eq(XETYPE(rc), XERR_HTTP);
-	mu_assert_int_eq(XECODE(rc), XESIZE);
+	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
+	mu_assert_int_eq(xerr_code(rc), XESIZE);
 }
 
 static void
@@ -562,8 +562,8 @@ test_exceed_name_size(void)
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
 	rc = xhttp_next(&p, buf);
-	mu_assert_int_eq(XETYPE(rc), XERR_HTTP);
-	mu_assert_int_eq(XECODE(rc), XESIZE);
+	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
+	mu_assert_int_eq(xerr_code(rc), XESIZE);
 }
 
 static void
@@ -611,8 +611,8 @@ test_exceed_value_size(void)
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
 	rc = xhttp_next(&p, buf);
-	mu_assert_int_eq(XETYPE(rc), XERR_HTTP);
-	mu_assert_int_eq(XECODE(rc), XESIZE);
+	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
+	mu_assert_int_eq(xerr_code(rc), XESIZE);
 }
 
 static void

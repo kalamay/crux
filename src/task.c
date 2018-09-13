@@ -92,7 +92,7 @@ int
 xmgr_new(struct xmgr **mgrp, size_t tls, size_t stack, int flags)
 {
 	struct xmgr *mgr = malloc(sizeof(*mgr));
-	if (mgr == NULL) { return -XERRNO; }
+	if (mgr == NULL) { return -xerrno; }
 	int rc = xmgr_init(mgr, tls, stack, flags);
 	if (rc < 0) { free(mgr); }
 	else { *mgrp = mgr; }
@@ -103,10 +103,10 @@ int
 xmgr_init(struct xmgr *mgr, size_t tls, size_t stack, int flags)
 {
 	if (stack < XSTACK_MIN || stack > XSTACK_MAX) {
-		return XESYS(EINVAL);
+		return xerr_sys(EINVAL);
 	}
 	if (tls > XTASK_TLS_MAX) {
-		return XESYS(EINVAL);
+		return xerr_sys(EINVAL);
 	}
 
 	size_t tls_size, map_size;
@@ -244,11 +244,11 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 	}
 	else {
 		uint8_t *map = mmap(NULL, map_size, PROT_READ|PROT_WRITE, MAP_FLAGS, -1, 0);
-		if (map == MAP_FAILED) { return -XERRNO; }
+		if (map == MAP_FAILED) { return -xerrno; }
 		if (mgr->flags & XTASK_FPROTECT) {
 			int rc = mprotect(map, xpagesize, PROT_NONE);
 			if (rc < 0) {
-				rc = XERRNO;
+				rc = xerrno;
 				munmap(map, map_size);
 				return rc;
 			}
@@ -355,15 +355,15 @@ xtask_exit(struct xtask *t, int ec)
 	bool yield;
 	if (t == NULL) {
 		t = current;
-		if (t == NULL) { return XESYS(EPERM); }
+		if (t == NULL) { return xerr_sys(EPERM); }
 		yield = true;
 	}
 	else {
 		yield = t == current;
 	}
 
-	if (t->istop) { return XESYS(EPERM); }
-	if (t->state == EXIT) { return XESYS(EALREADY); }
+	if (t->istop) { return xerr_sys(EPERM); }
+	if (t->state == EXIT) { return xerr_sys(EALREADY); }
 
 	struct xtask *p = t->parent;
 	eol(t, XZERO, ec);
@@ -510,7 +510,7 @@ xdefer(void (*fn)(union xvalue), union xvalue val)
 	}
 	else {
 		def = malloc(sizeof(*def));
-		if (def == NULL) { return XERRNO; }
+		if (def == NULL) { return xerrno; }
 	}
 
 	def->next = t->defer;
@@ -579,7 +579,7 @@ static void *
 defer_free(void *ptr)
 {
 	if (ptr == NULL) {
-		xerr_abort(XERRNO);
+		xerr_abort(xerrno);
 	}
 
 	int rc = xdefer(free_ptr, XPTR(ptr));

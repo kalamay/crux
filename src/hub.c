@@ -207,7 +207,7 @@ schedule_poll(struct xhub_entry *ent, int id, int type, int timeoutms)
 		rc = schedule_sig(ent, id);
 		break;
 	default:
-		rc = XESYS(EINVAL);
+		rc = xerr_sys(EINVAL);
 	}
 
 	if (rc < 0) {
@@ -269,13 +269,13 @@ xhub_new(struct xhub **hubp)
 	struct rlimit limit;
 
 	if (getrlimit(RLIMIT_NOFILE, &limit) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 	maxfd = limit.rlim_max >= 1<<16 ? (1<<16) - 1 : (int)limit.rlim_max;
 
 	struct xhub *hub = malloc(sizeof(*hub) + maxfd*sizeof(hub->io[0]));
 	if (hub == NULL) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	rc = xmgr_init(&hub->mgr, sizeof(struct xhub_entry), XSTACK_DEFAULT, XTASK_FDEFAULT);
@@ -395,7 +395,7 @@ invoke_direct(struct xhub_entry *ent, union xvalue val)
 static int
 invoke_timeout(struct xhub_entry *ent)
 {
-	return invoke_direct(ent, ent->poll_type ? XINT(XESYS(ETIMEDOUT)) : XZERO);
+	return invoke_direct(ent, ent->poll_type ? XINT(xerr_sys(ETIMEDOUT)) : XZERO);
 }
 
 static int
@@ -435,7 +435,7 @@ invoke_io(struct xhub *hub, struct xevent *ev)
 		io->type = 0;
 	}
 	else if (ev->type & XPOLL_EOF) {
-		val = XINT(XEIO(XECLOSE));
+		val = XINT(xerr_io(XECLOSE));
 		in = out = true;
 		io->type = 0;
 	}
@@ -488,7 +488,7 @@ run_once(struct xhub *hub)
 	// special "closed" events are scheduled when xclose affects a scheduled task
 	if ((lent = xlist_first(&hub->closed, X_ASCENDING))) {
 		ent = xcontainer(lent, struct xhub_entry, lent);
-		return invoke_direct(ent, XINT(XEIO(XECLOSE)));
+		return invoke_direct(ent, XINT(xerr_io(XECLOSE)));
 	}
 
 	// then clear all immediate tasks
@@ -538,7 +538,7 @@ int
 xhub_run(struct xhub *hub)
 {
 	if (hub->running) {
-		return XESYS(EPERM);
+		return xerr_sys(EPERM);
 	}
 
 	current_hub = hub;
@@ -748,7 +748,7 @@ int
 xwait(int fd, int polltype, int timeoutms)
 {
 	struct xhub_entry *ent = current_entry;
-	if (ent == NULL) { return XESYS(EAGAIN); }
+	if (ent == NULL) { return xerr_sys(EAGAIN); }
 
 	int rc;
 	if (polltype > 0) {
@@ -776,8 +776,8 @@ xsleep(unsigned ms)
 		int rc;
 		do {
 			rc = nanosleep(&c, &c);
-			if (rc < 0) { rc = XERRNO; }
-		} while (rc == XESYS(EINTR));
+			if (rc < 0) { rc = xerrno; }
+		} while (rc == xerr_sys(EINTR));
 		return rc;
 	}
 
@@ -819,7 +819,7 @@ int
 xsignal(int signum, int timeoutms)
 {
 	struct xhub_entry *ent = current_entry;
-	if (ent == NULL) { return XESYS(EPERM); }
+	if (ent == NULL) { return xerr_sys(EPERM); }
 	int rc = schedule_poll(ent, signum, XPOLL_SIG, timeoutms);
 	if (rc == 0) {
 		int val = xyield(XZERO).i;
@@ -831,28 +831,28 @@ xsignal(int signum, int timeoutms)
 #define RECV_LOOP(fd, ms, fn, ...) for (;;) { \
 	ssize_t rc = fn(fd, __VA_ARGS__); \
 	if (rc >= 0) { return rc; } \
-	rc = XERRNO; \
-	if (rc != XESYS(EAGAIN)) { return rc; } \
+	rc = xerrno; \
+	if (rc != xerr_sys(EAGAIN)) { return rc; } \
 	struct xhub_entry *ent = current_entry; \
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll(ent, fd, XPOLL_IN, ms); \
 	if (rc < 0) { return rc; } \
 	int val = xyield(XZERO).i; \
-	if (val == XEIO(XECLOSE)) { return 0; } \
+	if (val == xerr_io(XECLOSE)) { return 0; } \
 	if (val < 0) { return (ssize_t)val; } \
 }
 
 #define SEND_LOOP(fd, ms, fn, ...) for (;;) { \
 	ssize_t rc = fn(fd, __VA_ARGS__); \
 	if (rc >= 0) { return rc; } \
-	rc = XERRNO; \
-	if (rc != XESYS(EAGAIN)) { return rc; } \
+	rc = xerrno; \
+	if (rc != xerr_sys(EAGAIN)) { return rc; } \
 	struct xhub_entry *ent = current_entry; \
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll(ent, fd, XPOLL_OUT, ms); \
 	if (rc < 0) { return rc; } \
 	int val = xyield(XZERO).i; \
-	if (val == XEIO(XECLOSE)) { return 0; } \
+	if (val == xerr_io(XECLOSE)) { return 0; } \
 	if (val < 0) { return (ssize_t)val; } \
 }
 
@@ -923,7 +923,7 @@ xio(int fd, void *buf, size_t len, int timeoutms,
 		ssize_t (*fn) (int fd, void *buf, size_t len, int timeoutms))
 {
 	if (len > SSIZE_MAX) {
-		return XESYS(EINVAL);
+		return xerr_sys(EINVAL);
 	}
 
 	struct timespec now;
@@ -956,11 +956,11 @@ xpipe(int fds[static 2])
 {
 #if HAS_PIPE2
 	int rc = pipe2(fds, O_NONBLOCK|O_CLOEXEC);
-	if (rc < 0) { return XERRNO; }
+	if (rc < 0) { return xerrno; }
 	return 0;
 #else
 	int rc = pipe(fds);
-	if (rc < 0) { return XERRNO; }
+	if (rc < 0) { return xerrno; }
 	rc = xcloexec(xunblock (fds[0]));
 	if (rc < 0) { goto error; }
 	rc = xcloexec(xunblock (fds[1]));
@@ -989,9 +989,9 @@ xunblock(int fd)
 {
 	if (fd < 0) { return fd; }
 	int flags = fcntl(fd, F_GETFL, 0);
-	if (flags < 0) { return XERRNO; }
+	if (flags < 0) { return xerrno; }
 	if (flags & O_NONBLOCK) { return fd; }
-	return fcntl(fd, F_SETFL, flags|O_NONBLOCK) < 0 ? XERRNO : fd;
+	return fcntl(fd, F_SETFL, flags|O_NONBLOCK) < 0 ? xerrno : fd;
 }
 
 int
@@ -999,9 +999,9 @@ xcloexec(int fd)
 {
 	if (fd < 0) { return fd; }
 	int flags = fcntl(fd, F_GETFD, 0);
-	if (flags < 0) { return XERRNO; }
+	if (flags < 0) { return xerrno; }
 	if (flags & FD_CLOEXEC) { return fd; }
-	return fcntl(fd, F_SETFD, flags|FD_CLOEXEC) < 0 ? XERRNO : fd;
+	return fcntl(fd, F_SETFD, flags|FD_CLOEXEC) < 0 ? xerrno : fd;
 }
 
 ssize_t

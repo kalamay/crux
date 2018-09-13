@@ -6,33 +6,34 @@
 #include <stdio.h>
 #include <netdb.h>
 
-#define XEMAKE_TYPE(n) ((int32_t)((((uint32_t)(n))&0x7fff)<<16))
-#define XEMAKE(T, n) (-((int32_t)(XERR_##T | (((uint16_t)n) & 0xffff))))
-#define XETYPE(n) ((int32_t)(((uint32_t)-((int32_t)n)) & 0x7fff0000))
-#define XECODE(n) ((int16_t)(((uint32_t)-((int32_t)n)) & 0xffff))
-#define XEIS(T, n) (XETYPE(n) == XERR_##T)
+#define xerr_make_type(n) ((int32_t)((((uint32_t)(n))&0x7fff)<<16))
+#define xerr_make(T, n) (-((int32_t)(XERR_##T | (((uint16_t)n) & 0xffff))))
 
 enum xerr_type {
-	XERR_SYS  = XEMAKE_TYPE(0),
-	XERR_ADDR = XEMAKE_TYPE(1),
-	XERR_KERN = XEMAKE_TYPE(2),
-	XERR_IO   = XEMAKE_TYPE(3),
-	XERR_HTTP = XEMAKE_TYPE(4),
+	XERR_SYS  = xerr_make_type(0),
+	XERR_ADDR = xerr_make_type(1),
+	XERR_KERN = xerr_make_type(2),
+	XERR_IO   = xerr_make_type(3),
+	XERR_HTTP = xerr_make_type(4),
 };
 
-#define XESYS(n)  XEMAKE(SYS, n)
-#define XEADDR(n) XEMAKE(ADDR, n)
-#define XEKERN(n) XEMAKE(KERN, n)
-#define XEIO(n)   XEMAKE(IO, n)
-#define XEHTTP(n) XEMAKE(HTTP, n)
+#define xerr_type(n) ((int32_t)(((uint32_t)-((int32_t)n)) & 0x7fff0000))
+#define xerr_code(n) ((int16_t)(((uint32_t)-((int32_t)n)) & 0xffff))
+#define xerr_is(T, n) (xerr_type(n) == XERR_##T)
 
-#define XEISSYS(n)  XEIS(SYS, n)
-#define XEISADDR(n) XEIS(ADDR, n)
-#define XEISKERN(n) XEIS(KERN, n)
-#define XEISIO(n)   XEIS(IO, n)
-#define XEISHTTP(n) XEIS(HTTP, n)
+#define xerr_sys(n)  xerr_make(SYS, n)
+#define xerr_addr(n) xerr_make(ADDR, n)
+#define xerr_kern(n) xerr_make(KERN, n)
+#define xerr_io(n)   xerr_make(IO, n)
+#define xerr_http(n) xerr_make(HTTP, n)
 
-#define XERRNO XESYS(errno)
+#define xerr_is_sys(n)  xerr_is(SYS, n)
+#define xerr_is_addr(n) xerr_is(ADDR, n)
+#define xerr_is_kern(n) xerr_is(KERN, n)
+#define xerr_is_io(n)   xerr_is(IO, n)
+#define xerr_is_http(n) xerr_is(HTTP, n)
+
+#define xerrno xerr_sys(errno)
 
 #define XECLOSE     1
 #define XESYNTAX    2
@@ -48,7 +49,7 @@ enum xerr_type {
 #endif
 
 XEXTERN const char *
-xerr_type(int code);
+xerr_str_type(int code);
 
 /**
  * @brief  Gets a string representation of an error code
@@ -127,14 +128,14 @@ xfail(const char *exp, const char *file, int line);
 })
 
 /**
- * @brief  Converts a -1 return value into an `XERRNO` result
+ * @brief  Converts a -1 return value into an `xerrno` result
  *
  * @param  f  expressoint that result in a return code
- * @return  the result from `f` or `XERRNO` if -1
+ * @return  the result from `f` or `xerrno` if -1
  */
 #define xerr(f) __extension__ ({ \
 	int __code = (f); \
-	if (__code == -1) { __code = XERRNO; } \
+	if (__code == -1) { __code = xerrno; } \
 	__code; \
 })
 

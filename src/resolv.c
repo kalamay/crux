@@ -18,7 +18,7 @@ xresolv_new(struct xresolv **rp, const struct xresolv_config *cfg)
 	assert(cfg->nhosts > 0);
 
 	struct xresolv *r = malloc(sizeof(*r));
-	if (r == NULL) { return XERRNO; }
+	if (r == NULL) { return xerrno; }
 	int rc = xresolv_init(r, cfg);
 	if (rc >= 0) { *rp= r; }
 	return rc;
@@ -183,7 +183,7 @@ xresolv(struct xresolv *r, const char *name, struct xresolv_result *rr, int coun
 			rc = read_packet(r, &dns, rr, count);
 			break;
 		}
-		if (rc != XESYS(ETIMEDOUT)) { break; }
+		if (rc != xerr_sys(ETIMEDOUT)) { break; }
 	}
 
 	if (r->fdpos < xlen(r->fdpool)) {

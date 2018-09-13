@@ -31,22 +31,22 @@ set_flags(int fd, int type, int flags)
 
 	if ((flags & XREUSEADDR) &&
 			setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	if (flags & XREUSEPORT) {
 #ifdef SO_REUSEPORT
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)) < 0) {
-			return XERRNO;
+			return xerrno;
 		}
 #else
-		return XESYS(ENOTSUP);
+		return xerr_sys(ENOTSUP);
 #endif
 	}
 
 	if ((flags & XKEEPALIVE) &&
 			setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	if (type == SOCK_STREAM) {
@@ -72,7 +72,7 @@ open_addr(const struct sockaddr *addr, socklen_t addrlen, int domain, int type, 
 	int fd = xsocket(domain, type);
 
 	if (fd < 0) {
-		ec = XERRNO;
+		ec = xerrno;
 		goto error;
 	}
 
@@ -83,17 +83,17 @@ open_addr(const struct sockaddr *addr, socklen_t addrlen, int domain, int type, 
 
 	if (flags & XPASSIVE) {
 		if (bind(fd, addr, addrlen) < 0) {
-			ec = XERRNO;
+			ec = xerrno;
 			goto error;
 		}
 		if (type == SOCK_STREAM && listen(fd, 256) < 0) {
-			ec = XERRNO;
+			ec = xerrno;
 			goto error;
 		}
 	}
 	else {
 		if (xretry(connect(fd, addr, addrlen)) < 0 && errno != EINPROGRESS) {
-			ec = XERRNO;
+			ec = xerrno;
 			goto error;
 		}
 	}
@@ -118,7 +118,7 @@ open_inet(const char *host, const char *serv, int type, int flags, union xaddr *
 
 	int ec = getaddrinfo(host, serv, &hints, &res);
 	if (ec < 0) {
-		return XEADDR(ec);
+		return xerr_addr(ec);
 	}
 
 	for (struct addrinfo *r = res; res; res = res->ai_next) {
@@ -137,7 +137,7 @@ open_un(const char *path, int type, int flags, union xaddr *addr)
 {
 	size_t n = strnlen(path, sizeof(addr->un.sun_path));
 	if (n >= sizeof(addr->un.sun_path)) {
-		return XESYS(ENAMETOOLONG);
+		return xerr_sys(ENAMETOOLONG);
 	}
 
 	addr->un.sun_family = AF_UNIX;
@@ -146,7 +146,7 @@ open_un(const char *path, int type, int flags, union xaddr *addr)
 
 	if ((flags & (XREUSEADDR|XPASSIVE)) == (XREUSEADDR|XPASSIVE)) {
 		if (unlink(path) < 0 && errno != ENOENT) {
-			return XERRNO;
+			return xerrno;
 		}
 	}
 
@@ -164,26 +164,26 @@ open_fd(int fd, int type, int flags, union xaddr *addr)
 	 * it is of the desired type. */
 	slen = sizeof(sval);
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &sval, &slen) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 	if (sval != type) {
-		return XESYS(EINVAL);
+		return xerr_sys(EINVAL);
 	}
 
 	/* Check if the socket listening is enabled. This allows us to update the
 	 * passive field of the sock struct. */
 	slen = sizeof(sval);
 	if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &sval, &slen) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 	if (sval != ((flags & XPASSIVE) == XPASSIVE)) {
-		return XESYS(EINVAL);
+		return xerr_sys(EINVAL);
 	}
 
 	/* Get the address of the socket. */
 	slen = sizeof(addr->ss);
 	if (getsockname(fd, &addr->sa, &slen) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	return fd;
@@ -209,8 +209,8 @@ open_sock(const char *net, int type, int flags, int timeoutms, union xaddr *addr
 	if (*net == '[') {
 		start = net + 1;
 		end = strchr(start, ']');
-		if (end == NULL) { return XEADDR(EAI_NONAME); }
-		if (end[1] != ':') { return XEADDR(EAI_SERVICE); }
+		if (end == NULL) { return xerr_addr(EAI_NONAME); }
+		if (end[1] != ':') { return xerr_addr(EAI_SERVICE); }
 		serv = end + 2;
 	}
 	/* Otherwise search for a ':' character separating the host name and the
@@ -226,7 +226,7 @@ open_sock(const char *net, int type, int flags, int timeoutms, union xaddr *addr
 	}
 
 	if (end - start >= (ssize_t)sizeof(host)) {
-		return XESYS(ENAMETOOLONG);
+		return xerr_sys(ENAMETOOLONG);
 	}
 
 	/* If net omits the the host, default to INADDR_ANY. */
@@ -264,17 +264,17 @@ xsocket(int domain, int type)
 
 #if HAS_SOCK_FLAGS
 	s = socket(domain, type|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
-	if (s < 0) { return XERRNO; }
+	if (s < 0) { return xerrno; }
 #else
 	s = socket(domain, type, 0);
-	if (s < 0) { return XERRNO; }
+	if (s < 0) { return xerrno; }
 	rc = xcloexec(xunblock(s));
 	if (rc < 0) { goto error; }
 #endif
 
 	rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 	if (rc < 0) {
-		rc = XERRNO;
+		rc = xerrno;
 		goto error;
 	}
 
@@ -307,11 +307,11 @@ xaccept(int s, int flags, int timeoutms, union xaddr *addr)
 		}
 #endif
 
-		int rc = XERRNO;
-		if (rc == XESYS(EAGAIN)) {
+		int rc = xerrno;
+		if (rc == xerr_sys(EAGAIN)) {
 			rc = xwait(s, XPOLL_IN, timeoutms);
 			if (rc == 0) { continue; }
-			if (rc == XEIO(XECLOSE)) { rc = XESYS(ECONNABORTED); }
+			if (rc == xerr_io(XECLOSE)) { rc = xerr_sys(ECONNABORTED); }
 		}
 		return rc;
 	}
@@ -365,7 +365,7 @@ xsockaddr(int fd, union xaddr *addr)
 {
 	socklen_t len = sizeof(addr->ss);
 	int rc = getsockname(fd, &addr->sa, &len);
-	return rc == 0 ? 0 : XERRNO;
+	return rc == 0 ? 0 : xerrno;
 }
 
 int
@@ -373,6 +373,6 @@ xpeeraddr(int fd, union xaddr *addr)
 {
 	socklen_t len = sizeof(addr->ss);
 	int rc = getpeername(fd, &addr->sa, &len);
-	return rc == 0 ? 0 : XERRNO;
+	return rc == 0 ? 0 : xerrno;
 }
 

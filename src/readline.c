@@ -420,7 +420,7 @@ xreadline(const char *prompt)
 	char *line = NULL;
 
 	if (enable_raw(rl.fd, &rl.restore) < 0) {
-		err = XERRNO;
+		err = xerrno;
 		goto done;
 	}
 

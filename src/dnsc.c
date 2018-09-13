@@ -56,7 +56,7 @@ int
 xdns_cache_new(struct xdns_cache **cachep)
 {
 	struct xdns_cache *cache = malloc(sizeof(*cache));
-	if (cache == NULL) { return XERRNO; }
+	if (cache == NULL) { return xerrno; }
 	dnsc_init(cache, 0.9, 0);
 	*cachep = cache;
 	return 0;
@@ -110,7 +110,7 @@ xdns_cache_put(struct xdns_cache *cache, const struct xdns *dns)
 	while (xdns_iter_next(&iter) == XDNS_MORE) {
 		struct xdns_res *res;
 		int rc = xdns_res_copy(&res, &iter.res);
-		if (rc == XESYS(ENOTSUP)) { continue; }
+		if (rc == xerr_sys(ENOTSUP)) { continue; }
 		if (rc < 0) { return rc; }
 
 		struct key key = { iter.name, iter.namelen, iter.res.rr.rtype };
@@ -129,7 +129,7 @@ xdns_cache_put(struct xdns_cache *cache, const struct xdns *dns)
 		else {
 			e = malloc(sizeof(*e) + iter.namelen + 1);
 			if (e == NULL) {
-				rc = XERRNO;
+				rc = xerrno;
 				dnsc_remove(cache, ep);
 				return rc;
 			}

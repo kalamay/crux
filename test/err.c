@@ -4,37 +4,37 @@
 static void
 test_sys(void)
 {
-	int rc = XESYS(ENOBUFS);
+	int rc = xerr_sys(ENOBUFS);
 	mu_assert_int_lt(rc, 0);
-	mu_assert_int_eq(XETYPE(rc), XERR_SYS);
-	mu_assert_int_eq(XECODE(rc), ENOBUFS);
-	mu_assert_int_eq(XEISSYS(rc), 1);
-	mu_assert_int_eq(XEISADDR(rc), 0);
-	mu_assert_int_eq(XEISHTTP(rc), 0);
+	mu_assert_int_eq(xerr_type(rc), XERR_SYS);
+	mu_assert_int_eq(xerr_code(rc), ENOBUFS);
+	mu_assert_int_eq(xerr_is_sys(rc), 1);
+	mu_assert_int_eq(xerr_is_addr(rc), 0);
+	mu_assert_int_eq(xerr_is_http(rc), 0);
 }
 
 static void
 test_addr(void)
 {
-	int rc = XEADDR(EAI_BADFLAGS);
+	int rc = xerr_addr(EAI_BADFLAGS);
 	mu_assert_int_lt(rc, 0);
-	mu_assert_int_eq(XETYPE(rc), XERR_ADDR);
-	mu_assert_int_eq(XECODE(rc), EAI_BADFLAGS);
-	mu_assert_int_eq(XEISSYS(rc), 0);
-	mu_assert_int_eq(XEISADDR(rc), 1);
-	mu_assert_int_eq(XEISHTTP(rc), 0);
+	mu_assert_int_eq(xerr_type(rc), XERR_ADDR);
+	mu_assert_int_eq(xerr_code(rc), EAI_BADFLAGS);
+	mu_assert_int_eq(xerr_is_sys(rc), 0);
+	mu_assert_int_eq(xerr_is_addr(rc), 1);
+	mu_assert_int_eq(xerr_is_http(rc), 0);
 }
 
 static void
 test_http(void)
 {
-	int rc = XEHTTP(XETOOSHORT);
+	int rc = xerr_http(XETOOSHORT);
 	mu_assert_int_lt(rc, 0);
-	mu_assert_int_eq(XETYPE(rc), XERR_HTTP);
-	mu_assert_int_eq(XECODE(rc), XETOOSHORT);
-	mu_assert_int_eq(XEISSYS(rc), 0);
-	mu_assert_int_eq(XEISADDR(rc), 0);
-	mu_assert_int_eq(XEISHTTP(rc), 1);
+	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
+	mu_assert_int_eq(xerr_code(rc), XETOOSHORT);
+	mu_assert_int_eq(xerr_is_sys(rc), 0);
+	mu_assert_int_eq(xerr_is_addr(rc), 0);
+	mu_assert_int_eq(xerr_is_http(rc), 1);
 }
 
 int

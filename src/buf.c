@@ -13,7 +13,7 @@ int
 xbuf_new(struct xbuf **bufp, size_t cap, bool ring)
 {
 	struct xbuf *buf = malloc(sizeof(*buf));
-	if (buf == NULL) { return XERRNO; }
+	if (buf == NULL) { return xerrno; }
 	int rc = xbuf_init(buf, cap, ring ? XBUF_RING : XBUF_LINE);
 	if (rc < 0) { free(buf); }
 	else { *bufp = buf; }
@@ -37,7 +37,7 @@ int
 xbuf_open(struct xbuf **bufp, const char *path, off_t off, size_t len)
 {
 	int fd = open(path, O_RDONLY);
-	if (fd < 0) { return XERRNO; }
+	if (fd < 0) { return xerrno; }
 
 	int rc = 0;
 	size_t sz = 0;
@@ -66,7 +66,7 @@ xbuf_open(struct xbuf **bufp, const char *path, off_t off, size_t len)
 	goto done;
 
 error:
-	rc = XERRNO;
+	rc = xerrno;
 	if (p != MAP_FAILED) { munmap(p, sz); }
 
 done:
@@ -205,7 +205,7 @@ xbuf_ensure(struct xbuf *buf, size_t unused)
 	if (buf->mode == XBUF_RING) {
 		return ensure_ring(buf, unused);
 	}
-	return XESYS(ENOTSUP);
+	return xerr_sys(ENOTSUP);
 }
 
 int
@@ -238,7 +238,7 @@ int
 xbuf_trim(struct xbuf *buf, size_t len)
 {
 	size_t max = XBUF_RSIZE(buf);
-	if (len > max) { return XESYS(ERANGE); }
+	if (len > max) { return xerr_sys(ERANGE); }
 
 	if (len == max) {
 		xbuf_reset(buf);
@@ -253,7 +253,7 @@ int
 xbuf_bump(struct xbuf *buf, size_t len)
 {
 	size_t max = XBUF_WSIZE(buf);
-	if (len > max) { return XESYS(ERANGE); }
+	if (len > max) { return xerr_sys(ERANGE); }
 	XBUF_WBUMP(buf, len);
 	return 0;
 }
@@ -261,7 +261,7 @@ xbuf_bump(struct xbuf *buf, size_t len)
 int
 xbuf_compact(struct xbuf *buf)
 {
-	if (buf->mode == XBUF_FILE) { return XESYS(ENOTSUP); }
+	if (buf->mode == XBUF_FILE) { return xerr_sys(ENOTSUP); }
 	size_t len = XBUF_RSIZE(buf);
 	if (len > 0) {
 		memmove(buf->map, XBUF_RDATA(buf), len);

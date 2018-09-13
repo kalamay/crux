@@ -77,7 +77,7 @@ open_tmp()
 		int fd = shm_open(path, O_RDWR|O_CREAT|O_EXCL|O_CLOEXEC, 0600);
 		if (fd < 0) {
 			if (errno == EEXIST) { continue; }
-			return XERRNO;
+			return xerrno;
 		}
 		shm_unlink(path);
 		return fd;
@@ -103,7 +103,7 @@ xvm_alloc_ring(void **const ptr, size_t sz)
 	// Create a temporary file descriptor.
 	fd = open_tmp();
 	if (fd == -1 || ftruncate(fd, sz) != 0) {
-		ec = XERRNO;
+		ec = xerrno;
 		goto error;
 	}
 
@@ -111,14 +111,14 @@ xvm_alloc_ring(void **const ptr, size_t sz)
 	// address range.
 	p = mmap(NULL, sz * 2, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 	if (p == MAP_FAILED) {
-		ec = XERRNO;
+		ec = xerrno;
 		goto error;
 	}
 
 	// Map the two halves of the buffer into adjacent adresses after the header region.
 	if (mmap(p, sz, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_FIXED, fd, 0) == MAP_FAILED ||
 			mmap(p+sz, sz, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_FIXED, fd, 0) == MAP_FAILED) {
-		ec = XERRNO;
+		ec = xerrno;
 		goto error;
 	}
 
@@ -148,7 +148,7 @@ xvm_alloc(void **const ptr, size_t sz)
 {
 	void *p = MAP(NULL, sz, 0);
 	if (p == MAP_FAILED) {
-		return XERRNO;
+		return xerrno;
 	}
 	*ptr = p;
 	return 0;
@@ -166,7 +166,7 @@ xvm_realloc(void **const ptr, size_t oldsz, size_t newsz)
 	if (xunlikely(oldsz >= newsz)) {
 		if (oldsz != newsz) {
 			int rc = munmap(old + newsz, oldsz - newsz);
-			if (rc < 0) { return XERRNO; }
+			if (rc < 0) { return xerrno; }
 		}
 		return 0;
 	}
@@ -177,10 +177,10 @@ xvm_realloc(void **const ptr, size_t oldsz, size_t newsz)
 # else
 	p = mremap(old, oldsz, NULL, newsz, 0);
 # endif
-	if (p == MAP_FAILED) { return XERRNO; }
+	if (p == MAP_FAILED) { return xerrno; }
 #else
 	p = MAP(NULL, newsz, 0);
-	if (p == MAP_FAILED) { return XERRNO; }
+	if (p == MAP_FAILED) { return xerrno; }
 
 	memcpy(p, old, oldsz);
 	munmap(old, oldsz);
@@ -215,7 +215,7 @@ xvm_reallocsub(void **const ptr, size_t oldsz, size_t newsz, size_t off, size_t 
 # else
 	p = mremap(old, oldsz, NULL, newsz + trunc, 0);
 # endif
-	if (p == MAP_FAILED) { return XERRNO; }
+	if (p == MAP_FAILED) { return xerrno; }
 	if (trunc && munmap(p, trunc) < 0) {
 		trunc = 0;
 	}
@@ -223,7 +223,7 @@ xvm_reallocsub(void **const ptr, size_t oldsz, size_t newsz, size_t off, size_t 
 	return (ssize_t)(off - trunc);
 #else
 	p = MAP(NULL, newsz, 0);
-	if (p == MAP_FAILED) { return XERRNO; }
+	if (p == MAP_FAILED) { return xerrno; }
 
 	memcpy(p, old + off, len);
 	munmap(old, oldsz);
@@ -237,6 +237,6 @@ int
 xvm_dealloc(void *ptr, size_t sz)
 {
 	int rc = munmap(ptr, sz);
-	return rc == 0 ? 0 : XERRNO;
+	return rc == 0 ? 0 : xerrno;
 }
 

@@ -24,7 +24,7 @@ kq_init(struct xpoll *poll)
 {
     poll->fd = kqueue();
 	poll->wpos = 0;
-	return poll->fd < 0 ? XERRNO : 0;
+	return poll->fd < 0 ? xerrno : 0;
 }
 
 static void
@@ -54,7 +54,7 @@ kq_ctl_io(struct xpoll *poll, int id, int oldtype, int newtype)
 	// if the change list is full, register these events now
 	if (n >= xlen(poll->events) - wpos) {
 		if (kevent(poll->fd, ev, n, NULL, 0, &zero) < 0) {
-			return XERRNO;
+			return xerrno;
 		}
 	}
 	else {
@@ -89,7 +89,7 @@ kq_ctl_sig(struct xpoll *poll, int id, int oldtype, int newtype)
 	struct kevent ev;
 	EV_SET(&ev, id, EVFILT_SIGNAL, flags, 0, 0, NULL);
 	int rc = kevent(poll->fd, &ev, 1, NULL, 0, &zero);
-	return rc < 0 ? XERRNO : 0;
+	return rc < 0 ? xerrno : 0;
 }
 
 static int
@@ -115,7 +115,7 @@ kq_next(struct xpoll *poll, struct xevent *ev)
 
 	if (src->flags & EV_ERROR) {
 		ev->type |= XPOLL_ERR;
-		ev->errcode = XESYS((int)src->data);
+		ev->errcode = xerr_sys((int)src->data);
 	}
 
 	if (src->flags & EV_EOF) {
@@ -132,7 +132,7 @@ kq_wait(struct xpoll *poll, struct timespec *ts)
 	int nevents = xlen(poll->events), nchanges = poll->wpos - poll->rlen;
 
 	int rc = kevent(poll->fd, changes, nchanges, events, nevents, ts);
-	if (rc < 0) { return XERRNO; }
+	if (rc < 0) { return xerrno; }
 
 	poll->rpos = 0;
 	poll->rlen = rc;
@@ -175,7 +175,7 @@ ep_init(struct xpoll *poll)
 	return 0;
 
 error:
-	rc = XERRNO;
+	rc = xerrno;
 	xretry(close(poll->sigfd));
 	xretry(close(poll->fd));
 	return rc;
@@ -191,7 +191,7 @@ ep_final(struct xpoll *poll)
 static int
 ep_ctl_io(struct xpoll *poll, int id, int oldtype, int newtype)
 {
-	if (id == poll->sigfd) { return XESYS(EINVAL); }
+	if (id == poll->sigfd) { return xerr_sys(EINVAL); }
 
 	struct epoll_event ev = { EPOLLET, { .fd = id } };
 	int op;
@@ -206,7 +206,7 @@ ep_ctl_io(struct xpoll *poll, int id, int oldtype, int newtype)
 	}
 
 	if (epoll_ctl(poll->fd, op, id, &ev) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	if (op == EPOLL_CTL_DEL) {
@@ -228,7 +228,7 @@ ep_ctl_sig(struct xpoll *poll, int id, int oldtype, int newtype)
 	(void)newtype;
 
 	int rc = signalfd(poll->sigfd, &poll->sigset, SFD_NONBLOCK|SFD_CLOEXEC);
-	return rc < 0 ? XERRNO : 0;
+	return rc < 0 ? xerrno : 0;
 }
 
 static int
@@ -272,7 +272,7 @@ ep_next(struct xpoll *poll, struct xevent *ev)
 		getsockopt(src->data.fd, SOL_SOCKET, SO_ERROR, (void *)&err, &l);
 
 		ev->type |= XPOLL_ERR;
-		ev->errcode = XESYS(err);
+		ev->errcode = xerr_sys(err);
 	}
 
 	if (src->events & EPOLLHUP) {
@@ -294,7 +294,7 @@ ep_wait(struct xpoll *poll, struct timespec *ts)
 	}
 
 	int rc = epoll_wait(poll->fd, poll->events, xlen(poll->events), ms);
-	if (rc < 0) { return XERRNO; }
+	if (rc < 0) { return xerrno; }
 
 	poll->rpos = 0;
 	poll->rlen = rc;
@@ -308,7 +308,7 @@ xpoll_new(struct xpoll **pollp)
 {
 	struct xpoll *poll = malloc(sizeof(*poll));
 	if (poll == NULL) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	int rc = xpoll_init(poll);
@@ -369,12 +369,12 @@ xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype)
 	int sig = (oldtype|newtype) & XPOLL_SIG;
 
 	if (xlikely(io && !sig)) {
-		if (xunlikely(id < 0)) { return XESYS(EBADF); }
+		if (xunlikely(id < 0)) { return xerr_sys(EBADF); }
 		return c_ctl_io(poll, id, oldtype, newtype);
 	}
 
 	if (sig && !io) {
-		if (id < 1 || id > 31) { return XESYS(EINVAL); }
+		if (id < 1 || id > 31) { return xerr_sys(EINVAL); }
 
 		sigset_t prev = poll->sigset;
 
@@ -389,7 +389,7 @@ xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype)
 
 		if (sigprocmask(SIG_SETMASK, &poll->sigset, NULL) < 0) {
 			poll->sigset = prev;
-			return XERRNO;
+			return xerrno;
 		}
 
 		int rc = c_ctl_sig(poll, id, oldtype, newtype);
@@ -402,7 +402,7 @@ xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype)
 		return 0;
 	}
 
-	return XESYS(EINVAL);
+	return xerr_sys(EINVAL);
 }
 
 int
@@ -432,7 +432,7 @@ wait:
 
 	rc = c_wait(poll, tsp);
 	if (rc > 0)             { goto next; }
-	if (rc == XESYS(EINTR)) { goto wait; }
+	if (rc == xerr_sys(EINTR)) { goto wait; }
 
 done:
 	xclock_mono(&poll->clock);

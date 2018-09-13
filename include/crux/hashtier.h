@@ -195,7 +195,7 @@
 	ssize_t \
 	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h) \
 	{ \
-		if (tier->count == 0) { return XESYS(ENOENT); } \
+		if (tier->count == 0) { return xerr_sys(ENOENT); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
@@ -203,7 +203,7 @@
 		for (dist = 0; 1; dist++, i = XHASHTIER_WRAP(i+1, mask)) { \
 			uint64_t eh = tier->arr[i].h; \
 			if (eh == 0 || XHASHTIER_STEP(i, size, eh, mod, mask) < dist) { \
-				return XESYS(ENOENT); \
+				return xerr_sys(ENOENT); \
 			} \
 			if (eh == h && has_key(&tier->arr[i].entry, k, kn)) { \
 				return i; \
@@ -215,15 +215,15 @@
 	{ \
 		assert(tier->remap == tier->size); \
 		assert(full != NULL); \
-		if (tier->count == tier->size) { return XESYS(ENOBUFS); } \
+		if (tier->count == tier->size) { return xerr_sys(ENOBUFS); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
-		ssize_t dist, rc = XESYS(ENOENT), i = XHASHTIER_START(h, mod); \
+		ssize_t dist, rc = xerr_sys(ENOENT), i = XHASHTIER_START(h, mod); \
 		for (dist = 0; 1; dist++, i = XHASHTIER_WRAP(i+1, mask)) { \
 			uint64_t eh = tier->arr[i].h; \
 			if (eh == 0 || (eh == h && has_key(&tier->arr[i].entry, k, kn))) { \
-				if (rc == XESYS(ENOENT)) { rc = i; } \
+				if (rc == xerr_sys(ENOENT)) { rc = i; } \
 				else { \
 					tier->arr[i] = tier->arr[rc]; \
 					memset(&tier->arr[rc], 0, sizeof(tier->arr[rc])); \
@@ -273,8 +273,8 @@
 	int \
 	pref##_del(TTier *tier, size_t idx) \
 	{ \
-		if (idx >= tier->size) { return XESYS(ERANGE); } \
-		if (tier->arr[idx].h == 0) { return XESYS(ENOENT); } \
+		if (idx >= tier->size) { return xerr_sys(ERANGE); } \
+		if (tier->arr[idx].h == 0) { return xerr_sys(ENOENT); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
 		const size_t mask = size - 1; \
@@ -342,7 +342,7 @@
 	pref##_new_size(TTier **tierp, size_t n) \
 	{ \
 		TTier *tier = calloc(1, sizeof(*tier) + sizeof(tier->arr[0]) * n); \
-		if (tier == NULL) { return XERRNO; } \
+		if (tier == NULL) { return xerrno; } \
 		tier->size = n; \
 		tier->mod = xpower2_prime(n); \
 		tier->remap = n; \
@@ -363,7 +363,7 @@
 				tier->remap = n; \
 				return 0; \
 			} \
-			if (n < tier->count) { return XESYS(EPERM); } \
+			if (n < tier->count) { return xerr_sys(EPERM); } \
 		} \
 		int rc = pref##_new_size(tierp, n); \
 		if (rc < 0) { return rc; } \

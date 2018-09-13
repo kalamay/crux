@@ -53,9 +53,9 @@
 
 
 const char *
-xerr_type(int code)
+xerr_str_type(int code)
 {
-	switch (XETYPE(code)) {
+	switch (xerr_type(code)) {
 #define XX(sym, msg) \
 		case XERR_##sym: return msg;
 	XERR_TYPE_MAP(XX)
@@ -67,16 +67,16 @@ xerr_type(int code)
 const char *
 xerr_str(int code)
 {
-	switch (XETYPE(code)) {
-	case XERR_SYS: return strerror(XECODE(code));;
-	case XERR_ADDR: return gai_strerror(XECODE(code));
+	switch (xerr_type(code)) {
+	case XERR_SYS: return strerror(xerr_code(code));;
+	case XERR_ADDR: return gai_strerror(xerr_code(code));
 	case XERR_KERN:
 #if __APPLE__
-		return mach_error_string(XECODE(code));
+		return mach_error_string(xerr_code(code));
 #endif
 		break;
 	case XERR_IO:
-		switch (XECODE(code)) {
+		switch (xerr_code(code)) {
 #define XX(sym, msg) \
 			case XE##sym: return msg;
 	XERR_IO_MAP(XX)
@@ -84,7 +84,7 @@ xerr_str(int code)
 		}
 		break;
 	case XERR_HTTP:
-		switch (XECODE(code)) {
+		switch (xerr_code(code)) {
 #define XX(sym, msg) \
 			case XE##sym: return msg;
 	XERR_HTTP_MAP(XX)

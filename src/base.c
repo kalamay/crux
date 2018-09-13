@@ -91,8 +91,8 @@ static int
 random_verify(int fd)
 {
 	struct stat st;
-	if (fstat(fd, &st) < 0) { return XERRNO; }
-	if (!IS_RAND(st)) { return XESYS(EBADF); }
+	if (fstat(fd, &st) < 0) { return xerrno; }
+	if (!IS_RAND(st)) { return xerr_sys(EBADF); }
 	return 0;
 }
 
@@ -108,9 +108,9 @@ random_open(void)
 			close(fd);
 		}
 		else {
-			err = XERRNO;
+			err = xerrno;
 		}
-		if (err != XESYS(EINTR)) {
+		if (err != xerr_sys(EINTR)) {
 			return err;
 		}
 	}
@@ -172,12 +172,12 @@ xclock_real(struct timespec *c)
 
 #if HAS_CLOCK_GETTIME
 	if (clock_gettime(CLOCK_REALTIME, c) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 #else
 	struct timeval now;
     if (gettimeofday(&now, NULL) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
     c->tv_sec = now.tv_sec;
     c->tv_nsec = now.tv_usec * 1000;
@@ -192,7 +192,7 @@ xclock_mono(struct timespec *c)
 
 #if HAS_CLOCK_GETTIME
 	if (clock_gettime(CLOCK_MONOTONIC, c) < 0) {
-		return XERRNO;
+		return xerrno;
 	}
 #elif HAS_MACH_TIME
 	XCLOCK_SET_NSEC(c, (mach_absolute_time() * info.numer) / info.denom);
@@ -306,7 +306,7 @@ xrand(void *const restrict dst, size_t len)
 			amt += (size_t)r;
 		}
 		else if (r == 0 || errno != EINTR) {
-			return XERRNO;
+			return xerrno;
 		}
 	}
 	return 0;

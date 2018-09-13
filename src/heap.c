@@ -68,7 +68,7 @@ add_row(struct xheap *heap)
 		struct xheap_entry ***entries =
 			realloc(heap->entries, sizeof(*entries) * heap->rows * 2);
 		if (!entries) {
-			return XERRNO;
+			return xerrno;
 		}
 		memset(entries + heap->rows, 0, heap->rows * sizeof(*entries));
 		heap->entries = entries;
@@ -145,7 +145,7 @@ xheap_new(struct xheap **heapp)
 {
 	struct xheap *heap = malloc(sizeof(*heap));
 	if (heap == NULL) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	int rc = xheap_init(heap);
@@ -169,7 +169,7 @@ xheap_init(struct xheap *heap)
 	heap->entries = calloc(heap->rows, sizeof(*heap->entries));
 
 	if (heap->entries == NULL) {
-		return XERRNO;
+		return xerrno;
 	}
 
 	rc = add_row(heap);
@@ -248,7 +248,7 @@ xheap_remove(struct xheap *heap, struct xheap_entry *e)
 
 	uint32_t key = e->key;
 	if (key == 0 || key >= heap->next) {
-		return XESYS(ENOENT);
+		return xerr_sys(ENOENT);
 	}
 
 	e->key = XHEAP_NONE;
@@ -282,7 +282,7 @@ xheap_update(const struct xheap *heap, struct xheap_entry *e)
 
 	uint32_t key = e->key;
 	if (key == 0 || key >= heap->next) {
-		return XESYS(ENOENT);
+		return xerr_sys(ENOENT);
 	}
 
 	key = move_up(heap, key);

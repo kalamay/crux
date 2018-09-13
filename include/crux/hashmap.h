@@ -98,7 +98,7 @@
 	int \
 	pref##_resize(TMap *map, size_t hint) \
 	{ \
-		if (hint < map->count) { return XESYS(EPERM); } \
+		if (hint < map->count) { return xerr_sys(EPERM); } \
 		size_t sz = XHASHTIER_SIZE(ceil(hint / map->loadf)); \
 		if (map->tiers[0] && sz == map->tiers[0]->size) { return 0; } \
 		struct pref##_tier *tmp[xlen(map->tiers) + 1]; \
