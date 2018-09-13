@@ -311,6 +311,7 @@ xaccept(int s, int flags, int timeoutms, union xaddr *addr)
 		if (rc == XESYS(EAGAIN)) {
 			rc = xwait(s, XPOLL_IN, timeoutms);
 			if (rc == 0) { continue; }
+			if (rc == XEIO(XECLOSE)) { rc = XESYS(ECONNABORTED); }
 		}
 		return rc;
 	}
