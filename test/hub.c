@@ -27,7 +27,7 @@ static void
 test_concurrent_sleep(void)
 {
 	struct xhub *hub;
-	struct xclock start, end;
+	struct timespec start, end;
 
 	mu_assert_int_eq(xhub_new(&hub), 0);
 
@@ -194,7 +194,7 @@ dorecv_timeout(struct xhub *h, union xvalue val)
 	char buf[5];
 	memset(buf, 0, sizeof(buf));
 
-	struct xclock start, end;
+	struct timespec start, end;
 
 	xclock_mono(&start);
 	int rc = xrecvfrom(s, buf, 4, 0, (struct sockaddr *)&src, &len, 20);

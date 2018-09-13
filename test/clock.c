@@ -62,25 +62,25 @@ test_remainder(void)
 static void
 test_make(void)
 {
-	struct xclock clock;
+	struct timespec clock;
 
 	clock = XCLOCK_MAKE_NSEC(123456789000);
-	mu_assert_int_eq(clock.ts.tv_sec, 123);
-	mu_assert_int_eq(clock.ts.tv_nsec, 456789000);
+	mu_assert_int_eq(clock.tv_sec, 123);
+	mu_assert_int_eq(clock.tv_nsec, 456789000);
 
 	clock = XCLOCK_MAKE_USEC(123456789);
-	mu_assert_int_eq(clock.ts.tv_sec, 123);
-	mu_assert_int_eq(clock.ts.tv_nsec, 456789000);
+	mu_assert_int_eq(clock.tv_sec, 123);
+	mu_assert_int_eq(clock.tv_nsec, 456789000);
 
 	clock = XCLOCK_MAKE_MSEC(123456);
-	mu_assert_int_eq(clock.ts.tv_sec, 123);
-	mu_assert_int_eq(clock.ts.tv_nsec, 456000000);
+	mu_assert_int_eq(clock.tv_sec, 123);
+	mu_assert_int_eq(clock.tv_nsec, 456000000);
 }
 
 static void
 test_get(void)
 {
-	struct xclock clock = XCLOCK_MAKE_NSEC(123456789000);
+	struct timespec clock = XCLOCK_MAKE_NSEC(123456789000);
 
 	mu_assert_int_eq(XCLOCK_NSEC(&clock), 123456789000);
 	mu_assert_int_eq(XCLOCK_USEC(&clock), 123456789);
@@ -91,7 +91,7 @@ test_get(void)
 static void
 test_set(void)
 {
-	struct xclock clock = XCLOCK_MAKE_NSEC(0);
+	struct timespec clock = XCLOCK_MAKE_NSEC(0);
 
 	XCLOCK_SET_NSEC(&clock, 123456789000);
 	mu_assert_int_eq(XCLOCK_NSEC(&clock), 123456789000);
@@ -109,7 +109,7 @@ test_set(void)
 static void
 test_abs(void)
 {
-	struct xclock clock = XCLOCK_MAKE_NSEC(123456789000);
+	struct timespec clock = XCLOCK_MAKE_NSEC(123456789000);
 
 	int64_t abs;
 
@@ -126,7 +126,7 @@ test_abs(void)
 static void
 test_rel(void)
 {
-	struct xclock clock = XCLOCK_MAKE_NSEC(123456789000);
+	struct timespec clock = XCLOCK_MAKE_NSEC(123456789000);
 
 	int64_t rel;
 
@@ -143,32 +143,32 @@ test_rel(void)
 static void
 test_add(void)
 {
-	struct xclock clock, add;
+	struct timespec clock, add;
 
 	clock = XCLOCK_MAKE_NSEC(123456789000);
 	add = XCLOCK_MAKE_NSEC(123456789000);
 	XCLOCK_ADD(&clock, &add);
-	mu_assert_int_eq(clock.ts.tv_sec, 246);
-	mu_assert_int_eq(clock.ts.tv_nsec, 913578000);
+	mu_assert_int_eq(clock.tv_sec, 246);
+	mu_assert_int_eq(clock.tv_nsec, 913578000);
 }
 
 static void
 test_sub(void)
 {
-	struct xclock clock, sub;
+	struct timespec clock, sub;
 
 	clock = XCLOCK_MAKE_NSEC(123456789000);
 	sub = XCLOCK_MAKE_NSEC(123456789000);
 	XCLOCK_SUB(&clock, &sub);
-	mu_assert_int_eq(clock.ts.tv_sec, 0);
-	mu_assert_int_eq(clock.ts.tv_nsec, 0);
+	mu_assert_int_eq(clock.tv_sec, 0);
+	mu_assert_int_eq(clock.tv_nsec, 0);
 }
 
 static void
 test_timeout(void)
 {
 	struct xtimeout t;
-	struct xclock c, delay;
+	struct timespec c, delay;
 
 	XCLOCK_SET_MSEC(&delay, 50);
 	xclock_mono(&c);

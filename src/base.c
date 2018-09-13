@@ -157,7 +157,7 @@ xmono(void)
 	return (mach_absolute_time() * info.numer) / info.denom;
 #else
 # if HAS_CLOCK_GETTIME
-	struct xclock c;
+	struct timespec c;
 	if (clock_gettime(CLOCK_MONOTONIC, &c.ts) == 0) {
 		return XCLOCK_NSEC(&c);
 	}
@@ -167,12 +167,12 @@ xmono(void)
 }
 
 int
-xclock_real(struct xclock *c)
+xclock_real(struct timespec *c)
 {
 	assert(c != NULL);
 
 #if HAS_CLOCK_GETTIME
-	if (clock_gettime(CLOCK_REALTIME, &c->ts) < 0) {
+	if (clock_gettime(CLOCK_REALTIME, c) < 0) {
 		return XERRNO;
 	}
 #else
@@ -180,19 +180,19 @@ xclock_real(struct xclock *c)
     if (gettimeofday(&now, NULL) < 0) {
 		return XERRNO;
 	}
-    c->ts.tv_sec = now.tv_sec;
-    c->ts.tv_nsec = now.tv_usec * 1000;
+    c->tv_sec = now.tv_sec;
+    c->tv_nsec = now.tv_usec * 1000;
 #endif
 	return 0;
 }
 
 int
-xclock_mono(struct xclock *c)
+xclock_mono(struct timespec *c)
 {
 	assert(c != NULL);
 
 #if HAS_CLOCK_GETTIME
-	if (clock_gettime(CLOCK_MONOTONIC, &c->ts) < 0) {
+	if (clock_gettime(CLOCK_MONOTONIC, c) < 0) {
 		return XERRNO;
 	}
 #elif HAS_MACH_TIME
@@ -204,11 +204,11 @@ xclock_mono(struct xclock *c)
 }
 
 double
-xclock_diff(struct xclock *c)
+xclock_diff(struct timespec *c)
 {
 	assert(c != NULL);
 
-	struct xclock now;
+	struct timespec now;
 	if (xclock_mono(&now) < 0) {
 		return NAN;
 	}
@@ -217,11 +217,11 @@ xclock_diff(struct xclock *c)
 }
 
 double
-xclock_step(struct xclock *c)
+xclock_step(struct timespec *c)
 {
 	assert(c != NULL);
 
-	struct xclock now;
+	struct timespec now;
 	if (xclock_mono(&now) < 0) {
 		return NAN;
 	}
@@ -231,7 +231,7 @@ xclock_step(struct xclock *c)
 }
 
 void
-xclock_print(const struct xclock *c, FILE *out)
+xclock_print(const struct timespec *c, FILE *out)
 {
 	if (out == NULL) {
 		out = stdout;
@@ -246,7 +246,7 @@ xclock_print(const struct xclock *c, FILE *out)
 }
 
 void
-xtimeout_start(struct xtimeout *t, int ms, const struct xclock *c)
+xtimeout_start(struct xtimeout *t, int ms, const struct timespec *c)
 {
 	if (ms < 0) {
 		t->rel = -1;
@@ -258,7 +258,7 @@ xtimeout_start(struct xtimeout *t, int ms, const struct xclock *c)
 }
 
 int
-xtimeout(struct xtimeout *t, const struct xclock *c)
+xtimeout(struct xtimeout *t, const struct timespec *c)
 {
 	if (t->rel < 0) { return -1; }
 	t->rel = t->abs - XCLOCK_NSEC(c);

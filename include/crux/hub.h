@@ -51,7 +51,7 @@ xexit(int ec);
 XEXTERN void
 xabort(void);
 
-XEXTERN const struct xclock *
+XEXTERN const struct timespec *
 xclock(void);
 
 XEXTERN int

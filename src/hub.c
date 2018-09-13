@@ -402,7 +402,7 @@ xspawn_b(struct xhub *hub, void (^block)(void))
 
 #endif
 
-const struct xclock *
+const struct timespec *
 xclock(void)
 {
 	return active_hub ? &active_hub->poll.clock : NULL;
@@ -436,10 +436,10 @@ xsleep(unsigned ms)
 {
 	struct xhub_entry *ent = active_entry;
 	if (ent == NULL) {
-		struct xclock c = XCLOCK_MAKE_MSEC(ms);
+		struct timespec c = XCLOCK_MAKE_MSEC(ms);
 		int rc;
 		do {
-			rc = nanosleep(&c.ts, &c.ts);
+			rc = nanosleep(&c, &c);
 			if (rc < 0) { rc = XERRNO; }
 		} while (rc == XESYS(EINTR));
 		return rc;
@@ -588,7 +588,7 @@ xio(int fd, void *buf, size_t len, int timeoutms,
 		return XESYS(EINVAL);
 	}
 
-	struct xclock now;
+	struct timespec now;
 	int64_t abs;
 	if (timeoutms > 0) {
 		xclock_mono(&now);

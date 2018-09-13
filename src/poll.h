@@ -25,9 +25,9 @@ struct xfdmap {
 };
 
 struct xpoll {
-	struct xclock clock;
 	struct xfdmap fdmap;
 	void *sig[31];
+	struct timespec clock;
 	sigset_t sigset;
 	int fd;
 #if HAS_KQUEUE

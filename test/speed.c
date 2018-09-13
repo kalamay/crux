@@ -14,7 +14,7 @@ fn(void *tls, union xvalue val)
 int
 main(void)
 {
-	struct xclock start, end;
+	struct timespec start, end;
 	struct xmgr *mgr;
 	struct xtask *t;
 
@@ -25,6 +25,9 @@ main(void)
 	xclock_mono(&start);
 	while (xtask_alive(t)) { xresume(t, val); }
 	xclock_mono(&end);
+
+	xtask_free(&t);
+	xmgr_free(&mgr);
 
 	intmax_t diff = XCLOCK_NSEC(&end) - XCLOCK_NSEC(&start);
 	printf("total time: %jdms\n"

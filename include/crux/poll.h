@@ -121,7 +121,7 @@ xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev);
  * @param  poll  poll pointer
  * @return  clock pointer
  */
-XEXTERN const struct xclock *
+XEXTERN const struct timespec *
 xpoll_clock(const struct xpoll *poll);
 
 #endif

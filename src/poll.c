@@ -568,8 +568,8 @@ int
 xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev)
 {
 	int rc;
-	struct xclock c;
-	struct timespec *tsp = ms < 0 ? NULL : &c.ts;
+	struct timespec c;
+	struct timespec *tsp = ms < 0 ? NULL : &c;
 	struct xtimeout timeo;
 
 	ev->poll = poll;
@@ -601,7 +601,7 @@ done:
 	return rc;
 }
 
-const struct xclock *
+const struct timespec *
 xpoll_clock(const struct xpoll *poll)
 {
 	return &poll->clock;
