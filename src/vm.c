@@ -1,8 +1,7 @@
 #include "../include/crux/vm.h"
 #include "../include/crux/err.h"
 
-#include "config.h"
-
+#include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
 

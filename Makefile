@@ -91,10 +91,10 @@ endif
 FLAGS_common?= -march=native
 CFLAGS_common?= $(FLAGS_common) \
 	-DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_PATCH=$(VERSION_PATCH) \
-	-std=gnu11 -fPIC -D_GNU_SOURCE
+	-std=gnu11 -fPIC -D_GNU_SOURCE -include config.h
 CFLAGS_debug?= $(CFLAGS_common) -g -Wall -Wextra -Wcast-align -Werror -fno-omit-frame-pointer -fsanitize=address -Wno-implicit-fallthrough
 CFLAGS_release?= $(CFLAGS_common) -O3 -DNDEBUG 
-LDFLAGS_common?= $(FLAGS_common) $(LDFLAGS_EXECINFO) -lm
+LDFLAGS_common?= $(FLAGS_common) $(LDFLAGS_EXECINFO) -lm -ldl
 LDFLAGS_debug?= $(LDFLAGS_common) -fsanitize=address
 LDFLAGS_release?= $(LDFLAGS_common) -O3
 

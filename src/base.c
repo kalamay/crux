@@ -5,9 +5,8 @@
 #include "../include/crux/seed.h"
 #include "heap.h"
 
-#include "config.h"
-
 #include <stdlib.h>
+#include <unistd.h>
 #include <math.h>
 #include <time.h>
 #include <fcntl.h>
@@ -158,7 +157,7 @@ xmono(void)
 #else
 # if HAS_CLOCK_GETTIME
 	struct timespec c;
-	if (clock_gettime(CLOCK_MONOTONIC, &c.ts) == 0) {
+	if (clock_gettime(CLOCK_MONOTONIC, &c) == 0) {
 		return XCLOCK_NSEC(&c);
 	}
 # endif

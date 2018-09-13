@@ -6,8 +6,6 @@
 #include <math.h>
 #include <assert.h>
 
-#include "config.h"
-
 #define ROW_SHIFT 9
 #define ROW_WIDTH (1 << ROW_SHIFT)
 

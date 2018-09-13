@@ -1,6 +1,5 @@
 #include "buf.h"
 #include "../include/crux/vm.h"
-#include "config.h"
 
 #include <stdlib.h>
 #include <unistd.h>

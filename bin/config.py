@@ -9,7 +9,7 @@ ARCH = {
 	'i386': 'X86_32',
 	'x86': 'X86_32',
 }
-CC = ['cc', '-D_GNU_SOURCE', '-ldl', '-x', 'c', '-o', '/dev/null', '-']
+CC = ['cc', '-D_GNU_SOURCE', '-Wno-nonnull', '-x', 'c', '-o', '/dev/null', '-', '-ldl']
 DEVNULL = open(os.devnull, 'w')
 
 def memoize(f):
@@ -60,7 +60,7 @@ def has_clock_gettime():
 def has_mach_time():
 	return has_function("mach_absolute_time", 0, "mach/mach_time.h")
 
-def has_dlsym():
+def has_dladdr():
 	return has_function("dladdr", 2, "dlfcn.h")
 
 def has_kqueue():
@@ -99,31 +99,26 @@ def has_shm_open():
 	return has_function("shm_open", 5, "sys/mman.h", "fcntl.h")
 
 print(("""
-#if defined (__aarch64__)
-# define HAS_ARM_64 1
-#elif defined (__arm__)
-# define HAS_ARM_32 1
-#elif defined (__amd64__) || defined (__x86_64__) || defined (_M_X64) || defined (_M_AMD64)
-# define HAS_X86_64 1
-#elif defined (__i386__) || defined (_M_IX86) || defined (_X86_)
-# define HAS_X86_32 1
-#else
+#if !defined(HAS_X86_64) && !defined(HAS_X86_32) && !defined(HAS_ARM_64) && !defined(HAS_ARM_32)
+# if defined (__aarch64__)
+#  define HAS_ARM_64 1
+# elif defined (__arm__)
+#  define HAS_ARM_32 1
+# elif defined (__amd64__) || defined (__x86_64__) || defined (_M_X64) || defined (_M_AMD64)
+#  define HAS_X86_64 1
+# elif defined (__i386__) || defined (_M_IX86) || defined (_X86_)
+#  define HAS_X86_32 1
+# else
 """).strip())
-print("# define HAS_%s 1" % arch())
+print("#  define HAS_%s 1" % arch())
+print("# endif")
 print("#endif")
-
-print(("""
-#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
-# include <unistd.h>
-# define HAS_POSIX _POSIX_VERSION
-#endif
-""").strip())
 
 if has_sock_flags():    print_flag("SOCK_FLAGS")
 if has_accept4():       print_flag("ACCEPT4")
 if has_clock_gettime(): print_flag("CLOCK_GETTIME")
 if has_mach_time():     print_flag("MACH_TIME")
-if has_dlsym():         print_flag("DLADDR")
+if has_dladdr():        print_flag("DLADDR")
 if has_kqueue():        print_flag("KQUEUE")
 if has_epoll():         print_flag("EPOLL")
 if has_pipe2():         print_flag("PIPE2")

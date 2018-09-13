@@ -2,7 +2,6 @@
 #include "../include/crux/ctx.h"
 #include "../include/crux/err.h"
 #include "task.h"
-#include "config.h"
 
 #if WITH_HUB
 # include "../include/crux/hub.h"

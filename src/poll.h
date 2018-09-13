@@ -1,7 +1,5 @@
 #include "../include/crux/poll.h"
 
-#include "config.h"
-
 #if HAS_KQUEUE
 # include <sys/event.h>
 #elif HAS_EPOLL
