@@ -257,19 +257,22 @@ ep_next(struct xpoll *poll, struct xevent *ev)
 
 	if (src->events & EPOLLIN) {
 		ev->type |= XPOLL_IN;
+		if (src->events & EPOLLOUT) {
+			src->events &= ~EPOLLOUT;
+			poll->rpos--;
+		}
 	}
-
-	if (src->events & EPOLLOUT) {
+	else if (src->events & EPOLLOUT) {
 		ev->type |= XPOLL_OUT;
 	}
 
 	if (src->events & EPOLLERR) {
-		int ev;
-		socklen_t l = sizeof(ev);
-		getsockopt(src->data.fd, SOL_SOCKET, SO_ERROR, (void *)&ev, &l);
+		int err;
+		socklen_t l = sizeof(err);
+		getsockopt(src->data.fd, SOL_SOCKET, SO_ERROR, (void *)&err, &l);
 
 		ev->type |= XPOLL_ERR;
-		ev->errcode = XESYS(errcode);
+		ev->errcode = XESYS(err);
 	}
 
 	if (src->events & EPOLLHUP) {
