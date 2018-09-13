@@ -272,14 +272,9 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 	xctx_init(&t->ctx, stack, map_size - sizeof(*t) - tls_size,
 			(uintptr_t)entry, (uintptr_t)t, (uintptr_t)fn);
 
-#if HAS_DLADDR
 	if (mgr->flags & XTASK_FENTRY) {
-		Dl_info info;
-		if (dladdr((void *)fn, &info) > 0) {
-			t->entry = info.dli_sname;
-		}
+		xtask_record_entry(t, (void *)fn);
 	}
-#endif
 
 	if (tls_size > 0) {
 		memset(TLS(t, tls_size), 0, tls_size);
@@ -290,6 +285,20 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 
 	*tp = t;
 	return 0;
+}
+
+void
+xtask_record_entry(struct xtask *t, void *fn)
+{
+#if HAS_DLADDR
+	Dl_info info;
+	if (dladdr(fn, &info) > 0) {
+		t->entry = info.dli_sname;
+	}
+#else
+	(void)t;
+	(void)fn;
+#endif
 }
 
 void
@@ -368,10 +377,20 @@ xtask_exit(struct xtask *t, int ec)
 	return 0;
 }
 
+
 void
-print_head(const struct xtask *t, FILE *out)
+print_head(const struct xtask *t, FILE *out, int indent)
 {
-	if (out == NULL) { out = stdout; }
+	static const char space[] = "  ";
+	static const char line[] = "└ ";
+
+	for (int i = t->parent ? 1 : 0; i < indent; i++) {
+		fwrite(space, 1, sizeof(space) - 1, out);
+	}
+	if (t->parent) {
+		fwrite(line, 1, sizeof(line) - 1, out);
+	}
+
 	if (t == NULL) {
 		fprintf(out, "<crux:task:(null)>");
 		return;
@@ -397,21 +416,16 @@ print_head(const struct xtask *t, FILE *out)
 	}
 }
 
-extern int 
-print_tree(const struct xtask *t, FILE *out)
+int 
+print_tree(const struct xtask *t, FILE *out, int indent)
 {
-	static const char line[] = "└ ";
-	static const char space[] = "  ";
-
-	int depth = 0;
+	int depth = indent;
 	if (t->parent) {
-		depth = print_tree(t->parent, out);
+		depth = print_tree(t->parent, out, indent);
+		fputc('\n', out);
 	}
 
-	if (depth > 0) { fputc('\n', out); }
-	for (int i=1; i<depth; i++) { fwrite(space, 1, xlen(space) - 1, out); }
-	if (depth > 0) { fwrite(line, 1, xlen(line) - 1, out); }
-	print_head(t, out);
+	print_head(t, out, depth);
 
 	return depth + 1;
 }
@@ -420,10 +434,20 @@ void
 xtask_print(const struct xtask *t, FILE *out)
 {
 	if (out == NULL) { out = stdout; }
-	if (t == NULL) { print_head(t, out); }
-	else { print_tree(t, out); }
+	xtask_print_val(t, out, 0);
 	fputc('\n', out);
 	fflush(out);
+}
+
+void
+xtask_print_val(const struct xtask *t, FILE *out, int indent)
+{
+	if (t == NULL) {
+		print_head(t, out, indent);
+	}
+	else {
+		print_tree(t, out, indent);
+	}
 }
 
 union xvalue
