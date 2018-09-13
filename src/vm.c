@@ -46,14 +46,14 @@ xvm_alloc_ring(void **const ptr, size_t sz)
 
 error:
 	if (p) { vm_deallocate(port, p, 2*len); }
-	return XEKERN(rc);
+	return xerr_kern(rc);
 }
 
 int
 xvm_dealloc_ring(void *ptr, size_t sz)
 {
 	kern_return_t rc = vm_deallocate(mach_task_self(), (vm_address_t)ptr, 2*sz);
-	return rc == KERN_SUCCESS ? 0 : XEKERN(rc);
+	return rc == KERN_SUCCESS ? 0 : xerr_kern(rc);
 }
 
 #else
