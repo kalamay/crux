@@ -379,9 +379,11 @@ xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype)
 		sigset_t prev = poll->sigset;
 
 		if (newtype & XPOLL_SIG) {
+			if (sigismember(&prev, id)) { return 0; }
 			sigaddset(&poll->sigset, id);
 		}
 		else {
+			if (!sigismember(&prev, id)) { return 0; }
 			sigdelset(&poll->sigset, id);
 		}
 
