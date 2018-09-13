@@ -31,6 +31,9 @@ xhub_stop(struct xhub *hub);
 XEXTERN void
 xhub_remove_io(struct xhub *hub, int fd);
 
+XEXTERN void
+xhub_print(struct xhub *hub, FILE *out);
+
 #define xspawn(hub, fn, val) \
 	xspawnf(hub, __FILE__, __LINE__, fn, val)
 

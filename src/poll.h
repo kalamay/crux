@@ -1,5 +1,4 @@
 #include "../include/crux/poll.h"
-#include "../include/crux/hashmap.h"
 
 #include "config.h"
 
@@ -11,22 +10,7 @@
 # error unsupported platform
 #endif
 
-struct xfdent {
-	int fd;
-	bool ein;  // is event scheduled for EPOLLIN/EVFILT_READ
-	bool eout; // is event scheduled for EPOLLOUT/EVFILT_WRITE
-	bool din;  // has dispatched EPOLLIN/EVFILT_READ
-	bool dout; // has dispatched EPOLLOUT/EVFILT_WRITE
-	void *ptr[2];
-};
-
-struct xfdmap {
-	XHASHMAP(xfdmap, struct xfdent, 2);
-};
-
 struct xpoll {
-	struct xfdmap fdmap;
-	void *sig[31];
 	struct timespec clock;
 	sigset_t sigset;
 	int fd;

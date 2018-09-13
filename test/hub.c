@@ -53,28 +53,35 @@ static void
 dosignal(struct xhub *h, union xvalue val)
 {
 	(void)h;
-	int signum = val.i;
-	int rc = xsignal(signum, -1);
-	mu_assert_int_eq(rc, signum);
+	int rc = xsignal(SIGHUP, -1);
+	mu_assert_int_eq(rc, SIGHUP);
+	int *p = val.ptr;
+	(*p)++;
 }
 
 static void
 dokill(struct xhub *h, union xvalue val)
 {
 	(void)h;
+	(void)val;
 	xsleep(10);
-	mu_assert_call(kill(getpid(), val.i));
+
+	mu_assert_call(kill(getpid(), SIGHUP));
 }
 
 static void
 test_signal(void)
 {
 	struct xhub *hub;
+	int count = 0;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, dosignal, XINT(SIGHUP)), 0);
-	mu_assert_int_eq(xspawn(hub, dokill, XINT(SIGHUP)), 0);
+	mu_assert_int_eq(xspawn(hub, dosignal, XPTR(&count)), 0);
+	mu_assert_int_eq(xspawn(hub, dosignal, XPTR(&count)), 0);
+	mu_assert_int_eq(xspawn(hub, dokill, XZERO), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
+
+	mu_assert_int_eq(count, 2);
 }
 
 static void
@@ -246,6 +253,44 @@ test_udp_timeout(void)
 	xhub_free(&hub);
 }
 
+static void
+doread2(struct xhub *h, union xvalue val)
+{
+	(void)h;
+	int fd = val.i;
+
+	char buf[5];
+	memset(buf, 0, sizeof(buf));
+	ssize_t n = xread(fd, buf, 2, -1);
+	mu_assert_int_eq(n, 2);
+}
+
+static void
+dowrite2(struct xhub *h, union xvalue val)
+{
+	(void)h;
+	int fd = val.i;
+
+	mu_assert_int_eq(xwrite(fd, "test", 4, -1), 4);
+	xsleep(10);
+	xclose(fd);
+}
+
+static void
+test_read2(void)
+{
+	int fds[2];
+	mu_assert_call(xpipe(fds));
+
+	struct xhub *hub;
+	mu_assert_int_eq(xhub_new(&hub), 0);
+	mu_assert_int_eq(xspawn(hub, doread2, XINT(fds[0])), 0);
+	mu_assert_int_eq(xspawn(hub, doread2, XINT(fds[0])), 0);
+	mu_assert_int_eq(xspawn(hub, dowrite2, XINT(fds[1])), 0);
+	mu_assert_int_eq(xhub_run(hub), 0);
+	xhub_free(&hub);
+}
+
 int
 main(void)
 {
@@ -255,5 +300,6 @@ main(void)
 	mu_run(test_pipe);
 	mu_run(test_udp);
 	mu_run(test_udp_timeout);
+	mu_run(test_read2);
 }
 

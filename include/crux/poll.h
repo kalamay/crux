@@ -6,17 +6,15 @@
 
 #include <signal.h>
 
-#define XPOLL_ADD 1 /** Operation to add an event */
-#define XPOLL_DEL 2 /** Operation to remove an event */
-
-#define XPOLL_IN  (1<<0) /** Type for file descriptor readability */
-#define XPOLL_OUT (1<<1) /** Type for file descriptor writeability */
-#define XPOLL_SIG (1<<2) /** Type for signal readyness */
+#define XPOLL_NONE 0
+#define XPOLL_IN  (1<<0)  /** Type for file descriptor readability */
+#define XPOLL_OUT (1<<1)  /** Type for file descriptor writeability */
+#define XPOLL_SIG (1<<2)  /** Type for signal readyness */
+#define XPOLL_ERR (1<<16) /** Flag to indicate an error with the event */
+#define XPOLL_EOF (1<<17) /** Flag to indicate an end-of-file state */
 
 #define XPOLL_INOUT (XPOLL_IN|XPOLL_OUT)
-
-#define XPOLL_ERR (1<<16) /** Flag to indicate an error with the event */
-#define XPOLL_EOF (1<<17) /** Flag ti indicate an end-of-file state */
+#define XPOLL_ANY (XPOLL_INOUT|XPOLL_SIG)
 
 #define XPOLL_TYPE(n)  (int)((n) & 0xFFFF)
 #define XPOLL_ISERR(n) (!!((n) & XPOLL_ERR))
@@ -35,8 +33,6 @@ struct xpoll;
  * @brief  Transparent event type
  */
 struct xevent {
-	struct xpoll *poll;
-	void *ptr;
 	int id;
 	int type;
 	int errcode;
@@ -72,32 +68,21 @@ xpoll_free(struct xpoll **pollp);
  *
  * This is used to add and remove events of interest from the poll.
  *
- * @param  poll  poll pointer
- * @param  op    operation to perform (XPOLL_ADD or XPOLL_DEL)
- * @param  type  event type (XPOLL_IN, XPOLL_OUT, or XPOLL_SIG)
- * @param  id    file descriptor or signal number
- * @param  ptr   user value to assign to the event
+ * @param  poll     poll pointer
+ * @param  id       file descriptor or signal number
+ * @param  oldtype  current event type (XPOLL_IN, XPOLL_OUT, or XPOLL_SIG)
+ * @param  newtype  desired event type (XPOLL_IN, XPOLL_OUT, or XPOLL_SIG)
  * @return  0 on sucess, -errno on error
  *
  * Errors:
  *   `-EINVAL`: the operation, type, or signal number are invalid
  *   `-EBADF`: the specified descriptor is invalid
+ *   `-EEXIST`: the event already exists
  *   `-ENOENT`: the event could not be found to be modified or deleted
  *   `-ENOMEM`: no memory was available to register the event
  */
 XEXTERN int
-xpoll_ctl(struct xpoll *poll, int op, int type, int id, void *ptr);
-
-/**
- * @brief  Gets the pointer associated with an event
- *
- * @param  poll  poll pointer
- * @param  type  event type (XPOLL_IN, XPOLL_OUT, or XPOLL_SIG)
- * @param  id    file descriptor or signal number
- * @return  pointer or NULL
- */
-XEXTERN void *
-xpoll_get(struct xpoll *poll, int type, int id);
+xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype);
 
 /**
  * @brief  Reads the next event from the poller

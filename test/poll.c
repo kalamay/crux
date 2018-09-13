@@ -13,14 +13,13 @@ test_signal(void)
 
 	mu_assert_int_eq(xpoll_new(&p), 0);
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_SIG, SIGHUP, "test"), 0);
+	mu_assert_int_eq(xpoll_ctl(p, SIGHUP, 0, XPOLL_SIG), 0);
 
 	kill(getpid(), SIGHUP);
 
 	mu_assert_int_eq(xpoll_wait(p, -1, &ev), 1);
 	mu_assert_int_eq(ev.type, XPOLL_SIG);
 	mu_assert_int_eq(ev.id, SIGHUP);
-	mu_assert_str_eq(ev.ptr, "test");
 
 	xpoll_free(&p);
 }
@@ -35,18 +34,16 @@ test_io(void)
 	mu_assert_call(pipe(fd));
 
 	mu_assert_int_eq(xpoll_new(&p), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[0], "in"), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[1], "out"), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[0], 0, XPOLL_IN|XPOLL_OUT), 0);
 
 	mu_assert_int_eq(xpoll_wait(p, 100, &ev), 1);
 	mu_assert_int_eq(ev.type & XPOLL_OUT, XPOLL_OUT);
-	mu_assert_str_eq(ev.ptr, "out");
+	mu_assert_int_eq(xpoll_wait(p, 100, &ev), 0);
 
-	mu_assert_int_eq(write(ev.id, "test", 4), 4);
+	mu_assert_int_eq(write(fd[1], "test", 4), 4);
 
 	mu_assert_int_eq(xpoll_wait(p, 100, &ev), 1);
 	mu_assert_int_eq(ev.type & XPOLL_IN, XPOLL_IN);
-	mu_assert_str_eq(ev.ptr, "in");
 
 	char buf[64];
 	memset(buf, 0, sizeof(buf));
@@ -68,19 +65,20 @@ test_remove(void)
 	mu_assert_call(pipe(b));
 
 	mu_assert_int_eq(xpoll_new(&p), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, a[0], "a"), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, b[0], "b"), 0);
+	mu_assert_int_eq(xpoll_ctl(p, a[0], 0, XPOLL_IN), 0);
+	mu_assert_int_eq(xpoll_ctl(p, b[0], 0, XPOLL_IN), 0);
 
 	mu_assert_int_eq(write(a[1], "test", 4), 4);
 	mu_assert_int_eq(write(b[1], "test", 4), 4);
 
 	mu_assert_int_eq(xpoll_wait(p, 100, &ev), 1);
 	mu_assert_int_eq(ev.type & XPOLL_IN, XPOLL_IN);
-	if (*(const char *)ev.ptr == 'a') {
-		mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, b[0], NULL), 0);
+
+	if (ev.id == a[0]) {
+		mu_assert_int_eq(xpoll_ctl(p, b[0], XPOLL_IN, 0), 0);
 	}
 	else {
-		mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, a[0], NULL), 0);
+		mu_assert_int_eq(xpoll_ctl(p, a[0], XPOLL_IN, 0), 0);
 	}
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 0);
@@ -94,54 +92,47 @@ test_remove2(void)
 	struct xpoll *p;
 	struct xevent ev;
 	int fd[2];
-	int match[4] = { 0, 0, 0, 0 };
+	int match[32] = {0};
 
 	mu_assert_call(socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+	mu_assert_int_lt(fd[0], 32);
+	mu_assert_int_lt(fd[1], 32);
 
 	mu_assert_int_eq(xpoll_new(&p), 0);
 
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[0], &match[0]), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[0], &match[1]), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[1], &match[2]), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[1], &match[3]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[0], 0, XPOLL_IN|XPOLL_OUT), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[1], 0, XPOLL_IN|XPOLL_OUT), 0);
 
 	mu_assert_int_eq(write(fd[0], "test", 4), 4);
 	mu_assert_int_eq(write(fd[1], "test", 4), 4);
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
-	mu_assert_int_eq(*(int *)ev.ptr, 0);
-	(*(int *)ev.ptr)++;
+	match[ev.id]++;
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
-	mu_assert_int_eq(*(int *)ev.ptr, 0);
-	(*(int *)ev.ptr)++;
+	match[ev.id]++;
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
-	mu_assert_int_eq(*(int *)ev.ptr, 0);
-	(*(int *)ev.ptr)++;
+	match[ev.id]++;
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
-	mu_assert_int_eq(*(int *)ev.ptr, 0);
-	(*(int *)ev.ptr)++;
+	match[ev.id]++;
 
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[0], NULL), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[0], NULL), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[1], NULL), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[1], NULL), 0);
+	mu_assert_int_eq(match[fd[0]], 2);
+	mu_assert_int_eq(match[fd[1]], 2);
+
+	mu_assert_int_eq(xpoll_ctl(p, fd[0], XPOLL_IN|XPOLL_OUT, 0), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[1], XPOLL_IN|XPOLL_OUT, 0), 0);
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 0);
 
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[0], &match[0]), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[0], &match[1]), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_IN, fd[1], &match[2]), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_ADD, XPOLL_OUT, fd[1], &match[3]), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[0], 0, XPOLL_IN|XPOLL_OUT), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[1], 0, XPOLL_IN|XPOLL_OUT), 0);
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 1);
 
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[0], NULL), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[0], NULL), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_IN, fd[1], NULL), 0);
-	mu_assert_int_eq(xpoll_ctl(p, XPOLL_DEL, XPOLL_OUT, fd[1], NULL), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[0], XPOLL_IN|XPOLL_OUT, 0), 0);
+	mu_assert_int_eq(xpoll_ctl(p, fd[1], XPOLL_IN|XPOLL_OUT, 0), 0);
 
 	mu_assert_int_eq(xpoll_wait(p, 0, &ev), 0);
 
