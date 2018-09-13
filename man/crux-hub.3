@@ -111,7 +111,7 @@ Hub to stop processing scheduled tasks.
 .P
 .nf
 \fBvoid\fR
-\fBxhub_mark_close\fR(\fBstruct xhub \fR*\fIhup\fR, \fBint \fIfd\fR);
+\fBxhub_close_io\fR(\fBstruct xhub \fR*\fIhup\fR, \fBint \fIfd\fR);
 .fi
 .RS
 Triggers an \fIECONNABORTED\fR error for any polling events waiting on \fIfd\fR.
@@ -852,7 +852,7 @@ Closes a file descriptor and marks any pending tasks in the current hub. This
 is a safer closing mechanism than simply calling \fBclose\fR(2) on the file
 descriptor, but it does have a few drawbacks. Firstly, on the hub owning the
 active task will be notified. If there is no active task, or if other hubs may
-have tasks polling on \fIfd\fR, then using \fBxhub_mark_close\fR() is necessary.
+have tasks polling on \fIfd\fR, then using \fBxhub_close_io\fR() is necessary.
 Secondly, there is a mild performance penalty for marking tasks to close. This
 will likely be mitigated in a future release, but if the file descriptor is
 used in a single location, \fBclose\fR(2) may be sufficient.

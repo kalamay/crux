@@ -29,7 +29,7 @@ XEXTERN void
 xhub_stop(struct xhub *hub);
 
 XEXTERN void
-xhub_mark_close(struct xhub *hub, int fd);
+xhub_remove_io(struct xhub *hub, int fd);
 
 #define xspawn(hub, fn, val) \
 	xspawnf(hub, __FILE__, __LINE__, fn, val)

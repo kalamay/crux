@@ -332,7 +332,7 @@ xhub_stop(struct xhub *hub)
 }
 
 void
-xhub_mark_close(struct xhub *hub, int fd)
+xhub_remove_io(struct xhub *hub, int fd)
 {
 	struct xlist *lent;
 	struct xhub_entry *ent;
@@ -641,7 +641,7 @@ xclose(int fd)
 	if (fd < 0) { return 0; }
 	struct xhub_entry *ent = active_entry;
 	if (ent != NULL) {
-		xhub_mark_close(ent->hub, fd);
+		xhub_remove_io(ent->hub, fd);
 	}
 	return xerr(xretry(close(fd)));
 }
