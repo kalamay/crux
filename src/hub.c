@@ -18,6 +18,51 @@
 # include <execinfo.h>
 #endif
 
+const char *signame[32] = {
+	[SIGHUP] = "SIGHUP",
+	[SIGINT] = "SIGINT",
+	[SIGQUIT] = "SIGQUIT",
+	[SIGILL] = "SIGILL",
+	[SIGTRAP] = "SIGTRAP",
+	[SIGABRT] = "SIGABRT",
+	[SIGBUS] = "SIGBUS",
+	[SIGFPE] = "SIGFPE",
+	[SIGKILL] = "SIGKILL",
+	[SIGUSR1] = "SIGUSR1",
+	[SIGSEGV] = "SIGSEGV",
+	[SIGUSR2] = "SIGUSR2",
+	[SIGPIPE] = "SIGPIPE",
+	[SIGALRM] = "SIGALRM",
+	[SIGTERM] = "SIGTERM",
+	[SIGCHLD] = "SIGCHLD",
+	[SIGCONT] = "SIGCONT",
+	[SIGSTOP] = "SIGSTOP",
+	[SIGTSTP] = "SIGTSTP",
+	[SIGTTIN] = "SIGTTIN",
+	[SIGTTOU] = "SIGTTOU",
+	[SIGURG] = "SIGURG",
+	[SIGXCPU] = "SIGXCPU",
+	[SIGXFSZ] = "SIGXFSZ",
+	[SIGVTALRM] = "SIGVTALRM",
+	[SIGPROF] = "SIGPROF",
+	[SIGWINCH] = "SIGWINCH",
+	[SIGSYS] = "SIGSYS",
+#ifdef SIGSTKFLT
+	[SIGSTKFLT] = "SIGSTKFLT",
+#endif
+#ifdef SIGPOLL
+	[SIGPOLL] = "SIGPOLL",
+#else
+	[7] = "SIGPOLL",
+#endif
+#ifdef SIGPWR
+	[SIGPWR] = "SIGPWR",
+#endif
+#ifdef SIGINFO
+	[SIGINFO] = "SIGINFO",
+#endif
+};
+
 struct xhub_entry {
 	uint64_t magic;
 #define MAGIC UINT64_C(0x989b369eac2205a3)
@@ -620,7 +665,7 @@ xhub_print(struct xhub *hub, FILE *out)
 	sig = hub->sig;
 	for (size_t i = 0; i < xlen(hub->sig); i++, sig++) {
 		if (!xlist_is_empty(&sig->in)) {
-			fprintf(out, "  sig%s {\n", sys_signame[i+1]);
+			fprintf(out, "  %s {\n", signame[i+1]);
 			xlist_each(&sig->in, l, X_ASCENDING) {
 				ent = xcontainer(l, struct xhub_entry, pent);
 				xtask_print_val(ent->t, out, 2);
