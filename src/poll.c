@@ -85,7 +85,7 @@ kq_ctl_sig(struct xpoll *poll, int id, int oldtype, int newtype)
 	(void)oldtype;
 
 	// signal events must be registered immediately
-	int flags = (newtype & XPOLL_SIG) ? EV_ADD|EV_CLEAR : EV_DELETE;
+	int flags = (newtype & XPOLL_SIG) ? EV_ADD : EV_DELETE;
 	struct kevent ev;
 	EV_SET(&ev, id, EVFILT_SIGNAL, flags, 0, 0, NULL);
 	int rc = kevent(poll->fd, &ev, 1, NULL, 0, &zero);
