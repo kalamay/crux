@@ -258,7 +258,7 @@ xtask_newf(struct xtask **tp, struct xmgr *mgr, void *tls,
 		t = (struct xtask *)(void *)(map - sizeof(*t));
 	}
 
-	t->value = XZERO;
+	t->value = xzero;
 	t->parent = NULL;
 	t->mgr = mgr;
 	t->defer = NULL;
@@ -314,7 +314,7 @@ xtask_free(struct xtask **tp)
 
 	*tp = NULL;
 
-	eol(t, XZERO, t->exitcode);
+	eol(t, xzero, t->exitcode);
 
 	t->parent = t->mgr->free_task;
 	t->mgr->free_task = t;
@@ -366,7 +366,7 @@ xtask_exit(struct xtask *t, int ec)
 	if (t->state == EXIT) { return xerr_sys(EALREADY); }
 
 	struct xtask *p = t->parent;
-	eol(t, XZERO, ec);
+	eol(t, xzero, ec);
 	if (yield) {
 		current = p;
 		p->state = CURRENT;
@@ -537,7 +537,7 @@ int
 xdefer_b(void (^block)(void))
 {
 	void (^copy)(void) = Block_copy(block);
-	int rc = xdefer(defer_block, XPTR(copy));
+	int rc = xdefer(defer_block, xptr(copy));
 	if (rc < 0) {
 		Block_release(copy);
 	}
@@ -559,7 +559,7 @@ close_fd(union xvalue val)
 int
 xdefer_close(int fd)
 {
-	return xdefer(close_fd, XINT(fd));
+	return xdefer(close_fd, xint(fd));
 }
 
 static void
@@ -572,7 +572,7 @@ int
 xdefer_free(void *ptr)
 {
 	if (ptr == NULL) { return 0; }
-	return xdefer(free_ptr, XPTR(ptr));
+	return xdefer(free_ptr, xptr(ptr));
 }
 
 static void *
@@ -582,7 +582,7 @@ defer_free(void *ptr)
 		xerr_abort(xerrno);
 	}
 
-	int rc = xdefer(free_ptr, XPTR(ptr));
+	int rc = xdefer(free_ptr, xptr(ptr));
 	if (rc < 0) {
 		free(ptr);
 		xerr_abort(rc);
@@ -620,7 +620,7 @@ xbuf(size_t cap, bool ring)
 		xerr_abort(rc);
 	}
 
-	if ((rc = xdefer(free_buf, XPTR(buf))) < 0) {
+	if ((rc = xdefer(free_buf, xptr(buf))) < 0) {
 		xbuf_free(&buf);
 		xerr_abort(rc);
 	}

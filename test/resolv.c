@@ -79,8 +79,8 @@ main(void)
 
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, doresolv, XPTR(r)), 0);
-	mu_assert_int_eq(xspawn(hub, dostuff, XPTR(&stuff)), 0);
+	mu_assert_int_eq(xspawn(hub, doresolv, xptr(r)), 0);
+	mu_assert_int_eq(xspawn(hub, dostuff, xptr(&stuff)), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 
 	mu_assert_int_gt(stuff, 0);

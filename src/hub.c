@@ -395,7 +395,7 @@ invoke_direct(struct xhub_entry *ent, union xvalue val)
 static int
 invoke_timeout(struct xhub_entry *ent)
 {
-	return invoke_direct(ent, ent->poll_type ? XINT(xerr_sys(ETIMEDOUT)) : XZERO);
+	return invoke_direct(ent, ent->poll_type ? xint(xerr_sys(ETIMEDOUT)) : xzero);
 }
 
 static int
@@ -413,7 +413,7 @@ invoke_sig(struct xhub *hub, struct xevent *ev)
 		xlist_replace(&list, &sig->in);
 		xlist_each(&list, pent, X_ASCENDING) {
 			ent = xcontainer(pent, struct xhub_entry, pent);
-			invoke_direct(ent, XINT(ev->id));
+			invoke_direct(ent, xint(ev->id));
 		}
 	}
 	
@@ -426,16 +426,16 @@ invoke_io(struct xhub *hub, struct xevent *ev)
 	struct xhub_io *io = get_io(hub, ev->id);
 	struct xlist inlist, outlist, *pent;
 	struct xhub_entry *ent;
-	union xvalue val = XZERO;
+	union xvalue val = xzero;
 	bool in = false, out = false;
 
 	if (ev->type & XPOLL_ERR) {
-		val = XINT(ev->errcode);
+		val = xint(ev->errcode);
 		in = out = true;
 		io->type = 0;
 	}
 	else if (ev->type & XPOLL_EOF) {
-		val = XINT(xerr_io(XECLOSE));
+		val = xint(xerr_io(XECLOSE));
 		in = out = true;
 		io->type = 0;
 	}
@@ -488,13 +488,13 @@ run_once(struct xhub *hub)
 	// special "closed" events are scheduled when xclose affects a scheduled task
 	if ((lent = xlist_first(&hub->closed, X_ASCENDING))) {
 		ent = xcontainer(lent, struct xhub_entry, lent);
-		return invoke_direct(ent, XINT(xerr_io(XECLOSE)));
+		return invoke_direct(ent, xint(xerr_io(XECLOSE)));
 	}
 
 	// then clear all immediate tasks
 	if ((lent = xlist_first(&hub->immediate, X_ASCENDING))) {
 		ent = xcontainer(lent, struct xhub_entry, lent);
-		return invoke_direct(ent, XZERO);
+		return invoke_direct(ent, xzero);
 	}
 
 	// then check for a timeout period
@@ -684,7 +684,7 @@ spawn_fn(void *tls, union xvalue val)
 	(void)val;
 	struct xhub_entry *ent = tls;
 	ent->fn(ent->hub, ent->vinit);
-	return XZERO;
+	return xzero;
 }
 
 int
@@ -729,7 +729,7 @@ int
 xspawn_b(struct xhub *hub, void (^block)(void))
 {
 	void (^copy)(void) = Block_copy(block);
-	int rc = xspawnf(hub, NULL, 0, spawn_block, XPTR(copy));
+	int rc = xspawnf(hub, NULL, 0, spawn_block, xptr(copy));
 	if (rc < 0) {
 		Block_release(copy);
 	}
@@ -762,7 +762,7 @@ xwait(int fd, int polltype, int timeoutms)
 	}
 
 	if (rc == 0) {
-		rc = xyield(XZERO).i;
+		rc = xyield(xzero).i;
 	}
 	return rc;
 }
@@ -783,7 +783,7 @@ xsleep(unsigned ms)
 
 	int rc = schedule_timeout(ent, ms);
 	if (rc == 0) {
-		xyield(XZERO);
+		xyield(xzero);
 	}
 	return rc;
 }
@@ -822,7 +822,7 @@ xsignal(int signum, int timeoutms)
 	if (ent == NULL) { return xerr_sys(EPERM); }
 	int rc = schedule_poll(ent, signum, XPOLL_SIG, timeoutms);
 	if (rc == 0) {
-		int val = xyield(XZERO).i;
+		int val = xyield(xzero).i;
 		return val ? val : signum;
 	}
 	return rc;
@@ -837,7 +837,7 @@ xsignal(int signum, int timeoutms)
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll(ent, fd, XPOLL_IN, ms); \
 	if (rc < 0) { return rc; } \
-	int val = xyield(XZERO).i; \
+	int val = xyield(xzero).i; \
 	if (val == xerr_io(XECLOSE)) { return 0; } \
 	if (val < 0) { return (ssize_t)val; } \
 }
@@ -851,7 +851,7 @@ xsignal(int signum, int timeoutms)
 	if (ent == NULL) { return rc; } \
 	rc = schedule_poll(ent, fd, XPOLL_OUT, ms); \
 	if (rc < 0) { return rc; } \
-	int val = xyield(XZERO).i; \
+	int val = xyield(xzero).i; \
 	if (val == xerr_io(XECLOSE)) { return 0; } \
 	if (val < 0) { return (ssize_t)val; } \
 }

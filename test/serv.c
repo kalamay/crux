@@ -39,7 +39,7 @@ connection(struct xhub *h, union xvalue val)
 
 			xbuf_trim(buf, n);
 			if (xhttp_is_done(&http)) {
-				respond(XINT(fd));
+				respond(xint(fd));
 				xhttp_reset(&http);
 			}
 		}
@@ -74,8 +74,8 @@ server(struct xhub *h, union xvalue val)
 	union xaddr addr;
 	int s = xcheck(xbind(val.cptr, SOCK_STREAM, XREUSEADDR, &addr));
 
-	xspawn(h, intr, XINT(s));
-	xspawn(h, term, XINT(s));
+	xspawn(h, intr, xint(s));
+	xspawn(h, term, xint(s));
 
 	printf("[%d] listening on %s\n", getpid(), xaddrstr(&addr));
 
@@ -83,7 +83,7 @@ server(struct xhub *h, union xvalue val)
 		union xaddr addr;
 		int fd = xcheck(xaccept(s, 0, -1, &addr));
 		printf("[%d] accepted from %s\n", getpid(), xaddrstr(&addr));
-		xspawn(h, connection, XINT(fd));
+		xspawn(h, connection, xint(fd));
 	}
 }
 

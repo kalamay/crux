@@ -31,9 +31,9 @@ test_concurrent_sleep(void)
 
 	mu_assert_int_eq(xhub_new(&hub), 0);
 
-	mu_assert_int_eq(xspawn(hub, dosleep, XINT(10)), 0);
-	mu_assert_int_eq(xspawn(hub, dosleep, XINT(20)), 0);
-	mu_assert_int_eq(xspawn(hub, dosleep, XINT(10)), 0);
+	mu_assert_int_eq(xspawn(hub, dosleep, xint(10)), 0);
+	mu_assert_int_eq(xspawn(hub, dosleep, xint(20)), 0);
+	mu_assert_int_eq(xspawn(hub, dosleep, xint(10)), 0);
 
 	xclock_mono(&start);
 	mu_assert_int_eq(xhub_run(hub), 0);
@@ -75,9 +75,9 @@ test_signal(void)
 	struct xhub *hub;
 	int count = 0;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, dosignal, XPTR(&count)), 0);
-	mu_assert_int_eq(xspawn(hub, dosignal, XPTR(&count)), 0);
-	mu_assert_int_eq(xspawn(hub, dokill, XZERO), 0);
+	mu_assert_int_eq(xspawn(hub, dosignal, xptr(&count)), 0);
+	mu_assert_int_eq(xspawn(hub, dosignal, xptr(&count)), 0);
+	mu_assert_int_eq(xspawn(hub, dokill, xzero), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
 
@@ -128,8 +128,8 @@ test_pipe(void)
 
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, dowrite, XINT(fds[1])), 0);
-	mu_assert_int_eq(xspawn(hub, doread, XINT(fds[0])), 0);
+	mu_assert_int_eq(xspawn(hub, dowrite, xint(fds[1])), 0);
+	mu_assert_int_eq(xspawn(hub, doread, xint(fds[0])), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
 }
@@ -143,7 +143,7 @@ dorecv(struct xhub *h, union xvalue val)
 	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	mu_assert_call(bind(s, (const struct sockaddr *)addr, sizeof(*addr)));
-	xdefer(doclose, XINT(s));
+	xdefer(doclose, xint(s));
 
 	struct sockaddr_in src;
 	socklen_t len = sizeof(src);
@@ -164,7 +164,7 @@ dosend(struct xhub *h, union xvalue val)
 
 	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
-	xdefer(doclose, XINT(s));
+	xdefer(doclose, xint(s));
 
 	xsendto(s, "test", 4, 0, (struct sockaddr *)addr, sizeof(*addr), -1);
 }
@@ -181,8 +181,8 @@ test_udp(void)
 		.sin_addr.s_addr = inet_addr("0.0.0.0")
 	};
 
-	xspawn(hub, dorecv, XPTR(&addr));
-	xspawn(hub, dosend, XPTR(&addr));
+	xspawn(hub, dorecv, xptr(&addr));
+	xspawn(hub, dosend, xptr(&addr));
 
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
@@ -197,7 +197,7 @@ dorecv_timeout(struct xhub *h, union xvalue val)
 	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
 	mu_assert_call(bind(s, (const struct sockaddr *)dest, sizeof(*dest)));
-	xdefer(doclose, XINT(s));
+	xdefer(doclose, xint(s));
 
 	struct sockaddr_in src;
 	socklen_t len = sizeof(src);
@@ -231,7 +231,7 @@ dosend_timeout(struct xhub *h, union xvalue val)
 
 	int s = xsocket(AF_INET, SOCK_DGRAM);
 	mu_assert_call(s);
-	xdefer(doclose, XINT(s));
+	xdefer(doclose, xint(s));
 
 	xsleep(40);
 	int rc = xsendto(s, "test", 4, 0, (struct sockaddr *)dest, sizeof(*dest), -1);
@@ -250,8 +250,8 @@ test_udp_timeout(void)
 		.sin_addr.s_addr = inet_addr("0.0.0.0")
 	};
 
-	xspawn(hub, dorecv_timeout, XPTR(&dest));
-	xspawn(hub, dosend_timeout, XPTR(&dest));
+	xspawn(hub, dorecv_timeout, xptr(&dest));
+	xspawn(hub, dosend_timeout, xptr(&dest));
 
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
@@ -288,9 +288,9 @@ test_read2(void)
 
 	struct xhub *hub;
 	mu_assert_int_eq(xhub_new(&hub), 0);
-	mu_assert_int_eq(xspawn(hub, doread2, XINT(fds[0])), 0);
-	mu_assert_int_eq(xspawn(hub, doread2, XINT(fds[0])), 0);
-	mu_assert_int_eq(xspawn(hub, dowrite2, XINT(fds[1])), 0);
+	mu_assert_int_eq(xspawn(hub, doread2, xint(fds[0])), 0);
+	mu_assert_int_eq(xspawn(hub, doread2, xint(fds[0])), 0);
+	mu_assert_int_eq(xspawn(hub, dowrite2, xint(fds[1])), 0);
 	mu_assert_int_eq(xhub_run(hub), 0);
 	xhub_free(&hub);
 }

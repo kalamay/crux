@@ -12,14 +12,14 @@ union xvalue {
 	int i;
 };
 
-#define XPTR(v)  ((union xvalue){ .ptr = (v) })
-#define XCPTR(v) ((union xvalue){ .cptr = (v) })
-#define XU64(v)  ((union xvalue){ .u64 = (v) })
-#define XI64(v)  ((union xvalue){ .i64 = (v) })
-#define XDBL(v)  ((union xvalue){ .dbl = (v) })
-#define XINT(v)  ((union xvalue){ .i = (v) })
-#define XZERO XU64(0)
-#define XNULL XPTR(NULL)
+#define xptr(v)  ((union xvalue){ .ptr = (v) })
+#define xcptr(v) ((union xvalue){ .cptr = (v) })
+#define xu64(v)  ((union xvalue){ .u64 = (v) })
+#define xi64(v)  ((union xvalue){ .i64 = (v) })
+#define xdbl(v)  ((union xvalue){ .dbl = (v) })
+#define xint(v)  ((union xvalue){ .i = (v) })
+#define xzero xu64(0)
+#define xnil xptr(NULL)
 
 #endif
 

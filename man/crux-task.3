@@ -541,7 +541,7 @@ The type used for passing values between \fBxresume\fR and \fBxyield\fR:
 
 .P
 .nf
-\fB#define XPTR\fR(\fIv\fR)\fR
+\fB#define xptr\fR(\fIv\fR)\fR
 .fi
 .RS
 Declares a value holding a pointer.
@@ -552,7 +552,18 @@ A \fBvoid \fR*\fR value.
 
 .P
 .nf
-\fB#define XU64\fR(\fIv\fR)\fR
+\fB#define xcptr\fR(\fIv\fR)\fR
+.fi
+.RS
+Declares a value holding a const pointer.
+.TP
+\fIv\fR
+A \fBconst void \fR*\fR value.
+.RE
+
+.P
+.nf
+\fB#define xu64\fR(\fIv\fR)\fR
 .fi
 .RS
 Declares a value holding an unsigned 64-bit integer
@@ -563,7 +574,7 @@ A \fBuint64_t\fR value.
 
 .P
 .nf
-\fB#define XI64\fR(\fIv\fR)\fR
+\fB#define xi64\fR(\fIv\fR)\fR
 .fi
 .RS
 Declares a value holding a signed 64-bit integer
@@ -574,7 +585,7 @@ An \fBint64_t\fR value.
 
 .P
 .nf
-\fB#define XDBL\fR(\fIv\fR)\fR
+\fB#define xdbl\fR(\fIv\fR)\fR
 .fi
 .RS
 Declares a value holding a double length floating point number.
@@ -585,7 +596,7 @@ A \fBdouble\fR value.
 
 .P
 .nf
-\fB#define XINT\fR(\fIv\fR)\fR
+\fB#define xint\fR(\fIv\fR)\fR
 .fi
 .RS
 Declares a value holding a platform-specific integer.
@@ -596,7 +607,7 @@ An \fBint\fR value.
 
 .P
 .nf
-\fB#define XZERO\fR
+\fB#define xzero\fR
 .fi
 .RS
 Declares a value containing zero
@@ -604,7 +615,7 @@ Declares a value containing zero
 
 .P
 .nf
-\fB#define XNULL\fR
+\fB#define xnil\fR
 .fi
 .RS
 Declares a value containing NULL
@@ -629,9 +640,9 @@ fib(void *data, union xvalue val)
 		int r = a;
 		a = b;
 		b += r;
-		xyield(XINT(r));
+		xyield(xint(r));
 	}
-	return XZERO;
+	return xzero;
 }
 
 static union xvalue
@@ -640,9 +651,9 @@ fib3(void *data, union xvalue val)
 	struct msg *msg = data;
 	int i = 0;
 	while (true) {
-		xresume(msg->fib, XZERO);
-		xresume(msg->fib, XZERO);
-		val = xresume(msg->fib, XZERO);
+		xresume(msg->fib, xzero);
+		xresume(msg->fib, xzero);
+		val = xresume(msg->fib, xzero);
 		if (++i < 10) { xyield(val); }
 		else          { return val; }
 	}
@@ -661,7 +672,7 @@ main(void)
 	xcheck(xtask_new(&t2, mgr, &msg, fib3));
 
 	while (xtask_alive(t2)) {
-		union xvalue val = xresume(t2, XZERO);
+		union xvalue val = xresume(t2, xzero);
 		printf("%d\\n", val.i);
 	}
 

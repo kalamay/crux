@@ -978,7 +978,7 @@ server(struct xhub *h, void *data)
 		int fd = xcheck(xaccept(sock, (struct sockaddr *)&addr, &len, -1));
 		printf("[%d] accepted from stream://%s:%d\\n",
 				getpid(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-		xspawn(h, connection, XINT(fd));
+		xspawn(h, connection, xint(fd));
 	}
 }
 

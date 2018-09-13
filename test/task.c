@@ -11,9 +11,9 @@ fib(void *data, union xvalue val)
 		uint64_t r = a;
 		a = b;
 		b += r;
-		xyield(XU64(r));
+		xyield(xu64(r));
 	}
-	return XZERO;
+	return xzero;
 }
 
 static union xvalue
@@ -21,9 +21,9 @@ fib3(void *data, union xvalue val)
 {
 	struct xtask **tp = data;
 	while (true) {
-		xresume(*tp, XZERO);
-		xresume(*tp, XZERO);
-		xyield(xresume(*tp, XZERO));
+		xresume(*tp, xzero);
+		xresume(*tp, xzero);
+		xyield(xresume(*tp, xzero));
 	}
 	return val;
 }
@@ -54,7 +54,7 @@ test_fibonacci(void)
 	mu_assert_int_eq(xtask_new(&t2, mgr, &t1, fib3), 0);
 
 	for (uint64_t n = 0; n < 10; n++) {
-		uint64_t val = xresume(t2, XZERO).u64;
+		uint64_t val = xresume(t2, xzero).u64;
 		got[n] = val;
 	}
 
@@ -89,7 +89,7 @@ defer_coro(void *tls, union xvalue val)
 	xdefer(defer_count, val);
 	xdefer(defer_count, val);
 	xdefer(defer_count, val);
-	return XZERO;
+	return xzero;
 }
 
 static void
@@ -102,7 +102,7 @@ test_defer(void)
 
 	struct xtask *t;
 	mu_assert_int_eq(xtask_new(&t, mgr, NULL, defer_coro), 0);
-	xresume(t, XPTR(&n));
+	xresume(t, xptr(&n));
 
 	mu_assert(!xtask_alive(t))
 	mu_assert_int_eq(n, 3);
@@ -117,12 +117,12 @@ defer_fib(union xvalue val)
 	struct xtask *t;
 	mu_assert_int_eq(xtask_new(&t, xmgr_self(), NULL, fib), 0);
 
-	mu_assert_uint_eq(xresume(t, XZERO).u64, 0);
-	mu_assert_uint_eq(xresume(t, XZERO).u64, 1);
-	mu_assert_uint_eq(xresume(t, XZERO).u64, 1);
-	mu_assert_uint_eq(xresume(t, XZERO).u64, 2);
-	mu_assert_uint_eq(xresume(t, XZERO).u64, 3);
-	mu_assert_uint_eq(xresume(t, XZERO).u64, 5);
+	mu_assert_uint_eq(xresume(t, xzero).u64, 0);
+	mu_assert_uint_eq(xresume(t, xzero).u64, 1);
+	mu_assert_uint_eq(xresume(t, xzero).u64, 1);
+	mu_assert_uint_eq(xresume(t, xzero).u64, 2);
+	mu_assert_uint_eq(xresume(t, xzero).u64, 3);
+	mu_assert_uint_eq(xresume(t, xzero).u64, 5);
 	
 	*(int *)val.ptr = 1;
 
@@ -134,7 +134,7 @@ defer_resume_coro(void *tls, union xvalue val)
 {
 	(void)tls;
 	xdefer(defer_fib, val);
-	return XZERO;
+	return xzero;
 }
 
 static void
@@ -148,7 +148,7 @@ test_defer_resume(void)
 
 	mu_assert_int_eq(xtask_new(&t, mgr, NULL, defer_resume_coro), 0);
 
-	xresume(t, XPTR(&n));
+	xresume(t, xptr(&n));
 
 	mu_assert(!xtask_alive(t))
 	mu_assert_int_eq(n, 1);
@@ -162,10 +162,10 @@ doexit(void *ptr, union xvalue v)
 {
 	(void)ptr;
 	(void)v;
-	xyield(XINT(10));
-	xyield(XINT(20));
+	xyield(xint(10));
+	xyield(xint(20));
 	xtask_exit(NULL, 1);
-	return XZERO;
+	return xzero;
 }
 
 static void
@@ -179,17 +179,17 @@ test_exit(void)
 
 	union xvalue val;
 
-	val = xresume(t, XZERO);
+	val = xresume(t, xzero);
 	mu_assert(xtask_alive(t));
 	mu_assert_int_eq(xtask_exitcode(t), -1);
 	mu_assert_int_eq(val.i, 10);
 
-	val = xresume(t, XZERO);
+	val = xresume(t, xzero);
 	mu_assert(xtask_alive(t));
 	mu_assert_int_eq(xtask_exitcode(t), -1);
 	mu_assert_int_eq(val.i, 20);
 
-	val = xresume(t, XZERO);
+	val = xresume(t, xzero);
 	mu_assert(!xtask_alive(t));
 	mu_assert_int_eq(xtask_exitcode(t), 1);
 	mu_assert_int_eq(val.i, 0);
@@ -209,7 +209,7 @@ test_exit_external(void)
 
 	union xvalue val;
 
-	val = xresume(t, XZERO);
+	val = xresume(t, xzero);
 	mu_assert(xtask_alive(t));
 	mu_assert_int_eq(xtask_exitcode(t), -1);
 	mu_assert_int_eq(val.i, 10);
