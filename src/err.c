@@ -67,7 +67,6 @@ xerr_type(int code)
 const char *
 xerr_str(int code)
 {
-	if (code > 0) { code = -code; }
 	switch (XETYPE(code)) {
 	case XERR_SYS: return strerror(XECODE(code));;
 	case XERR_ADDR: return gai_strerror(XECODE(code));
@@ -77,7 +76,7 @@ xerr_str(int code)
 #endif
 		break;
 	case XERR_IO:
-		switch (code) {
+		switch (XECODE(code)) {
 #define XX(sym, msg) \
 			case XE##sym: return msg;
 	XERR_IO_MAP(XX)
@@ -85,7 +84,7 @@ xerr_str(int code)
 		}
 		break;
 	case XERR_HTTP:
-		switch (code) {
+		switch (XECODE(code)) {
 #define XX(sym, msg) \
 			case XE##sym: return msg;
 	XERR_HTTP_MAP(XX)
