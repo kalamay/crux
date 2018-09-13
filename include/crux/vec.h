@@ -245,7 +245,7 @@
 				fprintf(out, " {\n"); \
 				size_t n = vec->count; \
 				for (size_t i = 0; i < n; i++) { \
-					fprintf(out, "    %zu = ", i); \
+					fprintf(out, "  %zu = ", i); \
 					fn(&vec->arr[i], out); \
 					fprintf(out, "\n"); \
 				} \
