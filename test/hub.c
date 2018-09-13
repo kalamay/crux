@@ -64,8 +64,8 @@ dokill(struct xhub *h, union xvalue val)
 {
 	(void)h;
 	(void)val;
-	xsleep(10);
 
+	xsleep(10);
 	mu_assert_call(kill(getpid(), SIGHUP));
 }
 
@@ -108,12 +108,16 @@ doread(struct xhub *h, union xvalue val)
 
 	char buf[5];
 	memset(buf, 0, sizeof(buf));
-	int n = 0;
-	while (xread(fd, buf, 4, -1) > 0) {
+	int reads = 0;
+	for (;;) {
+		ssize_t n = xread(fd, buf, 4, -1);
+		mu_assert_int_ge(n, 0);
+		if (n <= 0) { break; }
 		mu_assert_str_eq(buf, "test");
-		n++;
+		reads++;
 	}
-	mu_assert_int_eq(n, 5);
+	//xhub_print(h, stdout);
+	mu_assert_int_eq(reads, 5);
 }
 
 static void
