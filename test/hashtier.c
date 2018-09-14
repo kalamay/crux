@@ -6,9 +6,10 @@ struct thing {
 };
 
 bool
-thing_has_key(struct thing *t, int k, size_t kn)
+thing_has_key(void *udata, struct thing *t, int k, size_t kn)
 {
 	(void)kn;
+	(void)udata;
 	return t->key == k;
 }
 
@@ -31,7 +32,7 @@ verify_tier(struct thing_tier *tier)
 	size_t count = 0;
 	for (size_t i = 0; i < tier->size; i++) {
 		if (tier->arr[i].h == 0) { continue; }
-		ssize_t idx = thing_get(tier, tier->arr[i].entry.key, 0, thing_hash(tier->arr[i].entry.key));
+		ssize_t idx = thing_get(tier, tier->arr[i].entry.key, 0, thing_hash(tier->arr[i].entry.key), NULL);
 		mu_assert_int_eq(idx, i);
 		if (idx != (ssize_t)i) {
 			ok = false;
@@ -60,7 +61,7 @@ test_tier(void)
 
 	for (int i = 0; i < 15; i++) {
 		int key = rand();
-		ssize_t idx = thing_reserve(tier, key, 0, thing_hash(key), &full);
+		ssize_t idx = thing_reserve(tier, key, 0, thing_hash(key), &full, NULL);
 		if (idx >= 0) {
 			tier->arr[idx].entry.key = key;
 			tier->arr[idx].entry.value = rand();
@@ -101,7 +102,7 @@ test_tier(void)
 
 	for (int i = 0; i < 15; i++) {
 		int key = rand();
-		ssize_t idx = thing_get(next, key, 0, thing_hash(key));
+		ssize_t idx = thing_get(next, key, 0, thing_hash(key), NULL);
 		mu_assert_int_ge(idx, 0);
 		if (idx >= 0) {
 			mu_assert_int_eq(next->arr[idx].entry.key, key);

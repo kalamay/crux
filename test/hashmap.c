@@ -2,6 +2,10 @@
 #include "../include/crux/hashmap.h"
 #include "../include/crux/hash.h"
 
+struct junk {
+	XHASHMAP(junk, const char *, 2);
+};
+
 uint64_t
 junk_hash(const char *k, size_t kn)
 {
@@ -10,15 +14,12 @@ junk_hash(const char *k, size_t kn)
 }
 
 bool
-junk_has_key(const char **junk, const char *k, size_t kn)
+junk_has_key(struct junk *map, const char **junk, const char *k, size_t kn)
 {
+	(void)map;
 	(void)kn;
 	return strcmp(*junk, k) == 0;
 }
-
-struct junk {
-	XHASHMAP(junk, const char *, 2);
-};
 
 XHASHMAP_STATIC(junk, struct junk, const char *, const char *)
 
@@ -262,8 +263,9 @@ thing_print_entry(const struct thing_map *m, struct thing *t, FILE *out)
 }
 
 bool
-thing_has_key(struct thing *t, int k, size_t kn)
+thing_has_key(struct thing_map *map, struct thing *t, int k, size_t kn)
 {
+	(void)map;
 	(void)kn;
 	return t->key == k;
 }
@@ -617,6 +619,10 @@ test_tier_sizes(void)
 	thing_final(&map);
 }
 
+struct prehash {
+	XHASHMAP(prehash, int, 2);
+};
+
 uint64_t
 prehash_hash(uint64_t k, size_t kn)
 {
@@ -627,8 +633,9 @@ prehash_hash(uint64_t k, size_t kn)
 }
 
 bool
-prehash_has_key(int *v, uint64_t k, size_t kn)
+prehash_has_key(struct prehash *map, int *v, uint64_t k, size_t kn)
 {
+	(void)map;
 	(void)v;
 	(void)k;
 	(void)kn;
@@ -637,10 +644,6 @@ prehash_has_key(int *v, uint64_t k, size_t kn)
 	// unless the hashes are equal;
 	return true;
 }
-
-struct prehash {
-	XHASHMAP(prehash, int, 2);
-};
 
 XHASHMAP_STATIC(prehash, struct prehash, uint64_t, int)
 

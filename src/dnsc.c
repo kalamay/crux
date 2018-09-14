@@ -22,13 +22,14 @@ struct xdns_cache {
 };
 
 static bool
-dnsc_has_key(struct entry **ep, const struct key *k, size_t kn)
+dnsc_has_key(struct xdns_cache *cache, struct entry **ep, const struct key *k, size_t kn)
 {
+	(void)cache;
 	(void)kn;
 	struct entry *e = *ep;
 	return e->namelen == k->namelen &&
 		e->res->rr.rtype == k->type &&
-		memcmp(e->name, k, kn) == 0;
+		memcmp(e->name, k->name, k->namelen) == 0;
 }
 
 static uint64_t

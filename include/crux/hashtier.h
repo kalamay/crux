@@ -155,9 +155,9 @@
 	attr double \
 	pref##_load(const TTier *tier); \
 	attr ssize_t \
-	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h); \
+	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h, void *udata); \
 	attr ssize_t \
-	pref##_reserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full); \
+	pref##_reserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full, void *udata); \
 	attr size_t \
 	pref##_force(TTier *tier, const TTier *src, size_t idx); \
 	attr int \
@@ -193,7 +193,7 @@
 		return (double)tier->count / (double)tier->size; \
 	} \
 	ssize_t \
-	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h) \
+	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h, void *udata) \
 	{ \
 		if (tier->count == 0) { return xerr_sys(ENOENT); } \
 		const size_t size = tier->size; \
@@ -205,13 +205,13 @@
 			if (eh == 0 || XHASHTIER_STEP(i, size, eh, mod, mask) < dist) { \
 				return xerr_sys(ENOENT); \
 			} \
-			if (eh == h && has_key(&tier->arr[i].entry, k, kn)) { \
+			if (eh == h && has_key(udata, &tier->arr[i].entry, k, kn)) { \
 				return i; \
 			} \
 		} \
 	} \
 	ssize_t \
-	pref##_reserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full) \
+	pref##_reserve(TTier *tier, TKey k, size_t kn, uint64_t h, int *full, void *udata) \
 	{ \
 		assert(tier->remap == tier->size); \
 		assert(full != NULL); \
@@ -222,7 +222,7 @@
 		ssize_t dist, rc = xerr_sys(ENOENT), i = XHASHTIER_START(h, mod); \
 		for (dist = 0; 1; dist++, i = XHASHTIER_WRAP(i+1, mask)) { \
 			uint64_t eh = tier->arr[i].h; \
-			if (eh == 0 || (eh == h && has_key(&tier->arr[i].entry, k, kn))) { \
+			if (eh == 0 || (eh == h && has_key(udata, &tier->arr[i].entry, k, kn))) { \
 				if (rc == xerr_sys(ENOENT)) { rc = i; } \
 				else { \
 					tier->arr[i] = tier->arr[rc]; \

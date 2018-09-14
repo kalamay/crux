@@ -175,7 +175,7 @@
 	{ \
 		uint64_t h = pref##_hash(k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
-			if (pref##_tier_get(map->tiers[i], k, kn, h) >= 0) { \
+			if (pref##_tier_get(map->tiers[i], k, kn, h, map) >= 0) { \
 				return true; \
 			} \
 		} \
@@ -186,12 +186,12 @@
 	{ \
 		uint64_t h = pref##_hash(k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
-			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h); \
+			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h, map); \
 			if (idx >= 0) { \
 				if (xlen(map->tiers) > 1 && i > 0 && \
 						pref##_tier_load(map->tiers[0]) < map->loadf) { \
 					int full; \
-					ssize_t res = pref##_tier_reserve(map->tiers[0], k, kn, h, &full); \
+					ssize_t res = pref##_tier_reserve(map->tiers[0], k, kn, h, &full, map); \
 					if (res >= 0) { \
 						map->tiers[0]->arr[res].entry = map->tiers[i]->arr[idx].entry; \
 						pref##_prune_index(map, i, idx); \
@@ -213,10 +213,10 @@
 			if (rc < 0) { return rc; } \
 		} \
 		int full; \
-		size_t idx = pref##_tier_reserve(map->tiers[0], k, kn, h, &full); \
+		size_t idx = pref##_tier_reserve(map->tiers[0], k, kn, h, &full, map); \
 		if (!full) { \
 			for (size_t i = 1; i < xlen(map->tiers) && map->tiers[i]; i++) { \
-				ssize_t sidx = pref##_tier_get(map->tiers[i], k, kn, h); \
+				ssize_t sidx = pref##_tier_get(map->tiers[i], k, kn, h, map); \
 				if (sidx >= 0) { \
 					map->tiers[0]->arr[idx].entry = map->tiers[i]->arr[sidx].entry; \
 					pref##_prune_index(map, i, sidx); \
@@ -259,7 +259,7 @@
 		uint64_t h = pref##_hash(k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers); i++) { \
 			if (map->tiers[i] == NULL) { break; } \
-			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h); \
+			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h, map); \
 			if (idx >= 0) { \
 				if (entry != NULL) { *entry = map->tiers[i]->arr[idx].entry; } \
 				if (pref##_prune_index(map, i, idx) == 0 && --map->count < map->max/3) { \
