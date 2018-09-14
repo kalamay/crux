@@ -116,6 +116,8 @@ test_splice(void)
 	mu_assert_int_eq(xbuf_splice(buf, -8, -1, "verification", 12), 0);
 	mu_assert_str_eq(xbuf_data(buf) + fill,
 			"test value with some different text to help with the verification");
+
+	xbuf_free(&buf);
 }
 
 static void
