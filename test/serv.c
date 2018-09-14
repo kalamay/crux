@@ -94,7 +94,7 @@ main(int argc, char *const *argv)
 
 	struct xhub *hub;
 	xcheck(xhub_new(&hub));
-	xspawn(hub, server, XCPTR(net));
+	xspawn(hub, server, xcptr(net));
 	xhub_run(hub);
 	xhub_free(&hub);
 	return 0;
