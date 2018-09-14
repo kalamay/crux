@@ -67,18 +67,14 @@ struct xhub_entry {
 	uint64_t magic;
 #define MAGIC UINT64_C(0x989b369eac2205a3)
 	struct xheap_entry hent;
-	struct xlist lent; // list handle for closed, immediate, or polled list
-	struct xlist pent; // list head for xhub_sig or xhub_io list
+	struct xlist lent; // list handle for closed, immediate, wake, sig, and io lists
+	struct xlist pent; // list handle for polled list
 	struct xtask *t;
 	union xvalue vinit;
 	struct xhub *hub;
 	void (*fn)(struct xhub *, union xvalue val);
 	int poll_id, poll_type;
 	bool detached;
-};
-
-struct xhub_sig {
-	struct xlist in;
 };
 
 struct xhub_io {
@@ -89,22 +85,23 @@ struct xhub_io {
 struct xhub {
 	struct xmgr mgr;
 	struct xpoll poll;
-	struct xheap timeout;
-	struct xlist closed;
-	struct xlist immediate;
-	struct xlist polled;
 	unsigned npolled;
 	unsigned ndetached;
 	int maxfd;
 	bool running;
-	struct xhub_sig sig[31];
+	struct xheap timeout;
+	struct xlist closed;
+	struct xlist immediate;
+	struct xlist polled;
+	struct xlist wake;
+	struct xlist sig[31];
 	struct xhub_io io[0];
 };
 
 static thread_local struct xhub *current_hub = NULL;
 static thread_local struct xhub_entry *current_entry = NULL;
 
-static struct xhub_sig *
+static struct xlist *
 get_sig(struct xhub *hub, int signo)
 {
 	xassert(signo > 0 && signo < 32);
@@ -147,16 +144,24 @@ static int
 schedule_sig(struct xhub_entry *ent, int signo)
 {
 	struct xhub *hub = ent->hub;
-	struct xhub_sig *sig = get_sig(hub, signo);
+	struct xlist *sig = get_sig(hub, signo);
 
-	if (xlist_is_empty(&sig->in)) {
+	if (xlist_is_empty(sig)) {
 		int rc = xpoll_ctl(&hub->poll, signo, XPOLL_NONE, XPOLL_SIG);
 		if (rc < 0) {
 			return rc;
 		}
 	}
 
-	xlist_add(&sig->in, &ent->pent, X_ASCENDING);
+	xlist_add(sig, &ent->lent, X_ASCENDING);
+	return 0;
+}
+
+static int
+schedule_wake(struct xhub_entry *ent)
+{
+	struct xhub *hub = ent->hub;
+	xlist_add(&hub->wake, &ent->lent, X_ASCENDING);
 	return 0;
 }
 
@@ -176,10 +181,10 @@ schedule_io(struct xhub_entry *ent, int fd, int type)
 	}
 
 	if (type & XPOLL_IN) {
-		xlist_add(&io->in, &ent->pent, X_ASCENDING);
+		xlist_add(&io->in, &ent->lent, X_ASCENDING);
 	}
 	else if (type & XPOLL_OUT) {
-		xlist_add(&io->out, &ent->pent, X_ASCENDING);
+		xlist_add(&io->out, &ent->lent, X_ASCENDING);
 	}
 
 	return 0;
@@ -206,16 +211,21 @@ schedule_poll(struct xhub_entry *ent, int id, int type, int timeoutms)
 	case XPOLL_SIG:
 		rc = schedule_sig(ent, id);
 		break;
+	case XPOLL_WAKE:
+		rc = schedule_wake(ent);
+		break;
 	default:
 		rc = xerr_sys(EINVAL);
 	}
 
 	if (rc < 0) {
-		xheap_remove(&ent->hub->timeout, &ent->hent);
+		if (timeoutms >= 0) {
+			xheap_remove(&ent->hub->timeout, &ent->hent);
+		}
 		return rc;
 	}
 
-	xlist_add(&ent->hub->polled, &ent->lent, X_ASCENDING);
+	xlist_add(&ent->hub->polled, &ent->pent, X_ASCENDING);
 	ent->hub->npolled++;
 	if (ent->detached) {
 		ent->hub->ndetached++;
@@ -287,22 +297,23 @@ xhub_new(struct xhub **hubp)
 	if (rc < 0) {
 		goto err_poll;
 	}
+	hub->ndetached = 0;
+	hub->npolled = 0;
+	hub->running = false;
+	hub->maxfd = maxfd;
 
 	rc = xheap_init(&hub->timeout);
 	if (rc < 0) {
 		goto err_heap;
 	}
 
+	xlist_init(&hub->closed);
 	xlist_init(&hub->immediate);
 	xlist_init(&hub->polled);
-	xlist_init(&hub->closed);
-	hub->ndetached = 0;
-	hub->npolled = 0;
-	hub->running = false;
-	hub->maxfd = maxfd;
+	xlist_init(&hub->wake);
 
 	for (size_t i = 0; i < xlen(hub->sig); i++) {
-		xlist_init(&hub->sig[i].in);
+		xlist_init(&hub->sig[i]);
 	}
 
 	for (int i = 0; i < maxfd; i++) {
@@ -344,22 +355,21 @@ xhub_free(struct xhub **hubp)
 
 		*hubp = NULL;
 
-		struct xlist *lent;
+		struct xlist *elem, *lists[] = {
+			&hub->closed,
+			&hub->immediate,
+		};
 
-		xlist_each(&hub->closed, lent, X_ASCENDING) {
-			ent = xcontainer(lent, struct xhub_entry, lent);
-			unschedule(ent);
-			xtask_free(&ent->t);
+		for (size_t i = 0; i < xlen(lists); i++) {
+			xlist_each(lists[i], elem, X_ASCENDING) {
+				ent = xcontainer(elem, struct xhub_entry, lent);
+				unschedule(ent);
+				xtask_free(&ent->t);
+			}
 		}
 
-		xlist_each(&hub->immediate, lent, X_ASCENDING) {
-			ent = xcontainer(lent, struct xhub_entry, lent);
-			unschedule(ent);
-			xtask_free(&ent->t);
-		}
-
-		xlist_each(&hub->polled, lent, X_ASCENDING) {
-			ent = xcontainer(lent, struct xhub_entry, lent);
+		xlist_each(&hub->polled, elem, X_ASCENDING) {
+			ent = xcontainer(elem, struct xhub_entry, pent);
 			unschedule(ent);
 			xtask_free(&ent->t);
 		}
@@ -401,19 +411,35 @@ invoke_timeout(struct xhub_entry *ent)
 static int
 invoke_sig(struct xhub *hub, struct xevent *ev)
 {
-	struct xhub_sig *sig = get_sig(hub, ev->id);
-	struct xlist list, *pent;
+	struct xlist *sig = get_sig(hub, ev->id), tmp, *elem;
 	struct xhub_entry *ent;
 
-	if (xlist_is_empty(&sig->in)) {
+	if (xlist_is_empty(sig)) {
 		xpoll_ctl(&hub->poll, ev->id, XPOLL_SIG, XPOLL_NONE);
 		kill(getpid(), ev->id);
 	}
 	else {
-		xlist_replace(&list, &sig->in);
-		xlist_each(&list, pent, X_ASCENDING) {
-			ent = xcontainer(pent, struct xhub_entry, pent);
+		xlist_replace(&tmp, sig);
+		xlist_each(&tmp, elem, X_ASCENDING) {
+			ent = xcontainer(elem, struct xhub_entry, lent);
 			invoke_direct(ent, xint(ev->id));
+		}
+	}
+	
+	return 1;
+}
+
+static int
+invoke_wake(struct xhub *hub)
+{
+	struct xlist *wake = &hub->wake, tmp, *elem;
+	struct xhub_entry *ent;
+
+	if (!xlist_is_empty(wake)) {
+		xlist_replace(&tmp, wake);
+		xlist_each(&tmp, elem, X_ASCENDING) {
+			ent = xcontainer(elem, struct xhub_entry, lent);
+			invoke_direct(ent, xzero);
 		}
 	}
 	
@@ -424,7 +450,7 @@ static int
 invoke_io(struct xhub *hub, struct xevent *ev)
 {
 	struct xhub_io *io = get_io(hub, ev->id);
-	struct xlist inlist, outlist, *pent;
+	struct xlist inlist, outlist, *elem;
 	struct xhub_entry *ent;
 	union xvalue val = xzero;
 	bool in = false, out = false;
@@ -447,15 +473,15 @@ invoke_io(struct xhub *hub, struct xevent *ev)
 	if (out) { xlist_replace(&outlist, &io->out); }
 
 	if (in) {
-		xlist_each(&inlist, pent, X_ASCENDING) {
-			ent = xcontainer(pent, struct xhub_entry, pent);
+		xlist_each(&inlist, elem, X_ASCENDING) {
+			ent = xcontainer(elem, struct xhub_entry, lent);
 			invoke_direct(ent, val);
 		}
 	}
 
 	if (out) {
-		xlist_each(&outlist, pent, X_ASCENDING) {
-			ent = xcontainer(pent, struct xhub_entry, pent);
+		xlist_each(&outlist, elem, X_ASCENDING) {
+			ent = xcontainer(elem, struct xhub_entry, lent);
 			invoke_direct(ent, val);
 		}
 	}
@@ -469,6 +495,9 @@ invoke_event(struct xhub *hub, struct xevent *ev)
 	if (ev->type & XPOLL_SIG) {
 		return invoke_sig(hub, ev);
 	}
+	else if (ev->type & XPOLL_WAKE) {
+		return invoke_wake(hub);
+	}
 	else {
 		return invoke_io(hub, ev);
 	}
@@ -479,20 +508,20 @@ run_once(struct xhub *hub)
 {
 	int rc;
 	int64_t ms = -1;
-	struct xlist *lent;
+	struct xlist *elem;
 	struct xheap_entry *wait;
 	struct xevent ev;
 	struct xhub_entry *ent;
 
 	// special "closed" events are scheduled when xclose affects a scheduled task
-	if ((lent = xlist_first(&hub->closed, X_ASCENDING))) {
-		ent = xcontainer(lent, struct xhub_entry, lent);
+	if ((elem = xlist_first(&hub->closed, X_ASCENDING))) {
+		ent = xcontainer(elem, struct xhub_entry, lent);
 		return invoke_direct(ent, xint(xerr_io(XECLOSE)));
 	}
 
 	// then clear all immediate tasks
-	if ((lent = xlist_first(&hub->immediate, X_ASCENDING))) {
-		ent = xcontainer(lent, struct xhub_entry, lent);
+	if ((elem = xlist_first(&hub->immediate, X_ASCENDING))) {
+		ent = xcontainer(elem, struct xhub_entry, lent);
 		return invoke_direct(ent, xzero);
 	}
 
@@ -513,7 +542,7 @@ run_once(struct xhub *hub)
 	}
 	// if all polled tasks are deteched then invoke them as timed out
 	else if (hub->npolled == hub->ndetached) {
-		ent = xcontainer(xlist_first(&hub->polled, X_ASCENDING), struct xhub_entry, lent);
+		ent = xcontainer(xlist_first(&hub->polled, X_ASCENDING), struct xhub_entry, pent);
 		assert(ent->detached);
 		return invoke_timeout(ent);
 	}
@@ -554,6 +583,12 @@ xhub_run(struct xhub *hub)
 	return rc;
 }
 
+int
+xhub_wake(struct xhub *hub)
+{
+	return xpoll_wake(&hub->poll);
+}
+
 void
 xhub_stop(struct xhub *hub)
 {
@@ -564,16 +599,16 @@ void
 xhub_remove_io(struct xhub *hub, int fd)
 {
 	struct xhub_io *io = get_io(hub, fd);
-	struct xlist *pent;
+	struct xlist *elem;
 	struct xhub_entry *ent;
 
-	xlist_each(&io->in, pent, X_ASCENDING) {
-		ent = xcontainer(pent, struct xhub_entry, pent);
+	xlist_each(&io->in, elem, X_ASCENDING) {
+		ent = xcontainer(elem, struct xhub_entry, lent);
 		mark_closed(ent);
 	}
 
-	xlist_each(&io->out, pent, X_ASCENDING) {
-		ent = xcontainer(pent, struct xhub_entry, pent);
+	xlist_each(&io->out, elem, X_ASCENDING) {
+		ent = xcontainer(elem, struct xhub_entry, lent);
 		mark_closed(ent);
 	}
 
@@ -592,11 +627,19 @@ xhub_print(struct xhub *hub, FILE *out)
 		return;
 	}
 
-	struct xlist *l;
+	struct xlist *elem;
 	struct xhub_entry *ent;
 	struct xhub_io *io;
-	struct xhub_sig *sig;
 	struct xheap_entry *h;
+
+	struct {
+		const char *name;
+		struct xlist *list;
+	} lists[] = {
+		{ "closed", &hub->closed },
+		{ "immediate", &hub->immediate },
+		{ "wake", &hub->wake },
+	};
 
 	fprintf(out, "<crux:hub:%p> {\n", (void *)hub);
 
@@ -607,24 +650,16 @@ xhub_print(struct xhub *hub, FILE *out)
 		fprintf(out, "\n  }\n");
 	}
 
-	if (!xlist_is_empty(&hub->closed)) {
-		fprintf(out, "  closed = {\n");
-		xlist_each(&hub->closed, l, X_ASCENDING) {
-			ent = xcontainer(l, struct xhub_entry, lent);
-			xtask_print_val(ent->t, out, 2);
-			fprintf(out, "\n");
+	for (size_t i = 0; i < xlen(lists); i++) {
+		if (!xlist_is_empty(lists[i].list)) {
+			fprintf(out, "  %s = {\n", lists[i].name);
+			xlist_each(lists[i].list, elem, X_ASCENDING) {
+				ent = xcontainer(elem, struct xhub_entry, lent);
+				xtask_print_val(ent->t, out, 2);
+				fprintf(out, "\n");
+			}
+			fprintf(out, "  }\n");
 		}
-		fprintf(out, "  }\n");
-	}
-
-	if (!xlist_is_empty(&hub->immediate)) {
-		fprintf(out, "  immediate = {\n");
-		xlist_each(&hub->immediate, l, X_ASCENDING) {
-			ent = xcontainer(l, struct xhub_entry, lent);
-			xtask_print_val(ent->t, out, 2);
-			fprintf(out, "\n");
-		}
-		fprintf(out, "  }\n");
 	}
 
 	if (xheap_count(&hub->timeout)) {
@@ -643,8 +678,8 @@ xhub_print(struct xhub *hub, FILE *out)
 	for (int i = 0; i < hub->maxfd; i++, io++) {
 		if (!xlist_is_empty(&io->in)) {
 			fprintf(out, "  #%d/in = {\n", i);
-			xlist_each(&io->in, l, X_ASCENDING) {
-				ent = xcontainer(l, struct xhub_entry, pent);
+			xlist_each(&io->in, elem, X_ASCENDING) {
+				ent = xcontainer(elem, struct xhub_entry, lent);
 				xtask_print_val(ent->t, out, 2);
 				fprintf(out, "\n");
 			}
@@ -652,8 +687,8 @@ xhub_print(struct xhub *hub, FILE *out)
 		}
 		if (!xlist_is_empty(&io->out)) {
 			fprintf(out, "  #%d/in = {\n", i);
-			xlist_each(&io->out, l, X_ASCENDING) {
-				ent = xcontainer(l, struct xhub_entry, pent);
+			xlist_each(&io->out, elem, X_ASCENDING) {
+				ent = xcontainer(elem, struct xhub_entry, lent);
 				xtask_print_val(ent->t, out, 2);
 				fprintf(out, "\n");
 			}
@@ -661,12 +696,11 @@ xhub_print(struct xhub *hub, FILE *out)
 		}
 	}
 
-	sig = hub->sig;
-	for (size_t i = 0; i < xlen(hub->sig); i++, sig++) {
-		if (!xlist_is_empty(&sig->in)) {
+	for (size_t i = 0; i < xlen(hub->sig); i++) {
+		if (!xlist_is_empty(&hub->sig[i])) {
 			fprintf(out, "  %s {\n", signame[i+1]);
-			xlist_each(&sig->in, l, X_ASCENDING) {
-				ent = xcontainer(l, struct xhub_entry, pent);
+			xlist_each(&hub->sig[i], elem, X_ASCENDING) {
+				ent = xcontainer(elem, struct xhub_entry, lent);
 				xtask_print_val(ent->t, out, 2);
 				fprintf(out, "\n");
 			}

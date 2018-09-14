@@ -14,6 +14,7 @@
 #define c_final kq_final
 #define c_ctl_io kq_ctl_io
 #define c_ctl_sig kq_ctl_sig
+#define c_wake kq_wake
 #define c_next kq_next
 #define c_wait kq_wait
 
@@ -23,8 +24,21 @@ static int
 kq_init(struct xpoll *poll)
 {
     poll->fd = kqueue();
+	if (poll->fd < 0) {
+		return xerrno;
+	}
+
+	struct kevent ev;
+	EV_SET(&ev, 0, EVFILT_USER, EV_ADD|EV_CLEAR, 0, 0, NULL);
+	int rc = kevent(poll->fd, &ev, 1, NULL, 0, &zero);
+	if (rc < 0) {
+		rc = xerrno;
+		close(poll->fd);
+		return rc;
+	}
+
 	poll->wpos = 0;
-	return poll->fd < 0 ? xerrno : 0;
+	return 0;
 }
 
 static void
@@ -93,6 +107,15 @@ kq_ctl_sig(struct xpoll *poll, int id, int oldtype, int newtype)
 }
 
 static int
+kq_wake(struct xpoll *poll)
+{
+	struct kevent ev;
+	EV_SET(&ev, 0, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+	int rc = kevent(poll->fd, &ev, 1, NULL, 0, &zero);
+	return rc < 0 ? xerrno : 0;
+}
+
+static int
 kq_next(struct xpoll *poll, struct xevent *ev)
 {
 	struct kevent *src = &poll->events[poll->rpos++];
@@ -109,6 +132,7 @@ kq_next(struct xpoll *poll, struct xevent *ev)
 	case EVFILT_READ: ev->type = XPOLL_IN; break;
 	case EVFILT_WRITE: ev->type = XPOLL_OUT; break;
 	case EVFILT_SIGNAL: ev->type = XPOLL_SIG; break;
+	case EVFILT_USER: ev->type = XPOLL_WAKE; break;
 	default:
 		return 0;
 	}
@@ -146,15 +170,21 @@ kq_wait(struct xpoll *poll, struct timespec *ts)
 #define c_final ep_final
 #define c_ctl_io ep_ctl_io
 #define c_ctl_sig ep_ctl_sig
+#define c_wake ep_wake
 #define c_next ep_next
 #define c_wait ep_wait
 
 #include <sys/signalfd.h>
+#include <sys/eventfd.h>
 
 static int
 ep_init(struct xpoll *poll)
 {
 	int rc;
+
+	poll->fd = -1;
+	poll->sigfd = -1;
+	poll->evfd = -1;
 
     if ((poll->fd = epoll_create1(EPOLL_CLOEXEC)) < 0) {
 		goto error;
@@ -164,11 +194,21 @@ ep_init(struct xpoll *poll)
 		goto error;
 	}
 
+	if ((poll->evfd = eventfd(0, EFD_NONBLOCK|EFD_CLOEXEC)) < 0) {
+		goto error;
+	}
+
 	struct epoll_event ev;
+
 	ev.events = EPOLLIN|EPOLLET;
 	ev.data.fd = poll->sigfd;
-
 	if (epoll_ctl(poll->fd, EPOLL_CTL_ADD, poll->sigfd, &ev) < 0) {
+		goto error;
+	}
+
+	ev.events = EPOLLIN;
+	ev.data.fd = poll->evfd;
+	if (epoll_ctl(poll->fd, EPOLL_CTL_ADD, poll->evfd, &ev) < 0) {
 		goto error;
 	}
 
@@ -232,6 +272,14 @@ ep_ctl_sig(struct xpoll *poll, int id, int oldtype, int newtype)
 }
 
 static int
+ep_wake(struct xpoll *poll)
+{
+	uint64_t val = 1;
+	int rc = write(poll->evfd, &val, sizeof(val));
+	return rc < 0 ? xerrno : 0;
+}
+
+static int
 ep_next(struct xpoll *poll, struct xevent *ev)
 {
 	struct epoll_event *src = &poll->events[poll->rpos++];
@@ -239,10 +287,22 @@ ep_next(struct xpoll *poll, struct xevent *ev)
 	if (src->data.fd == poll->sigfd) {
 		struct signalfd_siginfo info;
 		ssize_t n = read(poll->sigfd, &info, sizeof(info));
+		if (n < 0 && errno != EAGAIN) { return xerrno; }
 		if (n == sizeof(info)) {
 			ev->id = info.ssi_signo;
 			ev->type = XPOLL_SIG;
 			poll->rpos--;
+			return 1;
+		}
+		return 0;
+	}
+
+	if (src->data.fd == poll->evfd) {
+		uint64_t val;
+		ssize_t n = read(poll->evfd, &val, sizeof(val));
+		if (n < 0 && errno != EAGAIN) { return xerrno; }
+		if (n == sizeof(val)) {
+			ev->type = XPOLL_WAKE;
 			return 1;
 		}
 		return 0;
@@ -406,8 +466,17 @@ xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype)
 }
 
 int
+xpoll_wake(struct xpoll *poll)
+{
+	assert(poll != NULL);
+	return c_wake(poll);
+}
+
+int
 xpoll_wait(struct xpoll *poll, int64_t ms, struct xevent *ev)
 {
+	assert(poll != NULL);
+
 	int rc;
 	struct timespec c;
 	struct timespec *tsp = ms < 0 ? NULL : &c;

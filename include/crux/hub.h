@@ -25,6 +25,9 @@ xhub_free(struct xhub **hupb);
 XEXTERN int
 xhub_run(struct xhub *hub);
 
+XEXTERN int
+xhub_wake(struct xhub *hub);
+
 XEXTERN void
 xhub_stop(struct xhub *hub);
 

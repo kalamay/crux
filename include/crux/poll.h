@@ -84,6 +84,9 @@ xpoll_free(struct xpoll **pollp);
 XEXTERN int
 xpoll_ctl(struct xpoll *poll, int id, int oldtype, int newtype);
 
+XEXTERN int
+xpoll_wake(struct xpoll *poll);
+
 /**
  * @brief  Reads the next event from the poller
  *

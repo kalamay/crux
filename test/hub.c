@@ -2,6 +2,7 @@
 
 #include "../include/crux.h"
 #include "../include/crux/net.h"
+#include "../src/poll.h"
 
 #include <signal.h>
 #include <math.h>
@@ -294,6 +295,62 @@ test_read2(void)
 	xhub_free(&hub);
 }
 
+static void
+wakeread(struct xhub *h, union xvalue val)
+{
+	int fd = val.i;
+
+	char buf[5];
+	memset(buf, 0, sizeof(buf));
+	ssize_t n = xread(fd, buf, 4, -1);
+	mu_assert_int_eq(n, 4);
+	mu_assert_str_eq(buf, "wake");
+
+	mu_assert_int_eq(xhub_wake(h), 0);
+}
+
+static void
+wakewrite(struct xhub *h, union xvalue val)
+{
+	(void)h;
+	int fd = val.i;
+	mu_assert_int_eq(xwrite(fd, "wake", 4, -1), 4);
+	xclose(fd);
+}
+
+static void
+wake(struct xhub *h, union xvalue val)
+{
+	(void)h;
+	int rc = xwait(-1, XPOLL_WAKE, -1);
+	mu_assert_int_eq(rc, 0);
+
+	int *woke = val.ptr;
+	*woke = 1;
+
+	rc = xwait(-1, XPOLL_WAKE, 10);
+	mu_assert_int_eq(rc, xerr_sys(ETIMEDOUT));
+}
+
+static void
+test_wake(void)
+{
+	int fds[2];
+	mu_assert_call(xpipe(fds));
+
+	int woke = 0;
+
+	struct xhub *hub;
+	mu_assert_int_eq(xhub_new(&hub), 0);
+	mu_assert_int_eq(xspawn(hub, wakeread, xint(fds[0])), 0);
+	mu_assert_int_eq(xspawn(hub, wakewrite, xint(fds[1])), 0);
+	mu_assert_int_eq(xspawn(hub, wake, xptr(&woke)), 0);
+	mu_assert_int_eq(xhub_run(hub), 0);
+	xhub_free(&hub);
+
+	mu_assert_int_eq(woke, 1);
+}
+
 int
 main(void)
 {
@@ -304,5 +361,6 @@ main(void)
 	mu_run(test_udp);
 	mu_run(test_udp_timeout);
 	mu_run(test_read2);
+	mu_run(test_wake);
 }
 

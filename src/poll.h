@@ -8,6 +8,8 @@
 # error unsupported platform
 #endif
 
+#define XPOLL_WAKE (1<<3)  /** Type for poll wake up */
+
 struct xpoll {
 	struct timespec clock;
 	sigset_t sigset;
@@ -16,7 +18,7 @@ struct xpoll {
 	uint16_t rpos, rlen, wpos;
 	struct kevent events[64];
 #elif HAS_EPOLL
-	int sigfd;
+	int sigfd, evfd;
 	uint16_t rpos, rlen;
 	struct epoll_event events[64];
 #endif
