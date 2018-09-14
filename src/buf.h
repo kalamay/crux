@@ -42,6 +42,6 @@ struct xbuf {
 	(b)->w = (len); \
 } while (0)
 
-XEXTERN int
+XLOCAL int
 xbuf_init(struct xbuf *buf, size_t hint, int mode);
 

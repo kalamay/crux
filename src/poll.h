@@ -24,9 +24,9 @@ struct xpoll {
 #endif
 };
 
-extern int
+XLOCAL int
 xpoll_init(struct xpoll *poll);
 
-extern void
+XLOCAL void
 xpoll_final(struct xpoll *poll);
 

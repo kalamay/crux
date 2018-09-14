@@ -15,15 +15,15 @@ struct xmgr {
 	struct xtask *free_task;
 };
 
-extern int
+XLOCAL int
 xmgr_init(struct xmgr *mgr, size_t tls, size_t stack, int flags);
 
-extern void
+XLOCAL void
 xmgr_final(struct xmgr *mgr);
 
-extern void
+XLOCAL void
 xtask_record_entry(struct xtask *t, void *fn);
 
-extern void
+XLOCAL void
 xtask_print_val(const struct xtask *t, FILE *out, int indent);
 

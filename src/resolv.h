@@ -15,9 +15,9 @@ struct xresolv_entry {
 	struct xdns packet;
 };
 
-XEXTERN int
+XLOCAL int
 xresolv_init(struct xresolv *r, const struct xresolv_config *cfg);
 
-XEXTERN void
+XLOCAL void
 xresolv_final(struct xresolv *r);
 

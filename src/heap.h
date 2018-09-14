@@ -11,9 +11,9 @@ struct xheap {
 	struct xheap_entry ***entries;
 };
 
-int
+XLOCAL int
 xheap_init(struct xheap *heap);
 
-void
+XLOCAL void
 xheap_final(struct xheap *heap);
 
