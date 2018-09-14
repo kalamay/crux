@@ -435,7 +435,6 @@ invoke_io(struct xhub *hub, struct xevent *ev)
 		io->type = 0;
 	}
 	else if (ev->type & XPOLL_EOF) {
-		val = xint(xerr_io(XECLOSE));
 		in = out = true;
 		io->type = 0;
 	}

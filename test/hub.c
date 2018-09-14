@@ -276,7 +276,6 @@ dowrite2(struct xhub *h, union xvalue val)
 	int fd = val.i;
 
 	mu_assert_int_eq(xwrite(fd, "test", 4, -1), 4);
-	xsleep(10);
 	xclose(fd);
 }
 
