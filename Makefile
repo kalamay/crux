@@ -133,7 +133,6 @@ LDFLAGS?= $(LDFLAGS_$(BUILD))
 SRC:= \
 	src/err.c \
 	src/base.c \
-	src/map.c \
 	src/heap.c \
 	src/hash.c \
 	src/vm.c \
@@ -157,8 +156,7 @@ INCLUDE:= \
 	include/crux/heap.h \
 	include/crux/hash.h \
 	include/crux/hashtier.h \
-	include/crux/hashmap.h \
-	include/crux/map.h
+	include/crux/hashmap.h
 
 
 # list of manual pages
@@ -172,7 +170,6 @@ TEST:= \
 	test/hash.c \
 	test/hashtier.c \
 	test/hashmap.c \
-	test/map.c \
 	test/heap.c \
 	test/buf.c \
 	test/http.c
