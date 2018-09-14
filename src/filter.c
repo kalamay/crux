@@ -187,7 +187,7 @@ xfilter_free(struct xfilter **fp)
 			}
 		}
 		else if (f->clone) {
-			xfilter_free(&f);
+			xfilter_free(&f->clone);
 		}
 		else {
 			if (f->key) { hs_free_database(f->key); }
@@ -251,7 +251,7 @@ xfilter_key(const struct xfilter *f, const char *key, size_t keylen)
 		int count = f->count;
 		for (int i = 0; i < count; i++) {
 			int rc = xfilter_key(f->chain[i], key, keylen);
-			if (or == rc >= 0) { return or - 1; }
+			if (or == (rc >= 0)) { return or - 1; }
 		}
 		return !or - 1;
 	}
@@ -276,7 +276,7 @@ xfilter(const struct xfilter *f,
 		int count = f->count;
 		for (int i = 0; i < count; i++) {
 			int rc = xfilter(f->chain[i], key, keylen, value, valuelen);
-			if (or == rc >= 0) { return or - 1; }
+			if (or == (rc >= 0)) { return or - 1; }
 		}
 		return !or - 1;
 	}
@@ -303,22 +303,38 @@ print(const struct xfilter *f, FILE *out, int depth)
 
 	const char *end = "INVALID>\n";
 	switch (f->mode) {
-	case XFILTER_ACCEPT: end = "ACCEPT>\n"; break;
-	case XFILTER_REJECT: end = "REJECT>\n"; break;
-	case XFILTER_CHAIN_AND: end = "CHAIN AND> {\n"; break;
-	case XFILTER_CHAIN_OR: end = "CHAIN OR> {\n"; break;
+	case XFILTER_ACCEPT: end = "ACCEPT"; break;
+	case XFILTER_REJECT: end = "REJECT"; break;
+	case XFILTER_CHAIN_AND: end = "CHAIN AND"; break;
+	case XFILTER_CHAIN_OR: end = "CHAIN OR"; break;
 	}
 
-	fprintf(out, "<crux:filter:%p count=%d ref=%d %s%s",
+	fprintf(out, "<crux:filter:%p count=%d ref=%d %s%s>",
 			(void *)f, f->count, f->ref, f->clone ? "CLONE " : "", end);
+
+	struct xfilter *const *chld;
+	int nchld = 0;
 	if (ISCHAIN(f->mode)) {
-		for (int i = 0; i < f->count; i++) {
-			print(f->chain[i], out, depth+1);
+		chld = f->chain;
+		nchld = f->count;
+	}
+	else if (f->clone) {
+		chld = &f->clone;
+		nchld = 1;
+	}
+
+	if (nchld > 0) {
+		fprintf(out, " {\n");
+		for (int i = 0; i < nchld; i++) {
+			print(chld[i], out, depth+1);
 		}
 		for (int i = 0; i < depth; i++) {
 			fwrite("  ", 1, 2, out);
 		}
 		fprintf(out, "}\n");
+	}
+	else {
+		fprintf(out, "\n");
 	}
 }
 
