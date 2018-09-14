@@ -195,6 +195,8 @@
 	ssize_t \
 	pref##_get(TTier *tier, TKey k, size_t kn, uint64_t h, void *udata) \
 	{ \
+		(void)kn; \
+		(void)udata; \
 		if (tier->count == 0) { return xerr_sys(ENOENT); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \
@@ -215,6 +217,8 @@
 	{ \
 		assert(tier->remap == tier->size); \
 		assert(full != NULL); \
+		(void)kn;\
+		(void)udata; \
 		if (tier->count == tier->size) { return xerr_sys(ENOBUFS); } \
 		const size_t size = tier->size; \
 		const size_t mod = tier->mod; \

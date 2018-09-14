@@ -2,24 +2,12 @@
 #include "../include/crux/hashmap.h"
 #include "../include/crux/hash.h"
 
+#define junk_hash(k, kn) ((uint64_t)*k + 1)
+#define junk_has_key(map, junk, k, kn) (strcmp(*junk, k) == 0)
+
 struct junk {
 	XHASHMAP(junk, const char *, 2);
 };
-
-uint64_t
-junk_hash(const char *k, size_t kn)
-{
-	(void)kn;
-	return(uint64_t)*k + 1;
-}
-
-bool
-junk_has_key(struct junk *map, const char **junk, const char *k, size_t kn)
-{
-	(void)map;
-	(void)kn;
-	return strcmp(*junk, k) == 0;
-}
 
 XHASHMAP_STATIC(junk, struct junk, const char *, const char *)
 
