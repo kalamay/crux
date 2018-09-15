@@ -107,7 +107,7 @@ static void
 test_request(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -150,12 +150,31 @@ test_request(size_t speed)
 	xhttp_final(&p);
 }
 
-/*
+#define buf_copy(a, ptr, len) do { \
+	size_t __len = (len); \
+	if (sizeof(a) < (__len)) { __len = 0; } \
+	memcpy((a), (ptr), (__len)); \
+	(a)[__len] = '\0'; \
+} while (0)
+
+#define iovec_copy(a, iov) do { \
+	struct iovec __iov = (iov); \
+	buf_copy(a, __iov.iov_base, __iov.iov_len); \
+} while (0)
+
+#define range_copy(a, p, rng) do { \
+	struct xrange16 __rng = (rng); \
+	buf_copy(a, (const char *)p + __rng.off, __rng.len); \
+} while (0)
+
 static void
 test_request_capture(size_t speed)
 {
+	struct xhttp_map *map;
+	mu_assert_int_eq(xhttp_map_new(&map), 0);
+
 	struct xhttp p;
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, map);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -184,47 +203,43 @@ test_request_capture(size_t speed)
 	mu_assert_uint_eq(0, msg.field_count);
 	mu_assert_str_eq("Hello World!", msg.body);
 
-	struct iovec iov = { NULL, 0 };
-	const SpHttpEntry *e = xhttp_map_get(p.headers, "TeSt", 4);
-	mu_assert_ptr_ne(e, NULL);
+	mu_assert_int_eq(xhttp_map_addstr(map, "New", "stuff"), 0);
 
-	xhttp_entry_name(e, &iov);
-	mu_assert_str_eq("Test", iov.iov_base);
+	struct iovec iov[4];
+	char buf[256];
 
-	mu_assert_uint_eq(3, xhttp_entry_count(e));
+	mu_assert_int_eq(xhttp_map_get(map, "TeSt", 4, iov, xlen(iov)), 3);
+	iovec_copy(buf, iov[0]);
+	mu_assert_str_eq("value 3", buf);
+	iovec_copy(buf, iov[1]);
+	mu_assert_str_eq("value 2", buf);
+	iovec_copy(buf, iov[2]);
+	mu_assert_str_eq("value 1", buf);
 
-	mu_assert(xhttp_entry_value(e, 0, &iov));
-	mu_assert_str_eq("value 1", iov.iov_base);
-	mu_assert(xhttp_entry_value(e, 1, &iov));
-	mu_assert_str_eq("value 2", iov.iov_base);
-	mu_assert(xhttp_entry_value(e, 2, &iov));
-	mu_assert_str_eq("value 3", iov.iov_base);
+	mu_assert_int_eq(xhttp_map_full(map, iov, xlen(iov)), 1);
 
-	char buf[1024];
-
-	mu_assert_uint_eq(xhttp_map_encode_size(p.headers), 185);
-	mu_assert_uint_eq(xhttp_map_scatter_count(p.headers), 40);
-	memset(buf, 0, sizeof(buf));
-	xhttp_map_encode(p.headers, buf);
-	mu_assert_uint_eq(strlen(buf), 185);
-
-	xhttp_map_del(p.headers, "test", 4);
-
-	mu_assert_uint_eq(xhttp_map_encode_size(p.headers), 140);
-	mu_assert_uint_eq(xhttp_map_scatter_count(p.headers), 28);
-	memset(buf, 0, sizeof(buf));
-	xhttp_map_encode(p.headers, buf);
-	mu_assert_uint_eq(strlen(buf), 140);
+	mu_assert_str_eq(iov->iov_base, 
+		"Empty: \r\n"
+		"Empty-Space: \r\n"
+		"Space: value\r\n"
+		"No-Space: value\r\n"
+		"Spaces: value with spaces\r\n"
+		"Pre-Spaces: value with prefix spaces\r\n"
+		"Content-Length: 12\r\n"
+		"Test: value 1\r\n"
+		"TEST: value 2\r\n"
+		"test: value 3\r\n"
+		"New: stuff\r\n");
 
 	xhttp_final(&p);
+	xhttp_map_free(&map);
 }
-*/
 
 static void
 test_chunked_request(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -273,12 +288,14 @@ test_chunked_request(size_t speed)
 	mu_assert_str_eq("Hello World!", msg.body);
 }
 
-/*
 static void
 test_chunked_request_capture(size_t speed)
 {
+	struct xhttp_map *map;
+	mu_assert_int_eq(xhttp_map_new(&map), 0);
+
 	struct xhttp p;
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, map);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -313,47 +330,44 @@ test_chunked_request_capture(size_t speed)
 	mu_assert_uint_eq(0, msg.field_count);
 	mu_assert_str_eq("Hello World!", msg.body);
 
-	struct iovec iov = { NULL, 0 };
-	const SpHttpEntry *e = xhttp_map_get(p.headers, "TeSt", 4);
-	mu_assert_ptr_ne(e, NULL);
+	mu_assert_int_eq(xhttp_map_addstr(map, "New", "stuff"), 0);
 
-	xhttp_entry_name(e, &iov);
-	mu_assert_str_eq("Test", iov.iov_base);
+	struct iovec iov[4];
+	char buf[256];
 
-	mu_assert_uint_eq(3, xhttp_entry_count(e));
+	mu_assert_int_eq(xhttp_map_get(map, "TeSt", 4, iov, xlen(iov)), 3);
+	iovec_copy(buf, iov[0]);
+	mu_assert_str_eq("value 3", buf);
+	iovec_copy(buf, iov[1]);
+	mu_assert_str_eq("value 2", buf);
+	iovec_copy(buf, iov[2]);
+	mu_assert_str_eq("value 1", buf);
 
-	mu_assert(xhttp_entry_value(e, 0, &iov));
-	mu_assert_str_eq("value 1", iov.iov_base);
-	mu_assert(xhttp_entry_value(e, 1, &iov));
-	mu_assert_str_eq("value 2", iov.iov_base);
-	mu_assert(xhttp_entry_value(e, 2, &iov));
-	mu_assert_str_eq("value 3", iov.iov_base);
+	mu_assert_int_eq(xhttp_map_full(map, iov, xlen(iov)), 1);
 
-	char buf[1024];
-
-	mu_assert_uint_eq(xhttp_map_encode_size(p.headers), 217);
-	mu_assert_uint_eq(xhttp_map_scatter_count(p.headers), 44);
-	memset(buf, 0, sizeof(buf));
-	xhttp_map_encode(p.headers, buf);
-	mu_assert_uint_eq(strlen(buf), 217);
-
-	xhttp_map_del(p.headers, "test", 4);
-
-	mu_assert_uint_eq(xhttp_map_encode_size(p.headers), 172);
-	mu_assert_uint_eq(xhttp_map_scatter_count(p.headers), 32);
-	memset(buf, 0, sizeof(buf));
-	xhttp_map_encode(p.headers, buf);
-	mu_assert_uint_eq(strlen(buf), 172);
+	mu_assert_str_eq(iov->iov_base, 
+		"Empty: \r\n"
+		"Empty-Space: \r\n"
+		"Space: value\r\n"
+		"No-Space: value\r\n"
+		"Spaces: value with spaces\r\n"
+		"Pre-Spaces: value with prefix spaces\r\n"
+		"Transfer-Encoding: chunked\r\n"
+		"Test: value 1\r\n"
+		"TEST: value 2\r\n"
+		"test: value 3\r\n"
+		"Trailer: trailer value\r\n"
+		"New: stuff\r\n");
 
 	xhttp_final(&p);
+	xhttp_map_free(&map);
 }
-*/
 
 static void
 test_response(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_response(&p);
+	xhttp_init_response(&p, NULL);
 
 	static const uint8_t response[] = 
 		"HTTP/1.1 200 OK\r\n"
@@ -400,7 +414,7 @@ static void
 test_chunked_response(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_response(&p);
+	xhttp_init_response(&p, NULL);
 
 	static const uint8_t response[] = 
 		"HTTP/1.1 200 OK\r\n"
@@ -466,7 +480,7 @@ test_invalid_header(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -491,7 +505,7 @@ test_limit_method_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 54);
 }
@@ -511,7 +525,7 @@ test_exceed_method_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
 	mu_assert_int_eq(xerr_code(rc), XESIZE);
@@ -532,7 +546,7 @@ test_limit_name_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -556,7 +570,7 @@ test_exceed_name_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -581,7 +595,7 @@ test_limit_value_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -605,7 +619,7 @@ test_exceed_value_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -630,7 +644,7 @@ test_increase_value_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p);
+	xhttp_init_request(&p, NULL);
 	p.max_value = 2048;
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
@@ -638,6 +652,88 @@ test_increase_value_size(void)
 	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 1032);
+}
+
+static void
+test_filter_accept(void)
+{
+	static const uint8_t request[] = 
+		"GET /some/path HTTP/1.1\r\n"
+		"Header1: value1\r\n"
+		"Header2: value2\r\n"
+		"\r\n"
+		;
+
+	static const char *block[] = {
+		"Header1"
+	};
+
+	struct xhttp p;
+	struct xbuf *buf;
+	ssize_t rc;
+	char str[256];
+
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
+
+	xhttp_init_request(&p, NULL);
+	xhttp_block(&p, block, xlen(block), XHTTP_ACCEPT);
+
+	rc = xhttp_next(&p, buf);
+	mu_assert_int_eq(p.type, XHTTP_REQUEST);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+
+	rc = xhttp_next(&p, buf);
+	mu_assert_int_eq(p.type, XHTTP_FIELD);
+	range_copy(str, xbuf_data(buf), p.as.field.name);
+	mu_assert_str_eq(str, "Header1");
+	range_copy(str, xbuf_data(buf), p.as.field.value);
+	mu_assert_str_eq(str, "value1");
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+
+	rc = xhttp_next(&p, buf);
+	mu_assert_int_eq(p.type, XHTTP_BODY_START);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+}
+
+static void
+test_filter_reject(void)
+{
+	static const uint8_t request[] = 
+		"GET /some/path HTTP/1.1\r\n"
+		"Header1: value1\r\n"
+		"Header2: value2\r\n"
+		"\r\n"
+		;
+
+	static const char *block[] = {
+		"Header1"
+	};
+
+	struct xhttp p;
+	struct xbuf *buf;
+	ssize_t rc;
+	char str[256];
+
+	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
+
+	xhttp_init_request(&p, NULL);
+	xhttp_block(&p, block, xlen(block), XHTTP_REJECT);
+
+	rc = xhttp_next(&p, buf);
+	mu_assert_int_eq(p.type, XHTTP_REQUEST);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+
+	rc = xhttp_next(&p, buf);
+	mu_assert_int_eq(p.type, XHTTP_FIELD);
+	range_copy(str, xbuf_data(buf), p.as.field.name);
+	mu_assert_str_eq(str, "Header2");
+	range_copy(str, xbuf_data(buf), p.as.field.value);
+	mu_assert_str_eq(str, "value2");
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
+
+	rc = xhttp_next(&p, buf);
+	mu_assert_int_eq(p.type, XHTTP_BODY_START);
+	mu_assert_int_ge(xbuf_trim(buf, rc), 0);
 }
 
 /*
@@ -948,8 +1044,8 @@ main(void)
 	for (ssize_t i = 0; i <= 250; i++) {
 		test_request(i);
 		test_chunked_request(i);
-		//test_request_capture(i);
-		//test_chunked_request_capture(i);
+		test_request_capture(i);
+		test_chunked_request_capture(i);
 		test_response(i);
 		test_chunked_response(i);
 	}
@@ -963,6 +1059,8 @@ main(void)
 	test_limit_value_size();
 	test_exceed_value_size();
 	test_increase_value_size();
+	test_filter_accept();
+	test_filter_reject();
 
 	/*
 	test_cc_max_stale();

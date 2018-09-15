@@ -1,5 +1,7 @@
-#include "../include/crux/http.h"
+#include "http.h"
 #include "parser.h"
+#include "../include/crux/hash.h"
+#include "../include/crux/rand.h"
 
 #include <string.h>
 #include <assert.h>
@@ -8,6 +10,7 @@
 // TODO: add support for strings and lws within header field values
 
 static const uint8_t version_start[] = "HTTP/1.";
+static const uint8_t sep[] = ": ";
 static const uint8_t crlf[] = "\r\n";
 
 #define START    0x000000
@@ -34,9 +37,32 @@ static const uint8_t crlf[] = "\r\n";
 #define CHK_EOL1 0x002000
 #define CHK_EOL2 0x003000
 
+static bool
+accept_field(struct xhttp *restrict p, const char *restrict m)
+{
+	char **b = p->block;
+	size_t n = p->blocklen;
+	while (n > 0) {
+		char **at = b + n/2;
+		int sign = strncasecmp(*at, m + p->as.field.name.off, p->as.field.name.len);
+		if (sign == 0)     { return p->blocktype == XHTTP_ACCEPT; }
+		else if (n == 1)   { break; }
+		else if (sign > 0) { n /= 2; }
+		else               { b = at; n -= n/2; }
+	}
+	return p->blocktype != XHTTP_ACCEPT;
+}
+
 static int
 scrape_field(struct xhttp *restrict p, const uint8_t *restrict m)
 {
+	if (p->map != NULL) {
+		int rc = xhttp_map_put(p->map, p->buf, p->as.field);
+		if (rc < 0) {
+			return rc;
+		}
+	}
+
 	if (p->trailers || p->body_len) {
 		return 0;
 	}
@@ -198,7 +224,7 @@ parse_field(struct xhttp *restrict p,
 #undef SCAN
 #define SCAN scan
 
-//again:
+again:
 	p->type = XHTTP_NONE;
 
 	switch (p->cs) {
@@ -238,16 +264,16 @@ parse_field(struct xhttp *restrict p,
 		p->as.field.name.off = SCAN;
 		p->as.field.value.off += SCAN;
 		p->as.field.value.len = (uint16_t)(p->off + SCAN - p->as.field.value.off - (sizeof(crlf) - 1));
-		CHECK_ERROR(scrape_field(p, m));
-//		if (p->headers == NULL) {
-			YIELD(XHTTP_FIELD, FLD);
-//		}
-//		else {
-//			SCAN = end - m;
-//			p->cs = FLD;
-//			p->off = 0;
-//			goto again;
-//		}
+		if (accept_field(p, (const char *)m)) {
+			CHECK_ERROR(scrape_field(p, m));
+			if (p->map == NULL) {
+				YIELD(XHTTP_FIELD, FLD);
+			}
+		}
+		SCAN = end - m;
+		p->cs = FLD;
+		p->off = 0;
+		goto again;
 
 	default:
 		YIELD_ERROR(xerr_http(XESTATE));
@@ -325,18 +351,19 @@ init_sizes(struct xhttp *p)
 }
 
 int
-xhttp_init_request(struct xhttp *p)
+xhttp_init_request(struct xhttp *p, struct xhttp_map *map)
 {
 	assert(p != NULL);
 
 	memset(p, 0, sizeof(*p));
 	init_sizes(p);
 	p->cs = REQ;
+	p->map = map;
 	return 0;
 }
 
 int
-xhttp_init_response(struct xhttp *p)
+xhttp_init_response(struct xhttp *p, struct xhttp_map *map)
 {
 	assert(p != NULL);
 
@@ -344,6 +371,7 @@ xhttp_init_response(struct xhttp *p)
 	init_sizes(p);
 	p->cs = RES;
 	p->response = true;
+	p->map = map;
 	return 0;
 }
 
@@ -351,7 +379,7 @@ void
 xhttp_final(struct xhttp *p)
 {
 	assert(p != NULL);
-	(void)p;
+	xhttp_block(p, NULL, 0, 0);
 }
 
 void
@@ -366,10 +394,10 @@ xhttp_reset(struct xhttp *p)
 	uint16_t max_value = p->max_value;
 
 	if (p->response) {
-		xhttp_init_response(p);
+		xhttp_init_response(p, p->map);
 	}
 	else {
-		xhttp_init_request(p);
+		xhttp_init_request(p, p->map);
 	}
 
 	p->max_method = max_method;
@@ -377,6 +405,44 @@ xhttp_reset(struct xhttp *p)
 	p->max_reason = max_reason;
 	p->max_field = max_field;
 	p->max_value = max_value;
+
+	if (p->map) {
+		xhttp_map_reset(p->map);
+	}
+}
+
+int
+xhttp_block(struct xhttp *p, const char **names, size_t count, int type)
+{
+	if (count > INT_MAX) {
+		return xerr_sys(EINVAL);
+	}
+
+	if (count == 0 || (type != XHTTP_ACCEPT && type != XHTTP_REJECT)) {
+		free(p->block);
+		p->block = NULL;
+		p->blocklen = 0;
+		p->blocktype = 0;
+		return 0;
+	}
+
+	char **block = malloc(sizeof(*block) * count);
+	if (block == NULL) {
+		return xerrno;
+	}
+
+	for (size_t i = 0; i < count; i++) {
+		block[i] = strdup(names[i]);
+	}
+
+	qsort(block, count, sizeof(*block), (int(*)(const void *, const void *))strcasecmp);
+
+	free(p->block);
+	p->block = block;
+	p->blocklen = (int)count;
+	p->blocktype = type;
+
+	return 0;
 }
 
 ssize_t
@@ -397,6 +463,7 @@ xhttp_next(struct xhttp *p, const struct xbuf *buf)
 	ssize_t rc;
 	p->scans++;
 	p->cscans++;
+	p->buf = buf;
 
 	     if (p->cs & REQ) rc = parse_request_line(p, ptr, len);
 	else if (p->cs & RES) rc = parse_response_line(p, ptr, len);
@@ -456,5 +523,204 @@ xhttp_print(const struct xhttp *p, const struct xbuf *buf, FILE *out)
 		break;
 	default: break;
 	}
+}
+
+XVEC_STATIC(xhttp_vec, struct xhttp_vec, struct xhttp_field)
+
+static uint64_t
+xhttp_tab_hash(struct xhttp_map *map, const char *k, size_t kn)
+{
+	return xhash_sipcase(k, kn, &map->seed);
+}
+
+static bool
+xhttp_tab_has_key(struct xhttp_map *map, struct xhttp_vec *ent, const char *k, size_t kn)
+{
+	if (ent->count == 0) { return false; }
+	return (size_t)ent->arr[0].name.len == kn &&
+		strncasecmp((char *)map->buf.map + ent->arr[0].name.off, k, kn) == 0;
+}
+
+XHASHMAP_STATIC(xhttp_tab, struct xhttp_map, const char *, struct xhttp_vec)
+
+int
+xhttp_map_new(struct xhttp_map **mapp)
+{
+	return xnew(xhttp_map_init, mapp);
+}
+
+int
+xhttp_map_init(struct xhttp_map *map)
+{
+	int rc = xbuf_init(&map->buf, 4000, XBUF_LINE);
+	if (rc < 0) {
+		return rc;
+	}
+
+	rc = xhttp_tab_init(map, 0.9, 0);
+	if (rc < 0) {
+		goto err_tab;
+	}
+
+	rc = xrand(&map->seed, sizeof(map->seed));
+	if (rc < 0) {
+		goto err_rand;
+	}
+
+	return 0;
+
+err_rand:
+	xhttp_tab_final(map);
+err_tab:
+	xbuf_final(&map->buf);
+	return rc;
+}
+
+void
+xhttp_map_free(struct xhttp_map **mapp)
+{
+	assert(mapp != NULL);
+
+	xfree(xhttp_map_final, mapp);
+}
+
+void
+xhttp_map_final(struct xhttp_map *map)
+{
+	xbuf_final(&map->buf);
+	xhttp_tab_final(map);
+}
+
+void
+xhttp_map_reset(struct xhttp_map *map)
+{
+	xbuf_reset(&map->buf);
+	xhttp_tab_clear(map);
+}
+
+int
+xhttp_map_add(struct xhttp_map *map,
+		const char *name, size_t namelen, 
+		const char *value, size_t valuelen)
+{
+	size_t len = namelen + (sizeof(sep)-1) + valuelen + (sizeof(crlf)-1);
+	struct xhttp_vec *ent;
+	bool new;
+	int rc;
+
+	if (xbuf_length(&map->buf) + len > (size_t)UINT16_MAX) {
+		return xerr_http(XESIZE);
+	}
+
+	rc = xbuf_ensure(&map->buf, len + 1);
+	if (rc < 0) {
+		return rc;
+	}
+
+	rc = xhttp_tab_reserve(map, name, namelen, &ent);
+	if (rc < 0) {
+		return rc;
+	}
+
+	new = rc == XHASHMAP_RESERVE_NEW;
+	if (new) {
+		*ent = (struct xhttp_vec)XVEC_INIT;
+	}
+
+	struct xhttp_field fld;
+	fld.name.off = xbuf_length(&map->buf);
+	fld.name.len = namelen;
+	fld.value.off = fld.name.off + namelen + (sizeof(sep)-1);
+	fld.value.len = valuelen;
+
+	rc = xhttp_vec_push(ent, fld);
+	if (rc < 0) {
+		if (new) {
+			xhttp_tab_remove(map, ent);
+		}
+		return rc;
+	}
+
+	char *p = xbuf_tail(&map->buf);
+	p = stpncpy(p, name, namelen);
+	p = stpncpy(p, (char *)sep, sizeof(sep) - 1);
+	p = stpncpy(p, value, valuelen);
+	p = stpncpy(p, (char *)crlf, sizeof(crlf) - 1);
+	xbuf_bump(&map->buf, len);
+
+	return 0;
+}
+
+int
+xhttp_map_addstr(struct xhttp_map *map, const char *name, const char *value)
+{
+	return xhttp_map_add(map, name, strlen(name), value, strlen(value));
+}
+
+int
+xhttp_map_put(struct xhttp_map *map, const struct xbuf *src, struct xhttp_field fld)
+{
+	const char *p = xbuf_data(src);
+	return xhttp_map_add(map,
+			p + fld.name.off, fld.name.len,
+			p + fld.value.off, fld.value.len);
+}
+
+size_t
+xhttp_map_get(struct xhttp_map *map,
+		const char *name, size_t namelen,
+		struct iovec *iov, size_t iovlen)
+{
+	struct xhttp_vec *vec = xhttp_tab_get(map, name, namelen);
+	if (vec == NULL) {
+		return 0;
+	}
+
+	if (iovlen > vec->count) {
+		iovlen = vec->count;
+	}
+
+	char *p = (char *)xbuf_data(&map->buf);
+	struct xhttp_field *fld = vec->arr + vec->count - 1;
+	for (size_t i = 0; i < iovlen; i++, fld--, iov++) {
+		iov->iov_base = p + fld->value.off;
+		iov->iov_len = fld->value.len;
+	}
+	return iovlen;
+}
+
+size_t
+xhttp_map_full(const struct xhttp_map *map, struct iovec *iov, size_t iovlen)
+{
+	if (iovlen == 0) {
+		return 0;
+	}
+
+	iov->iov_base = (void *)xbuf_data(&map->buf);
+	iov->iov_len = xbuf_length(&map->buf);
+	return 1;
+}
+
+static void
+entry_print(const struct xhttp_map *map, struct xhttp_vec *ent, FILE *out)
+{
+	const char *p = xbuf_data(&map->buf);
+	fprintf(out, "\"%.*s\" = ", (int)ent->arr[0].name.len, p + ent->arr[0].name.off);
+	if (ent->count == 1) {
+			fprintf(out, "\"%.*s\"", (int)ent->arr[0].value.len, p + ent->arr[0].value.off);
+	}
+	else {
+		fprintf(out, "{\n");
+		for (size_t i = 0; i < ent->count; i++) {
+			fprintf(out, "      \"%.*s\"\n", (int)ent->arr[i].value.len, p + ent->arr[i].value.off);
+		}
+		fprintf(out, "    }");
+	}
+}
+
+void
+xhttp_map_print(const struct xhttp_map *map, FILE *out)
+{
+	xhttp_tab_print(map, out, entry_print);
 }
 

@@ -6,6 +6,7 @@
 #include "buf.h"
 
 #include <stdio.h>
+#include <sys/uio.h>
 
 #define XHTTP_MAX_METHOD 32
 #define XHTTP_MAX_URI 8192
@@ -13,26 +14,31 @@
 #define XHTTP_MAX_FIELD 256
 #define XHTTP_MAX_VALUE 1024
 
-union xhttp_value {
-	// request line values
-	struct {
-		struct xrange8 method;
-		struct xrange16 uri;
-		uint8_t version;
-	} request;
+struct xhttp_request
+{
+	struct xrange8 method;
+	struct xrange16 uri;
+	uint8_t version;
+};
 
-	// response line values
-	struct {
-		struct xrange16 reason;
-		uint16_t status;
-		uint8_t version;
-	} response;
+struct xhttp_response
+{
+	struct xrange16 reason;
+	uint16_t status;
+	uint8_t version;
+};
 
-	// header field name and value
-	struct {
-		struct xrange16 name;
-		struct xrange16 value;
-	} field;
+struct xhttp_field
+{
+	struct xrange16 name;
+	struct xrange16 value;
+};
+
+union xhttp_value
+{
+	struct xhttp_request request; // request line values
+	struct xhttp_response response; // response line values
+	struct xhttp_field field; // header field name and value
 
 	// beginning of body
 	struct {
@@ -57,8 +63,13 @@ enum xhttp_type {
 	XHTTP_TRAILER_END     // complete request or response
 };
 
+struct xhttp_map;
+
 #define XHTTP_FKEEPALIVE (1<<0)
 #define XHTTP_FCHUNKED   (1<<1)
+
+#define XHTTP_ACCEPT 1
+#define XHTTP_REJECT 2
 
 struct xhttp {
 	// public
@@ -79,21 +90,29 @@ struct xhttp {
 	unsigned cs;          // current scanner state
 	size_t off;           // internal offset mark
 	size_t body_len;      // content length or current chunk size
+	struct xhttp_map *map;// optional map to collect headers and then trailers
+	const struct xbuf *buf;// buffer used in next call
+	void *block;          // block list
+	int blocklen;         // number of elements in block list
+	int blocktype;        // block type (XHTTP_ACCEPT or XHTTP_REJECT)
 };
 
 
 
 XEXTERN int
-xhttp_init_request(struct xhttp *p);
+xhttp_init_request(struct xhttp *p, struct xhttp_map *map);
 
 XEXTERN int
-xhttp_init_response(struct xhttp *p);
+xhttp_init_response(struct xhttp *p, struct xhttp_map *map);
 
 XEXTERN void
 xhttp_final(struct xhttp *p);
 
 XEXTERN void
 xhttp_reset(struct xhttp *p);
+
+XEXTERN int
+xhttp_block(struct xhttp *p, const char **names, size_t count, int type);
 
 XEXTERN ssize_t
 xhttp_next(struct xhttp *p, const struct xbuf *buf);
@@ -103,6 +122,35 @@ xhttp_is_done(const struct xhttp *p);
 
 XEXTERN void
 xhttp_print(const struct xhttp *p, const struct xbuf *buf, FILE *out);
+
+
+XEXTERN int
+xhttp_map_new(struct xhttp_map **mapp);
+
+XEXTERN void
+xhttp_map_free(struct xhttp_map **mapp);
+
+XEXTERN void
+xhttp_map_reset(struct xhttp_map *map);
+
+XEXTERN int
+xhttp_map_add(struct xhttp_map *map,
+		const char *name, size_t namelen, 
+		const char *value, size_t valuelen);
+
+XEXTERN int
+xhttp_map_addstr(struct xhttp_map *map, const char *name, const char *value);
+
+XEXTERN size_t
+xhttp_map_get(struct xhttp_map *map,
+		const char *name, size_t namelen,
+		struct iovec *iov, size_t iovlen);
+
+XEXTERN size_t
+xhttp_map_full(const struct xhttp_map *map, struct iovec *iov, size_t iovlen);
+
+XEXTERN void
+xhttp_map_print(const struct xhttp_map *map, FILE *out);
 
 #endif
 

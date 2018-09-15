@@ -28,8 +28,18 @@ connection(struct xhub *h, union xvalue val)
 	int fd = val.i;
 	xdefer_close(fd);
 
+	static const char *block[] = {
+		"Accept",
+		"User-Agent",
+	};
+
+	struct xhttp_map *map;
+	xhttp_map_new(&map);
+
 	struct xhttp http;
-	xhttp_init_request(&http);
+	xhttp_init_request(&http, map);
+
+	xhttp_block(&http, block, xlen(block), XHTTP_REJECT);
 
 	struct xbuf *buf = xbuf(8000, true);
 	while (xbuf_read(buf, fd, 4096, 2000) > 0) {
@@ -39,6 +49,8 @@ connection(struct xhub *h, union xvalue val)
 
 			xbuf_trim(buf, n);
 			if (xhttp_is_done(&http)) {
+				//xhttp_map_addstr(map, "Server", "crux");
+				//xhttp_map_print(map, stdout);
 				respond(xint(fd));
 				xhttp_reset(&http);
 			}
