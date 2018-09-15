@@ -664,7 +664,7 @@ test_filter_accept(void)
 		"\r\n"
 		;
 
-	static const char *block[] = {
+	static const char *filter[] = {
 		"Header1"
 	};
 
@@ -676,7 +676,7 @@ test_filter_accept(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p, NULL);
-	xhttp_block(&p, block, xlen(block), XHTTP_ACCEPT);
+	xhttp_filter(&p, filter, xlen(filter), XHTTP_FILT_ACCEPT);
 
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -705,7 +705,7 @@ test_filter_reject(void)
 		"\r\n"
 		;
 
-	static const char *block[] = {
+	static const char *filter[] = {
 		"Header1"
 	};
 
@@ -717,7 +717,7 @@ test_filter_reject(void)
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
 	xhttp_init_request(&p, NULL);
-	xhttp_block(&p, block, xlen(block), XHTTP_REJECT);
+	xhttp_filter(&p, filter, xlen(filter), XHTTP_FILT_REJECT);
 
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);

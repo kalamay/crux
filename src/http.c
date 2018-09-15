@@ -37,20 +37,30 @@ static const uint8_t crlf[] = "\r\n";
 #define CHK_EOL1 0x002000
 #define CHK_EOL2 0x003000
 
+struct filt
+{
+	enum xhttp_filter type;
+	int count;
+	char *values[0];
+};
+
 static bool
 accept_field(struct xhttp *restrict p, const char *restrict m)
 {
-	char **b = p->block;
-	size_t n = p->blocklen;
+	struct filt *f = p->filter;
+	if (f == NULL) { return true; }
+
+	char **b = f->values;
+	size_t n = f->count;
 	while (n > 0) {
 		char **at = b + n/2;
 		int sign = strncasecmp(*at, m + p->as.field.name.off, p->as.field.name.len);
-		if (sign == 0)     { return p->blocktype == XHTTP_ACCEPT; }
+		if (sign == 0)     { return f->type == XHTTP_FILT_ACCEPT; }
 		else if (n == 1)   { break; }
 		else if (sign > 0) { n /= 2; }
 		else               { b = at; n -= n/2; }
 	}
-	return p->blocktype != XHTTP_ACCEPT;
+	return f->type != XHTTP_FILT_ACCEPT;
 }
 
 static int
@@ -379,7 +389,7 @@ void
 xhttp_final(struct xhttp *p)
 {
 	assert(p != NULL);
-	xhttp_block(p, NULL, 0, 0);
+	xhttp_filter(p, NULL, 0, XHTTP_FILT_NONE);
 }
 
 void
@@ -412,37 +422,46 @@ xhttp_reset(struct xhttp *p)
 }
 
 int
-xhttp_block(struct xhttp *p, const char **names, size_t count, int type)
+xhttp_filter(struct xhttp *p, const void *filt, size_t count, enum xhttp_filter type)
 {
 	if (count > INT_MAX) {
 		return xerr_sys(EINVAL);
 	}
 
-	if (count == 0 || (type != XHTTP_ACCEPT && type != XHTTP_REJECT)) {
-		free(p->block);
-		p->block = NULL;
-		p->blocklen = 0;
-		p->blocktype = 0;
-		return 0;
+	struct filt *old = p->filter, *new = NULL;
+
+	if (type == XHTTP_FILT_ACCEPT || type == XHTTP_FILT_REJECT) {
+		new = malloc(sizeof(*new) + sizeof(new->values[0]) * count);
+		if (new == NULL) {
+			return xerrno;
+		}
+
+		new->type = type;
+		new->count = (int)count;
+
+		const char **names = (const char **)filt;
+
+		for (size_t i = 0; i < count; i++) {
+			new->values[i] = strdup(names[i]);
+		}
+
+		qsort(new->values, count, sizeof(*new->values),
+				(int(*)(const void *, const void *))strcasecmp);
+	}
+	else if (type != XHTTP_FILT_NONE) {
+		return xerr_sys(EINVAL);
 	}
 
-	char **block = malloc(sizeof(*block) * count);
-	if (block == NULL) {
-		return xerrno;
+	if (old) {
+		for (int i = 0; i < old->count; i++) {
+			free(old->values[i]);
+		}
+		free(old);
 	}
-
-	for (size_t i = 0; i < count; i++) {
-		block[i] = strdup(names[i]);
-	}
-
-	qsort(block, count, sizeof(*block), (int(*)(const void *, const void *))strcasecmp);
-
-	free(p->block);
-	p->block = block;
-	p->blocklen = (int)count;
-	p->blocktype = type;
+	p->filter = new;
 
 	return 0;
+
 }
 
 ssize_t

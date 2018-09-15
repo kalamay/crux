@@ -28,7 +28,7 @@ connection(struct xhub *h, union xvalue val)
 	int fd = val.i;
 	xdefer_close(fd);
 
-	static const char *block[] = {
+	static const char *filt[] = {
 		"Accept",
 		"User-Agent",
 	};
@@ -39,7 +39,7 @@ connection(struct xhub *h, union xvalue val)
 	struct xhttp http;
 	xhttp_init_request(&http, map);
 
-	xhttp_block(&http, block, xlen(block), XHTTP_REJECT);
+	xhttp_filter(&http, filt, xlen(filt), XHTTP_FILT_REJECT);
 
 	struct xbuf *buf = xbuf(8000, true);
 	while (xbuf_read(buf, fd, 4096, 2000) > 0) {

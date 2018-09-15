@@ -63,13 +63,23 @@ enum xhttp_type {
 	XHTTP_TRAILER_END     // complete request or response
 };
 
+enum xhttp_filter {
+	XHTTP_FILT_NONE,
+#define XHTTP_FILT_NONE XHTTP_FILT_NONE
+	XHTTP_FILT_ACCEPT,
+#define XHTTP_FILT_ACCEPT XHTTP_FILT_ACCEPT
+	XHTTP_FILT_REJECT,
+#define XHTTP_FILT_REJECT XHTTP_FILT_REJECT
+	XHTTP_FILT_MATCH,
+#define XHTTP_FILT_MATCH XHTTP_FILT_MATCH
+	XHTTP_FILT_NOMATCH,
+#define XHTTP_FILT_NOMATCH XHTTP_FILT_NOMATCH
+};
+
 struct xhttp_map;
 
 #define XHTTP_FKEEPALIVE (1<<0)
 #define XHTTP_FCHUNKED   (1<<1)
-
-#define XHTTP_ACCEPT 1
-#define XHTTP_REJECT 2
 
 struct xhttp {
 	// public
@@ -80,21 +90,19 @@ struct xhttp {
 	uint16_t max_value;   // max size for a header value
 
 	// readonly
-	uint16_t scans;       // number of passes through the scanner
-	uint8_t cscans;       // number of scans in the current rule
-	bool response;        // true if response, false if request
-	uint8_t flags;        // set by field scanner
-	bool trailers;        // parsing trailers
-	union xhttp_value as; // captured value
-	enum xhttp_type type; // type of the captured value
-	unsigned cs;          // current scanner state
-	size_t off;           // internal offset mark
-	size_t body_len;      // content length or current chunk size
-	struct xhttp_map *map;// optional map to collect headers and then trailers
-	const struct xbuf *buf;// buffer used in next call
-	void *block;          // block list
-	int blocklen;         // number of elements in block list
-	int blocktype;        // block type (XHTTP_ACCEPT or XHTTP_REJECT)
+	uint16_t scans;         // number of passes through the scanner
+	uint8_t cscans;         // number of scans in the current rule
+	bool response;          // true if response, false if request
+	uint8_t flags;          // set by field scanner
+	bool trailers;          // parsing trailers
+	union xhttp_value as;   // captured value
+	enum xhttp_type type;   // type of the captured value
+	unsigned cs;            // current scanner state
+	size_t off;             // internal offset mark
+	size_t body_len;        // content length or current chunk size
+	struct xhttp_map *map;  // optional map to collect headers and then trailers
+	const struct xbuf *buf; // buffer used in next call
+	void *filter;           // parser filter
 };
 
 
@@ -112,7 +120,7 @@ XEXTERN void
 xhttp_reset(struct xhttp *p);
 
 XEXTERN int
-xhttp_block(struct xhttp *p, const char **names, size_t count, int type);
+xhttp_filter(struct xhttp *p, const void *filt, size_t count, enum xhttp_filter type);
 
 XEXTERN ssize_t
 xhttp_next(struct xhttp *p, const struct xbuf *buf);
