@@ -895,7 +895,7 @@ xread(int fd, void *buf, size_t len, int timeoutms)
 	RECV_LOOP(fd, timeoutms, read, buf, len);
 }
 
-extern ssize_t
+ssize_t
 xreadv(int fd, struct iovec *iov, int iovcnt, int timeoutms)
 {
 	RECV_LOOP(fd, timeoutms, readv, iov, iovcnt);
@@ -907,7 +907,7 @@ xrecv(int fd, void *buf, size_t len, int flags, int timeoutms)
 	RECV_LOOP(fd, timeoutms, recv, buf, flags, len);
 }
 
-extern ssize_t
+ssize_t
 xrecvfrom(int s, void *buf, size_t len, int flags,
 	 struct sockaddr *src_addr, socklen_t *src_len, int timeoutms)
 {
