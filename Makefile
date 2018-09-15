@@ -17,6 +17,7 @@
 #   WITH_POLL: include the poller
 #   WITH_TASK: include coroutines
 #   WITH_HUB: include the hub (requires poll and task)
+#   WITH_FILTER: include the filter
 #   WITH_HTTP: include the http parser
 #   WITH_NET: include the network system (requires hub)
 #   WITH_DNS: include the dns parser and data structures
@@ -44,6 +45,7 @@
 WITH_POLL?=1
 WITH_TASK?=1
 WITH_HUB?=1
+WITH_FILTER?=1
 WITH_HTTP?=1
 WITH_NET?=1
 WITH_DNS?=1
@@ -62,7 +64,7 @@ ifneq ($(WITH_HUB),1)
  WITH_READLINE:=0
 endif
 
-WITH:= $(WITH_POLL)$(WITH_TASK)$(WITH_HUB)$(WITH_HTTP)$(WITH_NET)$(WITH_DNS)$(WITH_RESOLV)$(WITH_READLINE)
+WITH:= $(WITH_POLL)$(WITH_TASK)$(WITH_HUB)$(WITH_FILTER)$(WITH_HTTP)$(WITH_NET)$(WITH_DNS)$(WITH_RESOLV)$(WITH_READLINE)
 
 PREFIX?=/usr/local
 DESTDIR?=
@@ -191,6 +193,10 @@ ifeq ($(WITH_HUB),1)
  MAN+= man/crux-hub.3
  TEST+= test/hub.c
 endif
+ifeq ($(WITH_FILTER),1)
+ SRC+= src/filter.c
+ INCLUDE+= include/crux/filter.h
+endif
 ifeq ($(WITH_HTTP),1)
  SRC+= src/http.c
  INCLUDE+= include/crux/http.h
@@ -281,6 +287,7 @@ $(BUILD_TMP)/config.h: bin/config.py Makefile | $(BUILD_TMP)
 	@echo "#define WITH_POLL $(WITH_POLL)" >> $@
 	@echo "#define WITH_TASK $(WITH_TASK)" >> $@
 	@echo "#define WITH_HUB $(WITH_HUB)" >> $@
+	@echo "#define WITH_FILTER $(WITH_FILTER)" >> $@
 	@echo "#define WITH_HTTP $(WITH_HTTP)" >> $@
 	@echo "#define WITH_NET $(WITH_NET)" >> $@
 	@echo "#define WITH_DNS $(WITH_DNS)" >> $@

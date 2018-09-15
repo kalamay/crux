@@ -2,6 +2,9 @@
 #include "parser.h"
 #include "../include/crux/hash.h"
 #include "../include/crux/rand.h"
+#if WITH_FILTER
+# include "../include/crux/filter.h"
+#endif
 
 #include <string.h>
 #include <assert.h>
@@ -37,30 +40,16 @@ static const uint8_t crlf[] = "\r\n";
 #define CHK_EOL1 0x002000
 #define CHK_EOL2 0x003000
 
-struct filt
-{
-	enum xhttp_filter type;
-	int count;
-	char *values[0];
-};
-
 static bool
 accept_field(struct xhttp *restrict p, const char *restrict m)
 {
-	struct filt *f = p->filter;
-	if (f == NULL) { return true; }
-
-	char **b = f->values;
-	size_t n = f->count;
-	while (n > 0) {
-		char **at = b + n/2;
-		int sign = strncasecmp(*at, m + p->as.field.name.off, p->as.field.name.len);
-		if (sign == 0)     { return f->type == XHTTP_FILT_ACCEPT; }
-		else if (n == 1)   { break; }
-		else if (sign > 0) { n /= 2; }
-		else               { b = at; n -= n/2; }
-	}
-	return f->type != XHTTP_FILT_ACCEPT;
+#if WITH_FILTER
+	return xfilter_key(p->filter, m + p->as.field.name.off, p->as.field.name.len) >= 0;
+#else
+	(void)p;
+	(void)m;
+	return true;
+#endif
 }
 
 static int
@@ -361,7 +350,7 @@ init_sizes(struct xhttp *p)
 }
 
 int
-xhttp_init_request(struct xhttp *p, struct xhttp_map *map)
+xhttp_init_request(struct xhttp *p, struct xhttp_map *map, struct xfilter *filter)
 {
 	assert(p != NULL);
 
@@ -369,11 +358,17 @@ xhttp_init_request(struct xhttp *p, struct xhttp_map *map)
 	init_sizes(p);
 	p->cs = REQ;
 	p->map = map;
+#if WITH_FILTER
+	p->filter = filter;
+#else
+	(void)filter;
+	p->filter = NULL;
+#endif
 	return 0;
 }
 
 int
-xhttp_init_response(struct xhttp *p, struct xhttp_map *map)
+xhttp_init_response(struct xhttp *p, struct xhttp_map *map, struct xfilter *filter)
 {
 	assert(p != NULL);
 
@@ -382,6 +377,12 @@ xhttp_init_response(struct xhttp *p, struct xhttp_map *map)
 	p->cs = RES;
 	p->response = true;
 	p->map = map;
+#if WITH_FILTER
+	p->filter = filter;
+#else
+	(void)filter;
+	p->filter = NULL;
+#endif
 	return 0;
 }
 
@@ -389,7 +390,7 @@ void
 xhttp_final(struct xhttp *p)
 {
 	assert(p != NULL);
-	xhttp_filter(p, NULL, 0, XHTTP_FILT_NONE);
+	(void)p;
 }
 
 void
@@ -404,10 +405,10 @@ xhttp_reset(struct xhttp *p)
 	uint16_t max_value = p->max_value;
 
 	if (p->response) {
-		xhttp_init_response(p, p->map);
+		xhttp_init_response(p, p->map, p->filter);
 	}
 	else {
-		xhttp_init_request(p, p->map);
+		xhttp_init_request(p, p->map, p->filter);
 	}
 
 	p->max_method = max_method;
@@ -419,49 +420,6 @@ xhttp_reset(struct xhttp *p)
 	if (p->map) {
 		xhttp_map_reset(p->map);
 	}
-}
-
-int
-xhttp_filter(struct xhttp *p, const void *filt, size_t count, enum xhttp_filter type)
-{
-	if (count > INT_MAX) {
-		return xerr_sys(EINVAL);
-	}
-
-	struct filt *old = p->filter, *new = NULL;
-
-	if (type == XHTTP_FILT_ACCEPT || type == XHTTP_FILT_REJECT) {
-		new = malloc(sizeof(*new) + sizeof(new->values[0]) * count);
-		if (new == NULL) {
-			return xerrno;
-		}
-
-		new->type = type;
-		new->count = (int)count;
-
-		const char **names = (const char **)filt;
-
-		for (size_t i = 0; i < count; i++) {
-			new->values[i] = strdup(names[i]);
-		}
-
-		qsort(new->values, count, sizeof(*new->values),
-				(int(*)(const void *, const void *))strcasecmp);
-	}
-	else if (type != XHTTP_FILT_NONE) {
-		return xerr_sys(EINVAL);
-	}
-
-	if (old) {
-		for (int i = 0; i < old->count; i++) {
-			free(old->values[i]);
-		}
-		free(old);
-	}
-	p->filter = new;
-
-	return 0;
-
 }
 
 ssize_t

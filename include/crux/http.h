@@ -64,15 +64,6 @@ enum xhttp_type
 	XHTTP_TRAILER_END     // complete request or response
 };
 
-enum xhttp_filter
-{
-	XHTTP_FILT_NONE,
-	XHTTP_FILT_ACCEPT,
-	XHTTP_FILT_REJECT,
-	XHTTP_FILT_MATCH,
-	XHTTP_FILT_NOMATCH,
-};
-
 struct xhttp_map;
 
 #define XHTTP_FKEEPALIVE (1<<0)
@@ -100,25 +91,22 @@ struct xhttp
 	size_t body_len;        // content length or current chunk size
 	struct xhttp_map *map;  // optional map to collect headers and then trailers
 	const struct xbuf *buf; // buffer used in next call
-	void *filter;           // parser filter
+	struct xfilter *filter; // parser filter
 };
 
 
 
 XEXTERN int
-xhttp_init_request(struct xhttp *p, struct xhttp_map *map);
+xhttp_init_request(struct xhttp *p, struct xhttp_map *map, struct xfilter *filter);
 
 XEXTERN int
-xhttp_init_response(struct xhttp *p, struct xhttp_map *map);
+xhttp_init_response(struct xhttp *p, struct xhttp_map *map, struct xfilter *filter);
 
 XEXTERN void
 xhttp_final(struct xhttp *p);
 
 XEXTERN void
 xhttp_reset(struct xhttp *p);
-
-XEXTERN int
-xhttp_filter(struct xhttp *p, const void *filt, size_t count, enum xhttp_filter type);
 
 XEXTERN ssize_t
 xhttp_next(struct xhttp *p, const struct xbuf *buf);
