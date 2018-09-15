@@ -76,22 +76,19 @@ xerr_str(int code)
 		return mach_error_string(xerr_code(code));
 #endif
 		break;
+
+#define XX(sym, msg) case XE##sym: return msg;
 	case XERR_IO:
 		switch (xerr_code(code)) {
-#define XX(sym, msg) \
-			case XE##sym: return msg;
-	XERR_IO_MAP(XX)
-#undef XX
+			XERR_IO_MAP(XX)
 		}
 		break;
 	case XERR_HTTP:
 		switch (xerr_code(code)) {
-#define XX(sym, msg) \
-			case XE##sym: return msg;
-	XERR_HTTP_MAP(XX)
-#undef XX
+			XERR_HTTP_MAP(XX)
 		}
 		break;
+#undef XX
 	}
 
 	return "undefined error";
