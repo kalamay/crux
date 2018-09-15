@@ -9,7 +9,8 @@
 #define xerr_make_type(n) ((int32_t)((((uint32_t)(n))&0x7fff)<<16))
 #define xerr_make(T, n) (-((int32_t)(XERR_##T | (((uint16_t)n) & 0xffff))))
 
-enum xerr_type {
+enum xerr_type
+{
 	XERR_SYS  = xerr_make_type(0),
 	XERR_ADDR = xerr_make_type(1),
 	XERR_KERN = xerr_make_type(2),
@@ -17,7 +18,7 @@ enum xerr_type {
 	XERR_HTTP = xerr_make_type(4),
 };
 
-#define xerr_type(n) ((int32_t)(((uint32_t)-((int32_t)n)) & 0x7fff0000))
+#define xerr_type(n) ((enum xerr_type)(((uint32_t)-((int32_t)n)) & 0x7fff0000))
 #define xerr_code(n) ((int16_t)(((uint32_t)-((int32_t)n)) & 0xffff))
 #define xerr_is(T, n) (xerr_type(n) == XERR_##T)
 

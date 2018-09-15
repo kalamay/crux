@@ -10,7 +10,8 @@
 
 #define XPOLL_WAKE (1<<3)  /** Type for poll wake up */
 
-struct xpoll {
+struct xpoll
+{
 	struct timespec clock;
 	sigset_t sigset;
 	int fd;

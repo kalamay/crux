@@ -3,7 +3,8 @@
 
 #include "def.h"
 
-struct xversion {
+struct xversion
+{
 	uint8_t major;
 	uint8_t minor;
 	uint16_t patch;

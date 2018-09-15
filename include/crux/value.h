@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-union xvalue {
+union xvalue
+{
 	uint64_t u64;
 	int64_t i64;
 	double dbl;

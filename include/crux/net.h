@@ -10,7 +10,8 @@
 #include <netinet/in.h>
 #include <sys/un.h>
 
-union xaddr {
+union xaddr
+{
 	struct sockaddr sa;
 	struct sockaddr_in in;
 	struct sockaddr_in6 in6;
@@ -18,11 +19,14 @@ union xaddr {
 	struct sockaddr_storage ss;
 };
 
-#define XREUSEADDR    (1<<0) /* Allow reuse of local addresses. */
-#define XREUSEPORT    (1<<1) /* Allow multiple binds to the same address and port. */
-#define XNODELAY      (1<<2) /* Disable TCP Nagle algorithm. */
-#define XDEFER_ACCEPT (1<<3) /* Awaken listener only when data arrives on the socket. */
-#define XKEEPALIVE    (1<<4) /* Send TCP keep alive probes. */
+enum xaddr_flag
+{
+	XREUSEADDR     = 1<<0, /* Allow reuse of local addresses. */
+	XREUSEPORT     = 1<<1, /* Allow multiple binds to the same address and port. */
+	XNODELAY       = 1<<2, /* Disable TCP Nagle algorithm. */
+	XDEFER_ACCEPT  = 1<<3, /* Awaken listener only when data arrives on the socket. */
+	XKEEPALIVE     = 1<<4, /* Send TCP keep alive probes. */
+};
 
 XEXTERN int
 xbind(const char *net, int type, int flags, union xaddr *addr);

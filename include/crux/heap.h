@@ -42,7 +42,8 @@ struct xheap;
  * dealt with when removing. The `xheap_clear` function is a more efficient way
  * to handle deallocating all entries in the heap.
  */
-struct xheap_entry {
+struct xheap_entry
+{
 	int64_t prio;  /** sort priority (lowest to highest) */
 	uint32_t key;  /** key into the heap */
 	uint32_t user; /** any custom user value */

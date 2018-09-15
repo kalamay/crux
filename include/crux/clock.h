@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <time.h>
 
-struct xtimeout {
+struct xtimeout
+{
 	int64_t rel, abs;
 };
 

@@ -1,7 +1,8 @@
 #include "../include/crux/resolv.h"
 #include "../include/crux/list.h"
 
-struct xresolv {
+struct xresolv
+{
 	const struct xresolv_config *cfg;
 	struct xlist *free;
 	int fdpool[12];
@@ -10,7 +11,8 @@ struct xresolv {
 	unsigned char hostpos;
 };
 
-struct xresolv_entry {
+struct xresolv_entry
+{
 	struct xlist h;
 	struct xdns packet;
 };

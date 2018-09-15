@@ -52,7 +52,8 @@ union xhttp_value
 	} body_chunk;
 };
 
-enum xhttp_type {
+enum xhttp_type
+{
 	XHTTP_NONE = -1,
 	XHTTP_REQUEST,        // complete request line
 	XHTTP_RESPONSE,       // complete response line
@@ -63,17 +64,13 @@ enum xhttp_type {
 	XHTTP_TRAILER_END     // complete request or response
 };
 
-enum xhttp_filter {
+enum xhttp_filter
+{
 	XHTTP_FILT_NONE,
-#define XHTTP_FILT_NONE XHTTP_FILT_NONE
 	XHTTP_FILT_ACCEPT,
-#define XHTTP_FILT_ACCEPT XHTTP_FILT_ACCEPT
 	XHTTP_FILT_REJECT,
-#define XHTTP_FILT_REJECT XHTTP_FILT_REJECT
 	XHTTP_FILT_MATCH,
-#define XHTTP_FILT_MATCH XHTTP_FILT_MATCH
 	XHTTP_FILT_NOMATCH,
-#define XHTTP_FILT_NOMATCH XHTTP_FILT_NOMATCH
 };
 
 struct xhttp_map;
@@ -81,7 +78,8 @@ struct xhttp_map;
 #define XHTTP_FKEEPALIVE (1<<0)
 #define XHTTP_FCHUNKED   (1<<1)
 
-struct xhttp {
+struct xhttp
+{
 	// public
 	uint16_t max_method;  // max size for a request method
 	uint16_t max_uri;     // max size for a request uri

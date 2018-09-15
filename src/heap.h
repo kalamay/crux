@@ -4,7 +4,8 @@ size_t xheap_pagecount;
 size_t xheap_pagemask;
 size_t xheap_pageshift;
 
-struct xheap {
+struct xheap
+{
 	uint32_t rows;
 	uint32_t capacity;
 	uint32_t next;

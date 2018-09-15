@@ -1,12 +1,14 @@
 #include "../include/crux/task.h"
 
-struct xdefer {
+struct xdefer
+{
 	struct xdefer *next;
 	void (*fn)(union xvalue);
 	union xvalue val;
 };
 
-struct xmgr {
+struct xmgr
+{
 	uint32_t map_size;
 	uint32_t stack_size;
 	uint16_t tls_size, tls_user;

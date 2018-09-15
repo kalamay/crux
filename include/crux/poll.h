@@ -6,15 +6,17 @@
 
 #include <signal.h>
 
-#define XPOLL_NONE 0
-#define XPOLL_IN  (1<<0)  /** Type for file descriptor readability */
-#define XPOLL_OUT (1<<1)  /** Type for file descriptor writeability */
-#define XPOLL_SIG (1<<2)  /** Type for signal readyness */
-#define XPOLL_ERR (1<<16) /** Flag to indicate an error with the event */
-#define XPOLL_EOF (1<<17) /** Flag to indicate an end-of-file state */
-
-#define XPOLL_INOUT (XPOLL_IN|XPOLL_OUT)
-#define XPOLL_ANY (XPOLL_INOUT|XPOLL_SIG)
+enum xpoll_type
+{
+	XPOLL_NONE  = 0,
+	XPOLL_IN    = 1<<0,  /** Type for file descriptor readability */
+	XPOLL_OUT   = 1<<1,  /** Type for file descriptor writeability */
+	XPOLL_SIG   = 1<<2,  /** Type for signal readyness */
+	XPOLL_ERR   = 1<<16, /** Flag to indicate an error with the event */
+	XPOLL_EOF   = 1<<17, /** Flag to indicate an end-of-file state */
+	XPOLL_INOUT = (XPOLL_IN|XPOLL_OUT),
+	XPOLL_ANY   = (XPOLL_INOUT|XPOLL_SIG),
+};
 
 #define XPOLL_TYPE(n)  (int)((n) & 0xFFFF)
 #define XPOLL_ISERR(n) (!!((n) & XPOLL_ERR))

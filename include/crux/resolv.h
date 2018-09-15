@@ -8,7 +8,8 @@
 
 #include "dns.h"
 
-struct xresolv_config {
+struct xresolv_config
+{
 	int timeout;
 	int attempts;
 	struct {
@@ -22,7 +23,8 @@ struct xresolv_config {
 	size_t nhosts;
 };
 
-struct xresolv_result {
+struct xresolv_result
+{
 	union {
 		struct sockaddr_in in;
 		struct sockaddr_in6 in6;

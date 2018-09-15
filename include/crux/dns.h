@@ -22,7 +22,8 @@
 	XX(S_NS,    2, "authority") \
 	XX(S_AR,    3, "additional") \
 
-enum xdns_section {
+enum xdns_section
+{
 	XDNS_SECTION_MAP(XX)
 };
 
@@ -39,7 +40,8 @@ enum xdns_section {
 	XX(OPT,           41, "EDNS0 option") \
 	XX(ANY,          255, "wildcard match") \
 
-enum xdns_type {
+enum xdns_type
+{
 	XDNS_TYPE_MAP(XX)
 };
 
@@ -104,7 +106,8 @@ enum xdns_type {
 	XX(TA,         32768, "DNSSEC trust authorities") \
 	XX(DLV,        32769, "DNSSEC lookaside validation") \
 
-enum xdns_type_other {
+enum xdns_type_other
+{
 	XDNS_TYPE_OTHER_MAP(XX)
 };
 
@@ -113,7 +116,8 @@ enum xdns_type_other {
 	XX(CH,      3, "CHAOS") \
 	XX(HS,      4, "Hesiod") \
 
-enum xdns_class {
+enum xdns_class
+{
 	XDNS_CLASS_MAP(XX)
 };
 
@@ -122,7 +126,8 @@ enum xdns_class {
 	XX(IQUERY,  1, "inverse query") \
 	XX(STATUS,  2, "server status request") \
 
-enum xdns_opcode {
+enum xdns_opcode
+{
 	XDNS_OPCODE_MAP(XX)
 };
 
@@ -134,7 +139,8 @@ enum xdns_opcode {
 	XX(NOTIMP,   4, "server does not support the request type") \
 	XX(REFUSED,  5, "server is refusing to perform the operation") \
 
-enum xdns_rcode {
+enum xdns_rcode
+{
 	XDNS_RCODE_MAP(XX)
 };
 
@@ -158,7 +164,8 @@ enum xdns_rcode {
  *  |                    ARCOUNT                    |
  *  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_header {
+struct xdns_header
+{
 	uint16_t id;                 /** message identifier */
 #if BYTE_ORDER == BIG_ENDIAN
 	unsigned qr:1;               /** query (0) or response (1) */
@@ -202,7 +209,8 @@ struct xdns_header {
  * |                    QCLASS                     |
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_query {
+struct xdns_query
+{
 	// char qname[...]
 	enum xdns_type qtype:16;     /** type of the query */
 	enum xdns_class qclass:16;   /** class of the query */
@@ -229,7 +237,8 @@ struct xdns_query {
  * /                                               /
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_rr {
+struct xdns_rr
+{
 	// char name[...]
 	enum xdns_type rtype:16;     /** type of the resource */
 	enum xdns_class rclass:16;   /** class of the resource */
@@ -256,7 +265,8 @@ struct xdns_rr {
  * /            {attribute,value} pairs            /
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_opt {
+struct xdns_opt
+{
 	enum xdns_type rtype:16;     /** type of the resource */
 	uint16_t udpmax;             /** maximum udp size */
 	uint8_t ext_rcode;           /** upper 8 bits of extended 12-bit RCODE */
@@ -297,7 +307,8 @@ XEXTERN const struct xdns_opt XDNS_OPT_DEFAULT;
  *  /                                                               /
  *  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
  */
-struct xdns_opt_pair {
+struct xdns_opt_pair
+{
 	uint16_t optcode;
 	uint16_t optlength;
 	// uint8_t optdata[...]
@@ -329,7 +340,8 @@ struct xdns_opt_pair {
  * |                                               |
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_soa {
+struct xdns_soa
+{
 	char mname[XDNS_MAX_NAME+1];
 	char rname[XDNS_MAX_NAME+1];
 	uint32_t serial;
@@ -349,7 +361,8 @@ struct xdns_soa {
  * /                                               /
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_mx {
+struct xdns_mx
+{
 	uint16_t preference;
 	char host[XDNS_MAX_NAME+1];
 };
@@ -360,7 +373,8 @@ struct xdns_mx {
  * /                   TXT-DATA                    /
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_txt {
+struct xdns_txt
+{
 	const void *data;
 	size_t length;
 };
@@ -379,14 +393,16 @@ struct xdns_txt {
  * /                                               /
  * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
  */
-struct xdns_srv {
+struct xdns_srv
+{
 	uint16_t priority;
 	uint16_t weight;
 	uint16_t port;
 	char target[XDNS_MAX_NAME+1];
 };
 
-struct xdns {
+struct xdns
+{
 	union {
 		uint8_t *buf;
 		struct xdns_header *hdr;
@@ -395,7 +411,8 @@ struct xdns {
 	size_t max;
 };
 
-union xdns_rdata {
+union xdns_rdata
+{
 	struct in_addr a;
 	char ns[XDNS_MAX_NAME+1];
 	char cname[XDNS_MAX_NAME+1];
@@ -407,7 +424,8 @@ union xdns_rdata {
 	struct xdns_srv srv;
 };
 
-struct xdns_res {
+struct xdns_res
+{
 	union {
 		struct xdns_rr rr;
 		struct xdns_opt opt;
@@ -415,7 +433,8 @@ struct xdns_res {
 	union xdns_rdata rdata;
 };
 
-struct xdns_iter {
+struct xdns_iter
+{
 	const struct xdns *p;
 	struct xdns_header hdr;
 	size_t pos;

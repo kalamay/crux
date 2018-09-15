@@ -9,7 +9,8 @@
 #define XBUF_FILE_SIZE(h) xpageround((h) + XBUF_REDZONE)
 #define XBUF_RING_SIZE(h) xpageround(h)
 
-struct xbuf {
+struct xbuf
+{
 	uint8_t *map;   /**< Base buffer address **/
 	uint64_t r;     /**< Read pointer offset from #map **/
 	uint64_t w;     /**< Write pointer offset from #map **/

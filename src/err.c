@@ -32,8 +32,9 @@
 #define XERR_TYPE_MAP(XX) \
 	XX(SYS,               "system") \
 	XX(ADDR,              "address information") \
-	XX(HTTP,              "http") \
 	XX(KERN,              "kern") \
+	XX(IO,                "io") \
+	XX(HTTP,              "http") \
 
 #define XERR_IO_MAP(XX) \
 	XX(CLOSE,             "file descriptor closed") \

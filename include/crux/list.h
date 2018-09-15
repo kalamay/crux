@@ -3,11 +3,13 @@
 
 #include "def.h"
 
-struct xlist {
+struct xlist
+{
 	struct xlist *link[2];
 };
 
-enum xorder {
+enum xorder
+{
 	X_DESCENDING = 0,
 	X_ASCENDING = 1
 };

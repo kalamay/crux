@@ -3,11 +3,13 @@
 
 #include <stdint.h>
 
-struct xrange8 {
+struct xrange8
+{
 	uint8_t off, len;
 };
 
-struct xrange16 {
+struct xrange16
+{
 	uint16_t off, len;
 };
 
