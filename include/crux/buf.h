@@ -43,6 +43,9 @@ xbuf_add(struct xbuf *buf, const void *ptr, size_t len);
 XEXTERN int
 xbuf_addch(struct xbuf *buf, char ch, size_t len);
 
+XEXTERN int
+xbuf_splice(struct xbuf *buf, off_t off, off_t remove, const void *ptr, off_t len);
+
 XEXTERN void
 xbuf_reset(struct xbuf *buf);
 
@@ -50,7 +53,7 @@ XEXTERN int
 xbuf_trim(struct xbuf *buf, size_t len);
 
 XEXTERN int
-xbuf_bump(struct xbuf *buf, size_t len);
+xbuf_bump(struct xbuf *buf, off_t len);
 
 XEXTERN int
 xbuf_compact(struct xbuf *buf);

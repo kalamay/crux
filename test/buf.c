@@ -77,6 +77,48 @@ test_unused(void)
 }
 
 static void
+test_splice(void)
+{
+	struct xbuf *buf;
+	mu_assert_int_eq(xbuf_new(&buf, 4000, false), 0);
+
+	ssize_t fill = xbuf_unused(buf) - sizeof(str);
+
+	mu_assert_int_eq(xbuf_addch(buf, 'x', fill), 0);
+	mu_assert_int_eq(add(buf, str), 0);
+	mu_assert_int_eq(xbuf_trim(buf, fill), 0);
+
+	mu_assert_int_eq(xbuf_splice(buf, 21, 4, "different", 9), 0);
+	mu_assert_str_eq(xbuf_data(buf),
+			"test value with some different text to help with the byte filling");
+
+	mu_assert_int_eq(xbuf_splice(buf, -13, 5, NULL, 0), 0);
+	mu_assert_str_eq(xbuf_data(buf),
+			"test value with some different text to help with the filling");
+
+	mu_assert_int_eq(xbuf_splice(buf, -8, -1, "verification", 12), 0);
+	mu_assert_str_eq(xbuf_data(buf),
+			"test value with some different text to help with the verification");
+
+	xbuf_reset(buf);
+
+	mu_assert_int_eq(xbuf_addch(buf, 'x', fill), 0);
+	mu_assert_int_eq(add(buf, str), 0);
+
+	mu_assert_int_eq(xbuf_splice(buf, fill+21, 4, "different", 9), 0);
+	mu_assert_str_eq(xbuf_data(buf) + fill,
+			"test value with some different text to help with the byte filling");
+
+	mu_assert_int_eq(xbuf_splice(buf, -13, 5, NULL, 0), 0);
+	mu_assert_str_eq(xbuf_data(buf) + fill,
+			"test value with some different text to help with the filling");
+
+	mu_assert_int_eq(xbuf_splice(buf, -8, -1, "verification", 12), 0);
+	mu_assert_str_eq(xbuf_data(buf) + fill,
+			"test value with some different text to help with the verification");
+}
+
+static void
 test_ring(void)
 {
 	struct xbuf *buf;
@@ -152,6 +194,7 @@ main(void)
 
 	mu_run(test_grow);
 	mu_run(test_unused);
+	mu_run(test_splice);
 	mu_run(test_ring);
 	mu_run(test_ring_wrap);
 	mu_run(test_open);

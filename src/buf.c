@@ -227,6 +227,36 @@ xbuf_addch(struct xbuf *buf, char ch, size_t len)
 	return 0;
 }
 
+int
+xbuf_splice(struct xbuf *buf, off_t off, off_t remove, const void *ptr, off_t len)
+{
+	off_t n = (off_t)xbuf_length(buf);
+	if (off < 0) {
+		off += n;
+		if (off < 0) { return xerr_sys(ERANGE); };
+	}
+	if (remove < 0) {
+		remove = (remove + n + 1) - off;
+		if (remove < 0) { return xerr_sys(ERANGE); }
+	}
+	if (off+remove > n) { return xerr_sys(ERANGE); }
+
+	off_t diff = len - remove;
+	if (diff > 0) {
+		int rc = xbuf_ensure(buf, (size_t)diff);
+		if (rc < 0) { return rc; }
+	}
+	else if (buf->mode == XBUF_FILE) {
+		return xerr_sys(ENOTSUP);
+	}
+
+	uint8_t *p = XBUF_RDATA(buf);
+	memmove(p + off + len, p + off + remove, n - off - remove);
+	memcpy(p + off, ptr, len);
+	XBUF_WBUMP(buf, diff);
+	return 0;
+}
+
 void
 xbuf_reset(struct xbuf *buf)
 {
@@ -249,11 +279,13 @@ xbuf_trim(struct xbuf *buf, size_t len)
 }
 
 int
-xbuf_bump(struct xbuf *buf, size_t len)
+xbuf_bump(struct xbuf *buf, off_t len)
 {
-	size_t max = XBUF_WSIZE(buf);
-	if (len > max) { return xerr_sys(ERANGE); }
-	XBUF_WBUMP(buf, len);
+	off_t next = buf->w + len;
+	if (next > (off_t)XBUF_WSIZE(buf) || next < (off_t)XBUF_ROFFSET(buf)) {
+		return xerr_sys(ERANGE);
+	}
+	buf->w = next;
 	return 0;
 }
 
