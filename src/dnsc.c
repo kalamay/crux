@@ -33,8 +33,9 @@ dnsc_has_key(struct xdns_cache *cache, struct entry **ep, const struct key *k, s
 }
 
 static uint64_t
-dnsc_hash(const struct key *k, size_t kn)
+dnsc_hash(struct xdns_cache *cache, const struct key *k, size_t kn)
 {
+	(void)cache;
 	(void)kn;
 	union xseed seed = {
 		.u128 = {
@@ -71,7 +72,7 @@ xdns_cache_free(struct xdns_cache **cachep)
 		*cachep = NULL;
 
 		struct entry **ep;
-		XHASHMAP_EACH(cache, ep) {
+		xhashmap_each(cache, ep) {
 			struct entry *e = *ep;
 			xdns_res_free(&e->res);
 			free(e);
@@ -156,7 +157,7 @@ xdns_cache_print(const struct xdns_cache *cache, FILE *out)
 	fprintf(out, "<crux:dns:cache:%p> {\n", (void *)cache);
 
 	struct entry **ep;
-	XHASHMAP_EACH(cache, ep) {
+	xhashmap_each(cache, ep) {
 		struct entry *e = *ep;
 		if (!entry_expired(e)) {
 			char buf[4096];

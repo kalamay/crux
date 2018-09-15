@@ -105,7 +105,7 @@
 		uint64_t h; \
 	} arr[]
 
-#define XHASHTIER_EACH(tier, entp) \
+#define xhashtier_each(tier, entp) \
 	for (ssize_t xsym(i) = (ssize_t)(tier)->size - 1; \
 			xsym(i) >= 0; \
 			xsym(i)--) \

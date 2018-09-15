@@ -16,11 +16,11 @@
 	size_t count; \
 	size_t max
 
-#define XHASHMAP_EACH(map, entp) \
+#define xhashmap_each(map, entp) \
 	for (size_t xsym(t) = 0; \
 			xsym(t) < xlen((map)->tiers) && (map)->tiers[xsym(t)]; \
 			xsym(t)++) \
-		XHASHTIER_EACH((map)->tiers[xsym(t)], entp)
+		xhashtier_each((map)->tiers[xsym(t)], entp)
 
 /**
  * Generates extern function prototypes for the map
@@ -173,7 +173,7 @@
 	bool \
 	pref##_has(TMap *map, TKey k, size_t kn) \
 	{ \
-		uint64_t h = pref##_hash(k, kn); \
+		uint64_t h = pref##_hash(map, k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
 			if (pref##_tier_get(map->tiers[i], k, kn, h, map) >= 0) { \
 				return true; \
@@ -184,7 +184,7 @@
 	TEnt * \
 	pref##_get(TMap *map, TKey k, size_t kn) \
 	{ \
-		uint64_t h = pref##_hash(k, kn); \
+		uint64_t h = pref##_hash(map, k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers) && map->tiers[i]; i++) { \
 			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h, map); \
 			if (idx >= 0) { \
@@ -233,13 +233,13 @@
 	int \
 	pref##_reserve(TMap *map, TKey k, size_t kn, TEnt **entry) \
 	{ \
-		return pref##_hreserve(map, k, kn, pref##_hash(k, kn), entry); \
+		return pref##_hreserve(map, k, kn, pref##_hash(map, k, kn), entry); \
 	} \
 	int \
 	pref##_put(TMap *map, TKey k, size_t kn, TEnt *entry) \
 	{ \
 		assert(entry != NULL); \
-		uint64_t h = pref##_hash(k, kn); \
+		uint64_t h = pref##_hash(map, k, kn); \
 		TEnt *e; \
 		int rc = pref##_hreserve(map, k, kn, h, &e); \
 		if (rc < 0) { return rc; } \
@@ -256,7 +256,7 @@
 	bool \
 	pref##_del(TMap *map, TKey k, size_t kn, TEnt *entry) \
 	{ \
-		uint64_t h = pref##_hash(k, kn); \
+		uint64_t h = pref##_hash(map, k, kn); \
 		for (size_t i = 0; i < xlen(map->tiers); i++) { \
 			if (map->tiers[i] == NULL) { break; } \
 			ssize_t idx = pref##_tier_get(map->tiers[i], k, kn, h, map); \
@@ -320,7 +320,7 @@
 				fprintf(out, " {\n"); \
 				for (size_t j = 0; j < t->size; j++) { \
 					if (t->arr[j].h) { \
-						fprintf(out, "    %016" PRIx64 " = ", t->arr[j].h); \
+						fprintf(out, "    "); \
 						fn(map, &t->arr[j].entry, out); \
 						fprintf(out, "\n"); \
 					} \
@@ -340,8 +340,9 @@
 
 #define XHASH_INT_GEN(attr, name, TKey) \
 	attr uint64_t \
-	name(TKey k, size_t kn) \
+	name(const void *map, TKey k, size_t kn) \
 	{ \
+		(void)map; \
 		(void)kn; \
 		uint64_t x = ((uint64_t)k << 1) | 1; \
 		x ^= x >> 33; \

@@ -2,7 +2,7 @@
 #include "../include/crux/hashmap.h"
 #include "../include/crux/hash.h"
 
-#define junk_hash(k, kn) ((uint64_t)*k + 1)
+#define junk_hash(map, k, kn) ((uint64_t)*k + 1)
 #define junk_has_key(map, junk, k, kn) (strcmp(*junk, k) == 0)
 
 struct junk {
@@ -418,7 +418,7 @@ test_each(void)
 
 	mu_assert_uint_eq(map1.count, 100);
 
-	XHASHMAP_EACH(&map1, t) {
+	xhashmap_each(&map1, t) {
 		int rc = thing_put(&map2, t->key, 0, t);
 		mu_assert_int_eq(rc, 0);
 	}
@@ -612,8 +612,9 @@ struct prehash {
 };
 
 uint64_t
-prehash_hash(uint64_t k, size_t kn)
+prehash_hash(struct prehash *map, uint64_t k, size_t kn)
 {
+	(void)map;
 	(void)kn;
 
 	// We are using siphash as the only identity 😳
