@@ -79,5 +79,22 @@ XEXTERN size_t xpagesize;
 #define xpagetrunc(n) ((n) & (~(xpagesize - 1)))
 #define xpageround(n) xpagetrunc((n) + (xpagesize - 1))
 
+#define xnew(init, ptr, ...) __extension__ ({ \
+	void *p = malloc(sizeof(**ptr)); \
+	int rc = p ? init(p, ##__VA_ARGS__) : xerrno; \
+	if (rc < 0) { free(p); } \
+	else { *ptr = p; } \
+	rc; \
+})
+
+#define xfree(fini, ptr) do { \
+	void *p = *ptr; \
+	if (p != NULL) { \
+		*ptr = NULL; \
+		fini(p); \
+		free(p); \
+	} \
+} while (0)
+
 #endif
 

@@ -143,19 +143,7 @@ move_down(const struct xheap *heap, uint32_t key)
 int
 xheap_new(struct xheap **heapp)
 {
-	struct xheap *heap = malloc(sizeof(*heap));
-	if (heap == NULL) {
-		return xerrno;
-	}
-
-	int rc = xheap_init(heap);
-	if (rc < 0) {
-		free(heap);
-		return rc;
-	}
-
-	*heapp = heap;
-	return 0;
+	return xnew(xheap_init, heapp);
 }
 
 int
@@ -186,12 +174,7 @@ xheap_free(struct xheap **heapp)
 {
 	assert(heapp != NULL);
 
-	struct xheap *heap = *heapp;
-	if (heap != NULL) {
-		*heapp = NULL;
-		xheap_final(heap);
-		free(heap);
-	}
+	xfree(xheap_final, heapp);
 }
 
 void

@@ -8,16 +8,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 int
 xbuf_new(struct xbuf **bufp, size_t cap, bool ring)
 {
-	struct xbuf *buf = malloc(sizeof(*buf));
-	if (buf == NULL) { return xerrno; }
-	int rc = xbuf_init(buf, cap, ring ? XBUF_RING : XBUF_LINE);
-	if (rc < 0) { free(buf); }
-	else { *bufp = buf; }
-	return rc;
+	return xnew(xbuf_init, bufp, cap, ring ? XBUF_RING : XBUF_LINE);
 }
 
 int
@@ -84,10 +80,14 @@ xbuf_init(struct xbuf *buf, size_t cap, int mode)
 void
 xbuf_free(struct xbuf **bufp)
 {
-	struct xbuf *buf = *bufp;
-	if (buf == NULL) { return; }
-	*bufp = NULL;
+	assert(bufp != NULL);
 
+	xfree(xbuf_final, bufp);
+}
+
+void
+xbuf_final(struct xbuf *buf)
+{
 	if (buf->map) {
 		if (buf->mode == XBUF_RING) {
 			xvm_dealloc_ring(buf->map, buf->sz);
@@ -96,7 +96,6 @@ xbuf_free(struct xbuf **bufp)
 			munmap(buf->map, buf->sz);
 		}
 	}
-	free(buf);
 }
 
 bool

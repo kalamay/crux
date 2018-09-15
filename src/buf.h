@@ -45,3 +45,5 @@ struct xbuf {
 XLOCAL int
 xbuf_init(struct xbuf *buf, size_t hint, int mode);
 
+XLOCAL void
+xbuf_final(struct xbuf *buf);

@@ -366,19 +366,7 @@ ep_wait(struct xpoll *poll, struct timespec *ts)
 int
 xpoll_new(struct xpoll **pollp)
 {
-	struct xpoll *poll = malloc(sizeof(*poll));
-	if (poll == NULL) {
-		return xerrno;
-	}
-
-	int rc = xpoll_init(poll);
-	if (rc < 0) {
-		free(poll);
-		return rc;
-	}
-
-	*pollp = poll;
-	return 0;
+	return xnew(xpoll_init, pollp);
 }
 
 int
@@ -400,12 +388,9 @@ xpoll_init(struct xpoll *poll)
 void
 xpoll_free(struct xpoll **pollp)
 {
-	struct xpoll *poll = *pollp;
-	if (poll != NULL) {
-		*pollp = NULL;
-		xpoll_final(poll);
-		free(poll);
-	}
+	assert(pollp != NULL);
+
+	xfree(xpoll_final, pollp);
 }
 
 void

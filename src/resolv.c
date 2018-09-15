@@ -17,11 +17,7 @@ xresolv_new(struct xresolv **rp, const struct xresolv_config *cfg)
 	assert(cfg != NULL);
 	assert(cfg->nhosts > 0);
 
-	struct xresolv *r = malloc(sizeof(*r));
-	if (r == NULL) { return xerrno; }
-	int rc = xresolv_init(r, cfg);
-	if (rc >= 0) { *rp= r; }
-	return rc;
+	return xnew(xresolv_init, rp, cfg);
 }
 
 void
@@ -29,11 +25,7 @@ xresolv_free(struct xresolv **rp)
 {
 	assert(rp != NULL);
 
-	struct xresolv *r = *rp;
-	if (r == NULL) { return; }
-	*rp = NULL;
-	xresolv_final(r);
-	free(r);
+	xfree(xresolv_final, rp);
 }
 
 int

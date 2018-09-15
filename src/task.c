@@ -91,12 +91,7 @@ static thread_local struct xtask top = {
 int
 xmgr_new(struct xmgr **mgrp, size_t tls, size_t stack, int flags)
 {
-	struct xmgr *mgr = malloc(sizeof(*mgr));
-	if (mgr == NULL) { return -xerrno; }
-	int rc = xmgr_init(mgr, tls, stack, flags);
-	if (rc < 0) { free(mgr); }
-	else { *mgrp = mgr; }
-	return rc;
+	return xnew(xmgr_init, mgrp, tls, stack, flags);
 }
 
 int
@@ -136,11 +131,7 @@ xmgr_free(struct xmgr **mgrp)
 {
 	assert(mgrp != NULL);
 
-	struct xmgr *mgr = *mgrp;
-	if (mgr == NULL) { return; }
-	*mgrp = NULL;
-	xmgr_final(mgr);
-	free(mgr);
+	xfree(xmgr_final, mgrp);
 }
 
 void
