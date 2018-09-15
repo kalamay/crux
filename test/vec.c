@@ -77,7 +77,7 @@ test_grow(void)
 	}
 
 	mu_assert_uint_eq(vec.count, 99);
-	mu_assert_int_eq(grows, 5);
+	mu_assert_int_eq(grows, 6);
 
 	for (int i = 1; i < 100; i++) {
 		mu_assert_int_eq(vec.arr[i-1], i);

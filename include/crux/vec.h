@@ -75,8 +75,8 @@
 	pref##_resize(TVec *vec, size_t hint) \
 	{ \
 		if (hint < vec->count) { return xerr_sys(EPERM); } \
-		if (hint < 8) { hint = 8; } \
-		else          { hint += ext; } \
+		hint += ext; \
+		if (hint < (16/sizeof(TEnt))) { hint = (16/sizeof(TEnt)); } \
 		if (hint <= vec->size && hint >= vec->size>>2) { return 0; } \
 		size_t b = sizeof(TEnt) * hint; \
 		b = b < 16276 ? xpower2(b) : xquantum(b, 16276); \
