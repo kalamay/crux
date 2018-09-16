@@ -20,18 +20,26 @@ struct client {
 };
 
 static void
-respond(union xvalue val)
+respond(int fd, struct xhttp_map *map)
 {
-	static const char resp[] =
+	static char resp[] =
 		"HTTP/1.1 200 OK\r\n"
-		"Server: crux\r\n"
+		;
+
+	static char body[] =
 		"Content-Length: 6\r\n"
 		"\r\n"
 		"Hello\n"
 		;
 
-	int fd = val.i;
-	xwriten(fd, resp, sizeof(resp) - 1, -1);
+	struct iovec iov[3];
+	iov[0].iov_base = resp;
+	iov[0].iov_len = sizeof(resp) - 1;
+	xhttp_map_full(map, &iov[1], 1);
+	iov[2].iov_base = body;
+	iov[2].iov_len = sizeof(body) - 1;
+
+	xwritev(fd, iov, 3, -1);
 }
 
 static void
@@ -59,9 +67,8 @@ connection(struct xhub *h, union xvalue val)
 
 			xbuf_trim(buf, n);
 			if (xhttp_is_done(&http)) {
-				//xhttp_map_addstr(map, "Server", "crux");
-				xhttp_map_print(map, stdout);
-				respond(xint(fd));
+				xhttp_map_addstr(map, "Server", "crux");
+				respond(fd, map);
 				xhttp_reset(&http);
 			}
 		}
@@ -119,12 +126,17 @@ main(int argc, char *const *argv)
 		.net = argc > 1 ? argv[1] : ":3333",
 	};
 
-	static const char *keys[] = {
-		"Accept",
-		"User-Agent",
+	static const struct xfilter_expr filt[] = {
+		{ "^[^X]", NULL, XFILTER_HTTP },
+		{ "^X-Bar$", "^baz", XFILTER_HTTP },
+		{ "^User-Agent$", "curl", XFILTER_HTTP },
 	};
 
-	xfilter_new(&srv.filter, keys, xlen(keys), XFILTER_REJECT);
+	struct xfilter_err err;
+	int rc = xfilter_new(&srv.filter, filt, xlen(filt), XFILTER_ACCEPT, &err);
+	if (rc < 0) {
+		xerr_fabort(rc, "%s", err.message);
+	}
 
 	struct xhub *hub;
 	xcheck(xhub_new(&hub));

@@ -4,75 +4,163 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <hs/hs.h>
+
+#define MAX 256
+
+struct xmatch
+{
+	const struct xfilter *filter;
+	const char *value;
+	size_t valuelen;
+	int id;
+};
+
 struct xfilter
 {
 	enum xfilter_mode mode;
 	int count;
-	char *values[0];
+	hs_scratch_t *key_scratch;
+	hs_scratch_t *value_scratch;
+	hs_database_t *key;
+	hs_database_t *values[0];
 };
 
 int
 xfilter_new(struct xfilter **fp,
-		const char **m,
+		const struct xfilter_expr *exp,
 		size_t count,
-		enum xfilter_mode mode)
+		enum xfilter_mode mode,
+		struct xfilter_err *err)
 {
-	if (count > INT_MAX) {
-		return xerr_sys(EINVAL);
-	}
+	if (count == 0 || count > MAX) { return xerr_sys(EINVAL); }
 
-	struct xfilter *f = malloc(sizeof(*f) + sizeof(f->values[0])*count);
-	if (f == NULL) {
-		return xerrno;
-	}
+	struct xfilter *f = calloc(1, sizeof(*f) + sizeof(f->values[0])*count);
+	if (f == NULL) { return xerrno; }
 
 	f->mode = mode;
 	f->count = count;
+
+	const char *expr[MAX];
+	unsigned flags[MAX];
+	unsigned ids[MAX];
+	hs_compile_error_t *e = NULL;
+	hs_error_t ec;
+
 	for (size_t i = 0; i < count; i++) {
-		f->values[i] = strdup(m[i]);
+		expr[i] = exp[i].key;
+		flags[i] = exp[i].flags | HS_FLAG_SINGLEMATCH;
+		ids[i] = (unsigned)i + 1;
 	}
 
-	qsort(f->values, count, sizeof(*f->values),
-			(int(*)(const void *, const void *))strcasecmp);
+	ec = hs_compile_multi(expr, flags, ids, count, HS_MODE_BLOCK, NULL, &f->key, &e);
+	if (ec != HS_SUCCESS) { goto error; }
+
+	ec = hs_alloc_scratch(f->key, &f->key_scratch);
+	if (ec != HS_SUCCESS) { goto error; }
+
+	for (size_t i = 0; i < count; i++) {
+		if (exp[i].value == NULL) { continue; }
+
+		ec = hs_compile(exp[i].value, exp[i].flags, HS_MODE_BLOCK, NULL, &f->values[i], &e);
+		if (ec != HS_SUCCESS) { goto error; }
+
+		ec = hs_alloc_scratch(f->values[i], &f->value_scratch);
+		if (ec != HS_SUCCESS) { goto error; }
+	}
 
 	*fp = f;
 	return 0;
+
+error:
+	err->message = strdup(e->message);
+	err->index = e->expression;
+	hs_free_compile_error(e);
+	xfilter_free(&f);
+	return xerr_sys(EINVAL);
 }
 
 void
 xfilter_free(struct xfilter **fp)
 {
 	struct xfilter *f = *fp;
-	if (f == NULL) {
-		return;
-	}
+	if (f == NULL) { return; }
 
 	*fp = NULL;
+
+	if (f->key_scratch) { hs_free_scratch(f->key_scratch); }
+	if (f->value_scratch) { hs_free_scratch(f->value_scratch); }
+	if (f->key) { hs_free_database(f->key); }
 	for (int i = 0; i < f->count; i++) {
-		free(f->values[i]);
+		if (f->values[i]) { hs_free_database(f->values[i]); }
 	}
+
 	free(f);
 }
 
-static bool
-match_key(const struct xfilter *f, const char *data, size_t len)
+static int
+match(unsigned int id,
+		unsigned long long from,
+		unsigned long long to,
+		unsigned int flags,
+		void *context)
 {
-	char *const *b = f->values;
-	size_t n = f->count;
-	while (n > 0) {
-		char *const *at = b + n/2;
-		int sign = strncasecmp(*at, data, len);
-		if (sign == 0)     { return true; }
-		else if (n == 1)   { break; }
-		else if (sign > 0) { n /= 2; }
-		else               { b = at; n -= n/2; }
+	(void)from;
+	(void)to;
+	(void)flags;
+
+	*(int *)context = (int)id;
+
+	return 0;
+}
+
+static int
+match_full(unsigned int id,
+		unsigned long long from,
+		unsigned long long to,
+		unsigned int flags,
+		void *context)
+{
+	(void)from;
+	(void)to;
+	(void)flags;
+
+	struct xmatch *m = context;
+	const struct xfilter *f = m->filter;
+
+	hs_database_t *db = f->values[id-1];
+	if (db) {
+		int sub = -1;
+		hs_scan(db, m->value, m->valuelen, 0, f->value_scratch, match, &sub);
+		m->id = sub == 0 ? (int)id : -1;
 	}
-	return false;
+	else {
+		m->id = (int)id;
+	}
+	return 0;
 }
 
 int
-xfilter_key(const struct xfilter *f, const char *data, size_t len)
+xfilter_key(const struct xfilter *f, const char *key, size_t keylen)
 {
-	return (f->mode == (match_key(f, data, len) ? XFILTER_ACCEPT : XFILTER_REJECT)) - 1;
+	int id = -1;
+	hs_scan(f->key, key, keylen, 0, f->key_scratch, match, &id);
+	if (id == -1) {
+		return f->mode == XFILTER_ACCEPT ? -1 : 0;
+	}
+	return f->mode == XFILTER_ACCEPT ? id : -1;
+}
+
+int
+xfilter(const struct xfilter *f,
+		const char *key, size_t keylen,
+		const char *value, size_t valuelen)
+{
+	struct xmatch m = { f, value, valuelen, -1 };
+	hs_scan(f->key, key, keylen, 0, f->key_scratch, match_full, &m);
+	if (m.id == -1) {
+		return f->mode == XFILTER_ACCEPT ? -1 : 0;
+	}
+	return f->mode == XFILTER_ACCEPT ? m.id : -1;
 }
 

@@ -44,7 +44,10 @@ static bool
 accept_field(struct xhttp *restrict p, const char *restrict m)
 {
 #if WITH_FILTER
-	return xfilter_key(p->filter, m + p->as.field.name.off, p->as.field.name.len) >= 0;
+	struct xfilter *f = p->filter;
+	return f == NULL || xfilter(f,
+			m + p->as.field.name.off, p->as.field.name.len,
+			m + p->as.field.value.off, p->as.field.value.len) >= 0;
 #else
 	(void)p;
 	(void)m;

@@ -97,6 +97,9 @@ CFLAGS_common?= $(FLAGS_common) \
 CFLAGS_debug?= $(CFLAGS_common) -g -Wall -Wextra -Wcast-align -Werror -fno-omit-frame-pointer -fsanitize=address -Wno-implicit-fallthrough
 CFLAGS_release?= $(CFLAGS_common) -O3 -DNDEBUG 
 LDFLAGS_common?= $(FLAGS_common) $(LDFLAGS_EXECINFO) -lm -ldl
+ifeq ($(WITH_FILTER),1)
+ LDFLAGS_common+= -lhs
+endif
 LDFLAGS_debug?= $(LDFLAGS_common) -fsanitize=address
 LDFLAGS_release?= $(LDFLAGS_common) -O3
 

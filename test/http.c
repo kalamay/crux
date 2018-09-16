@@ -1,6 +1,7 @@
 #include "mu.h"
 #include "../include/crux/buf.h"
 #include "../include/crux/http.h"
+#include "../include/crux/filter.h"
 #include "../include/crux/err.h"
 
 #include <stdlib.h>
@@ -107,7 +108,7 @@ static void
 test_request(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -174,7 +175,7 @@ test_request_capture(size_t speed)
 	mu_assert_int_eq(xhttp_map_new(&map), 0);
 
 	struct xhttp p;
-	xhttp_init_request(&p, map);
+	xhttp_init_request(&p, map, NULL);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -239,7 +240,7 @@ static void
 test_chunked_request(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -295,7 +296,7 @@ test_chunked_request_capture(size_t speed)
 	mu_assert_int_eq(xhttp_map_new(&map), 0);
 
 	struct xhttp p;
-	xhttp_init_request(&p, map);
+	xhttp_init_request(&p, map, NULL);
 
 	static const uint8_t request[] = 
 		"GET /some/path HTTP/1.1\r\n"
@@ -367,7 +368,7 @@ static void
 test_response(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_response(&p, NULL);
+	xhttp_init_response(&p, NULL, NULL);
 
 	static const uint8_t response[] = 
 		"HTTP/1.1 200 OK\r\n"
@@ -414,7 +415,7 @@ static void
 test_chunked_response(size_t speed)
 {
 	struct xhttp p;
-	xhttp_init_response(&p, NULL);
+	xhttp_init_response(&p, NULL, NULL);
 
 	static const uint8_t response[] = 
 		"HTTP/1.1 200 OK\r\n"
@@ -480,7 +481,7 @@ test_invalid_header(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -505,7 +506,7 @@ test_limit_method_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 54);
 }
@@ -525,7 +526,7 @@ test_exceed_method_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
 	mu_assert_int_eq(xerr_code(rc), XESIZE);
@@ -546,7 +547,7 @@ test_limit_name_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -570,7 +571,7 @@ test_exceed_name_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -595,7 +596,7 @@ test_limit_value_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -619,7 +620,7 @@ test_exceed_value_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -644,7 +645,7 @@ test_increase_value_size(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
+	xhttp_init_request(&p, NULL, NULL);
 	p.max_value = 2048;
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(rc, 25);
@@ -664,9 +665,13 @@ test_filter_accept(void)
 		"\r\n"
 		;
 
-	static const char *filter[] = {
-		"Header1"
+	static const struct xfilter_expr expr[] = {
+		{ "^Header1", NULL, XFILTER_HTTP },
 	};
+
+	struct xfilter_err err;
+	struct xfilter *filt;
+	mu_assert_int_eq(xfilter_new(&filt, expr, xlen(expr), XFILTER_ACCEPT, &err), 0);
 
 	struct xhttp p;
 	struct xbuf *buf;
@@ -675,8 +680,7 @@ test_filter_accept(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
-	xhttp_filter(&p, filter, xlen(filter), XHTTP_FILT_ACCEPT);
+	xhttp_init_request(&p, NULL, filt);
 
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
@@ -705,9 +709,13 @@ test_filter_reject(void)
 		"\r\n"
 		;
 
-	static const char *filter[] = {
-		"Header1"
+	static const struct xfilter_expr expr[] = {
+		{ "^Header1", NULL, XFILTER_HTTP },
 	};
+
+	struct xfilter_err err;
+	struct xfilter *filt;
+	mu_assert_int_eq(xfilter_new(&filt, expr, xlen(expr), XFILTER_REJECT, &err), 0);
 
 	struct xhttp p;
 	struct xbuf *buf;
@@ -716,8 +724,7 @@ test_filter_reject(void)
 
 	mu_assert_int_eq(xbuf_copy(&buf, request, sizeof(request) - 1, false), 0);
 
-	xhttp_init_request(&p, NULL);
-	xhttp_filter(&p, filter, xlen(filter), XHTTP_FILT_REJECT);
+	xhttp_init_request(&p, NULL, filt);
 
 	rc = xhttp_next(&p, buf);
 	mu_assert_int_eq(p.type, XHTTP_REQUEST);
