@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdatomic.h>
 
 #include <hs/hs.h>
 
@@ -20,12 +21,26 @@ struct xfilter
 {
 	enum xfilter_mode mode;
 	int count;
-	bool clone;
+	atomic_int ref;
+	struct xfilter *clone;
 	hs_scratch_t *key_scratch;
 	hs_scratch_t *value_scratch;
 	hs_database_t *key;
 	hs_database_t *values[0];
 };
+
+static inline struct xfilter *
+ref(struct xfilter *f)
+{
+	atomic_fetch_add(&f->ref, 1);
+	return f;
+}
+
+static inline bool
+unref(struct xfilter *f)
+{
+	return atomic_fetch_sub(&f->ref, 1) == 1;
+}
 
 int
 xfilter_new(struct xfilter **fp,
@@ -41,6 +56,7 @@ xfilter_new(struct xfilter **fp,
 
 	f->mode = mode;
 	f->count = count;
+	f->ref = 1;
 
 	const char *expr[MAX];
 	unsigned flags[MAX];
@@ -92,7 +108,8 @@ xfilter_clone(struct xfilter **fp, struct xfilter *src)
 
 	f->mode = src->mode;
 	f->count = src->count;
-	f->clone = true;
+	f->ref = 1;
+	f->clone = ref(src);
 
 	ec = hs_clone_scratch(src->key_scratch, &f->key_scratch);
 	if (ec != HS_SUCCESS) { goto error; }
@@ -121,16 +138,20 @@ xfilter_free(struct xfilter **fp)
 
 	*fp = NULL;
 
-	if (f->key_scratch) { hs_free_scratch(f->key_scratch); }
-	if (f->value_scratch) { hs_free_scratch(f->value_scratch); }
-	if (!f->clone) {
-		if (f->key) { hs_free_database(f->key); }
-		for (int i = 0; i < f->count; i++) {
-			if (f->values[i]) { hs_free_database(f->values[i]); }
+	if (unref(f)) {
+		if (f->key_scratch) { hs_free_scratch(f->key_scratch); }
+		if (f->value_scratch) { hs_free_scratch(f->value_scratch); }
+		if (f->clone) {
+			xfilter_free(&f);
 		}
+		else {
+			if (f->key) { hs_free_database(f->key); }
+			for (int i = 0; i < f->count; i++) {
+				if (f->values[i]) { hs_free_database(f->values[i]); }
+			}
+		}
+		free(f);
 	}
-
-	free(f);
 }
 
 static int
