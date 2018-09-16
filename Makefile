@@ -40,7 +40,7 @@
 #   LDFLAGS_release: release only linker flags
 #   LDFLAGS: override for final linker flags
 
--include Custom.mk
+-include Build.mk
 
 WITH_POLL?=1
 WITH_TASK?=1
