@@ -7,7 +7,7 @@
 #include <netdb.h>
 
 #define xerr_make_type(n) ((int32_t)((((uint32_t)(n))&0x7fff)<<16))
-#define xerr_make(T, n) (-((int32_t)(XERR_##T | (((uint16_t)n) & 0xffff))))
+#define xerr_make(type, code) (-((int32_t)(type | (((uint16_t)code) & 0xffff))))
 
 enum xerr_type
 {
@@ -20,19 +20,19 @@ enum xerr_type
 
 #define xerr_type(n) ((enum xerr_type)(((uint32_t)-((int32_t)n)) & 0x7fff0000))
 #define xerr_code(n) ((int16_t)(((uint32_t)-((int32_t)n)) & 0xffff))
-#define xerr_is(T, n) (xerr_type(n) == XERR_##T)
+#define xerr_is(type, n) (xerr_type(n) == type)
 
-#define xerr_sys(n)  xerr_make(SYS, n)
-#define xerr_addr(n) xerr_make(ADDR, n)
-#define xerr_kern(n) xerr_make(KERN, n)
-#define xerr_io(n)   xerr_make(IO, XERR_IO_##n)
-#define xerr_http(n) xerr_make(HTTP, XERR_HTTP_##n)
+#define xerr_sys(n)  xerr_make(XERR_SYS, n)
+#define xerr_addr(n) xerr_make(XERR_ADDR, n)
+#define xerr_kern(n) xerr_make(XERR_KERN, n)
+#define xerr_io(n)   xerr_make(XERR_IO, XERR_IO_##n)
+#define xerr_http(n) xerr_make(XERR_HTTP, XERR_HTTP_##n)
 
-#define xerr_is_sys(n)  xerr_is(SYS, n)
-#define xerr_is_addr(n) xerr_is(ADDR, n)
-#define xerr_is_kern(n) xerr_is(KERN, n)
-#define xerr_is_io(n)   xerr_is(IO, n)
-#define xerr_is_http(n) xerr_is(HTTP, n)
+#define xerr_is_sys(n)  xerr_is(XERR_SYS, n)
+#define xerr_is_addr(n) xerr_is(XERR_ADDR, n)
+#define xerr_is_kern(n) xerr_is(XERR_KERN, n)
+#define xerr_is_io(n)   xerr_is(XERR_IO, n)
+#define xerr_is_http(n) xerr_is(XERR_HTTP, n)
 
 #define xerrno xerr_sys(errno)
 
