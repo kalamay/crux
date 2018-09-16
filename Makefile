@@ -199,6 +199,7 @@ endif
 ifeq ($(WITH_FILTER),1)
  SRC+= src/filter.c
  INCLUDE+= include/crux/filter.h
+ TEST+= test/filter.c
 endif
 ifeq ($(WITH_HTTP),1)
  SRC+= src/http.c
