@@ -3,12 +3,16 @@
 
 #include "def.h"
 
+#include <stdio.h>
+
 struct xfilter;
 
 enum xfilter_mode
 {
 	XFILTER_ACCEPT,
 	XFILTER_REJECT,
+	XFILTER_CHAIN_AND,
+	XFILTER_CHAIN_OR,
 };
 
 enum xfilter_flag
@@ -38,8 +42,7 @@ struct xfilter_err
 
 XEXTERN int
 xfilter_new(struct xfilter **fp,
-		const struct xfilter_expr *exp,
-		size_t count,
+		const struct xfilter_expr *exp, size_t count,
 		enum xfilter_mode mode,
 		struct xfilter_err *err);
 
@@ -50,12 +53,20 @@ XEXTERN int
 xfilter_clone(struct xfilter **fp, struct xfilter *src);
 
 XEXTERN int
-xfilter_key(const struct xfilter *f, const char *data, size_t len);
+xfilter_chain(struct xfilter **fp,
+		struct xfilter **src, size_t srclen,
+		enum xfilter_mode mode);
+
+XEXTERN int
+xfilter_key(const struct xfilter *f, const char *key, size_t keylen);
 
 XEXTERN int
 xfilter(const struct xfilter *f,
 		const char *key, size_t keylen,
 		const char *value, size_t valuelen);
+
+XEXTERN void
+xfilter_print(const struct xfilter *f, FILE *out);
 
 #endif
 
