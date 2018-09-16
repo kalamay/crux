@@ -47,6 +47,9 @@ XEXTERN void
 xfilter_free(struct xfilter **fp);
 
 XEXTERN int
+xfilter_clone(struct xfilter **fp, struct xfilter *src);
+
+XEXTERN int
 xfilter_key(const struct xfilter *f, const char *data, size_t len);
 
 XEXTERN int

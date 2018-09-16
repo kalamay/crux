@@ -20,6 +20,7 @@ struct xfilter
 {
 	enum xfilter_mode mode;
 	int count;
+	bool clone;
 	hs_scratch_t *key_scratch;
 	hs_scratch_t *value_scratch;
 	hs_database_t *key;
@@ -80,6 +81,38 @@ error:
 	return xerr_sys(EINVAL);
 }
 
+int
+xfilter_clone(struct xfilter **fp, struct xfilter *src)
+{
+	int count = src->count;
+	struct xfilter *f = calloc(1, sizeof(*f) + sizeof(f->values[0])*count);
+	if (f == NULL) { return xerrno; }
+
+	hs_error_t ec;
+
+	f->mode = src->mode;
+	f->count = src->count;
+	f->clone = true;
+
+	ec = hs_clone_scratch(src->key_scratch, &f->key_scratch);
+	if (ec != HS_SUCCESS) { goto error; }
+
+	ec = hs_clone_scratch(src->value_scratch, &f->value_scratch);
+	if (ec != HS_SUCCESS) { goto error; }
+
+	f->key = src->key;
+	for (int i = 0; i < count; i++) {
+		f->values[i] = src->values[i];
+	}
+
+	*fp = f;
+	return 0;
+
+error:
+	xfilter_free(&f);
+	return xerr_sys(EINVAL);
+}
+
 void
 xfilter_free(struct xfilter **fp)
 {
@@ -90,9 +123,11 @@ xfilter_free(struct xfilter **fp)
 
 	if (f->key_scratch) { hs_free_scratch(f->key_scratch); }
 	if (f->value_scratch) { hs_free_scratch(f->value_scratch); }
-	if (f->key) { hs_free_database(f->key); }
-	for (int i = 0; i < f->count; i++) {
-		if (f->values[i]) { hs_free_database(f->values[i]); }
+	if (!f->clone) {
+		if (f->key) { hs_free_database(f->key); }
+		for (int i = 0; i < f->count; i++) {
+			if (f->values[i]) { hs_free_database(f->values[i]); }
+		}
 	}
 
 	free(f);
