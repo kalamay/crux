@@ -25,8 +25,8 @@ enum xerr_type
 #define xerr_sys(n)  xerr_make(SYS, n)
 #define xerr_addr(n) xerr_make(ADDR, n)
 #define xerr_kern(n) xerr_make(KERN, n)
-#define xerr_io(n)   xerr_make(IO, n)
-#define xerr_http(n) xerr_make(HTTP, n)
+#define xerr_io(n)   xerr_make(IO, XERR_IO_##n)
+#define xerr_http(n) xerr_make(HTTP, XERR_HTTP_##n)
 
 #define xerr_is_sys(n)  xerr_is(SYS, n)
 #define xerr_is_addr(n) xerr_is(ADDR, n)
@@ -36,11 +36,18 @@ enum xerr_type
 
 #define xerrno xerr_sys(errno)
 
-#define XECLOSE     1
-#define XESYNTAX    2
-#define XESIZE      3
-#define XESTATE     4
-#define XETOOSHORT  5
+enum xerr_io_code
+{
+	XERR_IO_CLOSE,
+};
+
+enum xerr_http_code
+{
+	XERR_HTTP_SYNTAX,
+	XERR_HTTP_SIZE,
+	XERR_HTTP_STATE,
+	XERR_HTTP_TOOSHORT,
+};
 
 #ifdef NDEBUG
 # define xassert(e) ((void)0)

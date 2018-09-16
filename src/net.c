@@ -311,7 +311,7 @@ xaccept(int s, int flags, int timeoutms, union xaddr *addr)
 		if (rc == xerr_sys(EAGAIN)) {
 			rc = xwait(s, XPOLL_IN, timeoutms);
 			if (rc == 0) { continue; }
-			if (rc == xerr_io(XECLOSE)) { rc = xerr_sys(ECONNABORTED); }
+			if (rc == xerr_io(CLOSE)) { rc = xerr_sys(ECONNABORTED); }
 		}
 		return rc;
 	}

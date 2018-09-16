@@ -516,7 +516,7 @@ run_once(struct xhub *hub)
 	// special "closed" events are scheduled when xclose affects a scheduled task
 	if ((elem = xlist_first(&hub->closed, X_ASCENDING))) {
 		ent = xcontainer(elem, struct xhub_entry, lent);
-		return invoke_direct(ent, xint(xerr_io(XECLOSE)));
+		return invoke_direct(ent, xint(xerr_io(CLOSE)));
 	}
 
 	// then clear all immediate tasks
@@ -871,7 +871,7 @@ xsignal(int signum, int timeoutms)
 	rc = schedule_poll(ent, fd, XPOLL_IN, ms); \
 	if (rc < 0) { return rc; } \
 	int val = xyield(xzero).i; \
-	if (val == xerr_io(XECLOSE)) { return 0; } \
+	if (val == xerr_io(CLOSE)) { return 0; } \
 	if (val < 0) { return (ssize_t)val; } \
 }
 
@@ -885,7 +885,7 @@ xsignal(int signum, int timeoutms)
 	rc = schedule_poll(ent, fd, XPOLL_OUT, ms); \
 	if (rc < 0) { return rc; } \
 	int val = xyield(xzero).i; \
-	if (val == xerr_io(XECLOSE)) { return 0; } \
+	if (val == xerr_io(CLOSE)) { return 0; } \
 	if (val < 0) { return (ssize_t)val; } \
 }
 

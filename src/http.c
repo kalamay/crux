@@ -71,14 +71,14 @@ scrape_field(struct xhttp *restrict p, const uint8_t *restrict m)
 
 	if (LEQ16("content-length", m + p->as.field.name.off, p->as.field.name.len)) {
 		if (p->as.field.value.len == 0) {
-			YIELD_ERROR(xerr_http(XESYNTAX));
+			YIELD_ERROR(xerr_http(SYNTAX));
 		}
 		size_t num = 0;
 		const uint8_t *s = m + p->as.field.value.off;
 		const uint8_t *e = s + p->as.field.value.len;
 		while (s < e) {
 			if (!isdigit(*s)) {
-				YIELD_ERROR(xerr_http(XESYNTAX));
+				YIELD_ERROR(xerr_http(SYNTAX));
 			}
 			num = num * 10 + (*s - '0');
 			s++;
@@ -124,21 +124,21 @@ parse_request_line(struct xhttp *restrict p,
 
 	case REQ_METH:
 		EXPECT_RANGE_THEN_CHAR(method_sep, ' ', p->max_method, false,
-				xerr_http(XESYNTAX), xerr_http(XESIZE));
+				xerr_http(SYNTAX), xerr_http(SIZE));
 		p->as.request.method.len = (uint8_t)(p->off - 1);
 		p->cs = REQ_URI;
 		p->as.request.uri.off = p->off;
 
 	case REQ_URI:
 		EXPECT_RANGE_THEN_CHAR(uri_sep, ' ', p->max_uri, false,
-				xerr_http(XESYNTAX), xerr_http(XESIZE));
+				xerr_http(SYNTAX), xerr_http(SIZE));
 		p->as.request.uri.len = (uint16_t)(p->off - 1 - p->as.request.uri.off);
 		p->cs = REQ_VER;
 
 	case REQ_VER:
-		EXPECT_PREFIX(version_start, 1, false, xerr_http(XESYNTAX));
+		EXPECT_PREFIX(version_start, 1, false, xerr_http(SYNTAX));
 		if (!isdigit(*end)) {
-			YIELD_ERROR(xerr_http(XESYNTAX));
+			YIELD_ERROR(xerr_http(SYNTAX));
 		}
 		p->as.request.version = (uint8_t)(*end - '0');
 		p->cs = REQ_EOL;
@@ -148,11 +148,11 @@ parse_request_line(struct xhttp *restrict p,
 		end++;
 
 	case REQ_EOL:
-		EXPECT_PREFIX(crlf, 0, false, xerr_http(XESYNTAX));
+		EXPECT_PREFIX(crlf, 0, false, xerr_http(SYNTAX));
 		YIELD(XHTTP_REQUEST, FLD);
 
 	default:
-		YIELD_ERROR(xerr_http(XESTATE));
+		YIELD_ERROR(xerr_http(STATE));
 	}
 }
 
@@ -169,16 +169,16 @@ parse_response_line(struct xhttp *restrict p,
 		p->cs = RES_VER;
 
 	case RES_VER:
-		EXPECT_PREFIX(version_start, 1, false, xerr_http(XESYNTAX));
+		EXPECT_PREFIX(version_start, 1, false, xerr_http(SYNTAX));
 		if (!isdigit(*end)) {
-			YIELD_ERROR(xerr_http(XESYNTAX));
+			YIELD_ERROR(xerr_http(SYNTAX));
 		}
 		p->as.response.version = (uint8_t)(*end - '0');
 		p->cs = RES_SEP;
 		end++;
 	
 	case RES_SEP:
-		EXPECT_CHAR(' ', false, xerr_http(XESYNTAX));
+		EXPECT_CHAR(' ', false, xerr_http(SYNTAX));
 		p->cs = RES_CODE;
 		p->as.response.status = 0;
 
@@ -196,7 +196,7 @@ parse_response_line(struct xhttp *restrict p,
 				end++;
 			}
 			else {
-				YIELD_ERROR(xerr_http(XESYNTAX));
+				YIELD_ERROR(xerr_http(SYNTAX));
 			}
 		} while (true);
 		p->as.response.reason.off = p->off;
@@ -204,12 +204,12 @@ parse_response_line(struct xhttp *restrict p,
 
 	case RES_MSG:
 		EXPECT_CRLF(p->max_reason + p->as.response.reason.off, false,
-				xerr_http(XESYNTAX), xerr_http(XESIZE));
+				xerr_http(SYNTAX), xerr_http(SIZE));
 		p->as.response.reason.len = (uint16_t)(p->off - p->as.response.reason.off - (sizeof(crlf) - 1));
 		YIELD(XHTTP_RESPONSE, FLD);
 
 	default:
-		YIELD_ERROR(xerr_http(XESTATE));
+		YIELD_ERROR(xerr_http(STATE));
 	}
 }
 
@@ -250,19 +250,19 @@ again:
 
 	case FLD_KEY:
 		EXPECT_RANGE_THEN_CHAR(field_sep, ':', p->max_field, false,
-				xerr_http(XESYNTAX), xerr_http(XESIZE));
+				xerr_http(SYNTAX), xerr_http(SIZE));
 		p->as.field.name.len = (uint16_t)(p->off - 1);
 		p->cs = FLD_LWS;
 
 	case FLD_LWS:
 		EXPECT_RANGE(field_lws, p->max_value + p->as.field.value.off, false,
-				xerr_http(XESYNTAX), xerr_http(XESIZE));
+				xerr_http(SYNTAX), xerr_http(SIZE));
 		p->as.field.value.off = (uint16_t)p->off;
 		p->cs = FLD_VAL;
 
 	case FLD_VAL:
 		EXPECT_CRLF(p->max_value + p->as.field.value.off, false,
-				xerr_http(XESYNTAX), xerr_http(XESIZE));
+				xerr_http(SYNTAX), xerr_http(SIZE));
 		p->as.field.name.off = SCAN;
 		p->as.field.value.off += SCAN;
 		p->as.field.value.len = (uint16_t)(p->off + SCAN - p->as.field.value.off - (sizeof(crlf) - 1));
@@ -278,7 +278,7 @@ again:
 		goto again;
 
 	default:
-		YIELD_ERROR(xerr_http(XESTATE));
+		YIELD_ERROR(xerr_http(STATE));
 	}
 
 #undef SCAN
@@ -321,7 +321,7 @@ again:
 		p->cs = CHK_EOL1;
 	
 	case CHK_EOL1:
-		EXPECT_PREFIX(crlf, 0, false, xerr_http(XESYNTAX));
+		EXPECT_PREFIX(crlf, 0, false, xerr_http(SYNTAX));
 		if (p->body_len == 0) {
 			p->trailers = true;
 			YIELD(XHTTP_BODY_END, FLD);
@@ -333,12 +333,12 @@ again:
 		}
 
 	case CHK_EOL2:
-		EXPECT_PREFIX(crlf, 0, false, xerr_http(XESYNTAX));
+		EXPECT_PREFIX(crlf, 0, false, xerr_http(SYNTAX));
 		p->cs = CHK_NUM;
 		goto again;
 
 	default:
-		YIELD_ERROR(xerr_http(XESTATE));
+		YIELD_ERROR(xerr_http(STATE));
 	}
 }
 
@@ -431,7 +431,7 @@ xhttp_next(struct xhttp *p, const struct xbuf *buf)
 	assert(p != NULL);
 
 	if (IS_DONE(p->cs)) {
-		return xerr_http(XESTATE);
+		return xerr_http(STATE);
 	}
 
 	const uint8_t *ptr = xbuf_data(buf);
@@ -449,12 +449,12 @@ xhttp_next(struct xhttp *p, const struct xbuf *buf)
 	else if (p->cs & RES) rc = parse_response_line(p, ptr, len);
 	else if (p->cs & FLD) rc = parse_field(p, ptr, len);
 	else if (p->cs & CHK) rc = parse_chunk(p, ptr, len);
-	else { YIELD_ERROR(xerr_http(XESTATE)); }
+	else { YIELD_ERROR(xerr_http(STATE)); }
 	if (rc > 0) {
 		p->cscans = 0;
 	}
 	else if (rc == 0 && p->cscans > 64) {
-		YIELD_ERROR(xerr_http(XETOOSHORT));
+		YIELD_ERROR(xerr_http(TOOSHORT));
 	}
 	return rc;
 }
@@ -589,7 +589,7 @@ xhttp_map_add(struct xhttp_map *map,
 	int rc;
 
 	if (xbuf_length(&map->buf) + len > (size_t)UINT16_MAX) {
-		return xerr_http(XESIZE);
+		return xerr_http(SIZE);
 	}
 
 	rc = xbuf_ensure(&map->buf, len + 1);

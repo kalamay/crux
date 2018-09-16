@@ -37,16 +37,13 @@
 	XX(HTTP,              "http") \
 
 #define XERR_IO_MAP(XX) \
-	XX(CLOSE,             "file descriptor closed") \
-
-#define XERR_PARSER_MAP(type, XX) \
-	XX(SYNTAX,             type "syntax invalid") \
-	XX(SIZE,               type "value size exceeded maximum allowed") \
-	XX(STATE,              type "parser state is invalid") \
-	XX(TOOSHORT,           type "input is too short") \
+	XX(IO_CLOSE,          "file descriptor closed") \
 
 #define XERR_HTTP_MAP(XX) \
-	XERR_PARSER_MAP("http", XX)
+	XX(HTTP_SYNTAX,       "http syntax invalid") \
+	XX(HTTP_SIZE,         "http value size exceeded maximum allowed") \
+	XX(HTTP_STATE,        "http parser state is invalid") \
+	XX(HTTP_TOOSHORT,     "http input is too short") \
 
 #if HAS_EXECINFO
 # include <execinfo.h>
@@ -77,7 +74,7 @@ xerr_str(int code)
 #endif
 		break;
 
-#define XX(sym, msg) case XE##sym: return msg;
+#define XX(sym, msg) case XERR_##sym: return msg;
 	case XERR_IO:
 		switch (xerr_code(code)) {
 			XERR_IO_MAP(XX)

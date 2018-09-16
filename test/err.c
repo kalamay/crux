@@ -28,10 +28,10 @@ test_addr(void)
 static void
 test_http(void)
 {
-	int rc = xerr_http(XETOOSHORT);
+	int rc = xerr_http(TOOSHORT);
 	mu_assert_int_lt(rc, 0);
 	mu_assert_int_eq(xerr_type(rc), XERR_HTTP);
-	mu_assert_int_eq(xerr_code(rc), XETOOSHORT);
+	mu_assert_int_eq(xerr_code(rc), XERR_HTTP_TOOSHORT);
 	mu_assert_int_eq(xerr_is_sys(rc), 0);
 	mu_assert_int_eq(xerr_is_addr(rc), 0);
 	mu_assert_int_eq(xerr_is_http(rc), 1);
