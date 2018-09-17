@@ -103,6 +103,10 @@ xto_u64(const char *restrict s, size_t len, uint8_t base, uint64_t *restrict val
 	assert(s != NULL);
 	assert(base == 0 || (base >= 2 && base <= 36));
 
+	if (len > 0 && *s == '-') {
+		return xerr_sys(ERANGE);
+	}
+
 	if (base == 0) {
 		if (len > 1 && *s == '0') {
 			switch (s[1]) {

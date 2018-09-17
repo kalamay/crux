@@ -64,7 +64,7 @@ test_uint64(void)
 	mu_assert_int_eq(rc, xerr_sys(EOVERFLOW));
 
 	rc = parse("-1", &val);
-	mu_assert_int_eq(rc, xerr_sys(EINVAL));
+	mu_assert_int_eq(rc, xerr_sys(ERANGE));
 }
 
 void
