@@ -140,6 +140,7 @@ SRC:= \
 	src/base.c \
 	src/heap.c \
 	src/hash.c \
+	src/num.c \
 	src/vm.c \
 	src/buf.c
 
