@@ -52,6 +52,9 @@ xfilter_free(struct xfilter **fp);
 XEXTERN int
 xfilter_clone(struct xfilter **fp, struct xfilter *src);
 
+XEXTERN struct xfilter *
+xfilter_ref(struct xfilter *f);
+
 XEXTERN int
 xfilter_chain(struct xfilter **fp,
 		struct xfilter **src, size_t srclen,

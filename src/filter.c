@@ -152,6 +152,12 @@ error:
 	return rc;
 }
 
+struct xfilter *
+xfilter_ref(struct xfilter *f)
+{
+	return ref(f);
+}
+
 int
 xfilter_chain(struct xfilter **fp,
 		struct xfilter **src, size_t srclen,
