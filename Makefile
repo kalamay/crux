@@ -150,6 +150,7 @@ INCLUDE:= \
 	include/crux/version.h \
 	include/crux/clock.h \
 	include/crux/range.h \
+	include/crux/num.h \
 	include/crux/value.h \
 	include/crux/def.h \
 	include/crux/err.h \

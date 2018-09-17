@@ -7,6 +7,7 @@
 #include "crux/clock.h"
 #include "crux/buf.h"
 #include "crux/num.h"
+#include "crux/value.h"
 
 XEXTERN int
 xinit(void);
