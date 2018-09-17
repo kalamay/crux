@@ -2,6 +2,7 @@
 #define CRUX_HASHTIER_H
 
 #include "def.h"
+#include "num.h"
 #include "err.h"
 
 #include <stdlib.h>

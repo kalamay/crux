@@ -3,6 +3,33 @@
 
 #include "def.h"
 
+#define xpower2(n) __extension__ ({ \
+	uintmax_t __p2 = (n); \
+	if (__p2 > 0) { \
+		__p2--; \
+		__p2 |= __p2 >> 1; \
+		__p2 |= __p2 >> 2; \
+		__p2 |= __p2 >> 4; \
+		__p2 |= __p2 >> 8; \
+		__p2 |= __p2 >> 16; \
+		__p2 |= __p2 >> 32; \
+		__p2++; \
+	} \
+	__p2; \
+})
+
+XEXTERN const uint64_t XPOWER2_PRIMES[64];
+
+#define xpower2_prime(n) __extension__ ({ \
+	__typeof(n) __p2 = (n); \
+	__p2 > 0 ? XPOWER2_PRIMES[63- __builtin_clzll(__p2)] : (uint64_t)0; \
+})
+
+#define xquantum(n, quant) __extension__ ({ \
+	__typeof(n) __quant = (quant); \
+	(((((n) - 1) / __quant) + 1) * __quant); \
+})
+
 XEXTERN int
 xto_bool(const char *restrict s, size_t len, bool *restrict val);
 

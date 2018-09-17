@@ -2,6 +2,7 @@
 #define CRUX_VEC_H
 
 #include "def.h"
+#include "num.h"
 #include "err.h"
 
 #include <stdlib.h>
