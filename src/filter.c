@@ -155,7 +155,7 @@ error:
 struct xfilter *
 xfilter_ref(struct xfilter *f)
 {
-	return ref(f);
+	return f ? ref(f) : NULL;
 }
 
 int
