@@ -419,6 +419,8 @@ xhttp_reset(struct xhttp *p)
 	p->max_reason = max_reason;
 	p->max_field = max_field;
 	p->max_value = max_value;
+	p->scans = 0;
+	p->cscans = 0;
 
 	if (p->map) {
 		xhttp_map_reset(p->map);
@@ -452,6 +454,9 @@ xhttp_next(struct xhttp *p, const struct xbuf *buf)
 	else { YIELD_ERROR(xerr_http(STATE)); }
 	if (rc > 0) {
 		p->cscans = 0;
+		if (IS_DONE(p->cs)) {
+			p->messages++;
+		}
 	}
 	else if (rc == 0 && p->cscans > 64) {
 		YIELD_ERROR(xerr_http(TOOSHORT));

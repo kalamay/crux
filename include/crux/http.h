@@ -79,7 +79,8 @@ struct xhttp
 	uint16_t max_value;   // max size for a header value
 
 	// readonly
-	uint16_t scans;         // number of passes through the scanner
+	uint16_t scans;         // number of scans in the current request or response
+	uint32_t messages;      // total number of requests/responses parsed
 	uint8_t cscans;         // number of scans in the current rule
 	bool response;          // true if response, false if request
 	uint8_t flags;          // set by field scanner
