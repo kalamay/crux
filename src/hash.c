@@ -5,19 +5,19 @@
 #include <string.h>
 
 inline static uint64_t
-rotr(uint64_t v, unsigned k)
+rotr64(uint64_t v, unsigned k)
 {
     return (v >> k) | (v << (64 - k));
 }
 
 inline static uint64_t
-rotl(uint64_t v, unsigned k)
+rotl64(uint64_t v, unsigned k)
 {
     return (v << k) | (v >> (64 - k));
 }
 
 inline static uint64_t
-read_u64(const void *const ptr)
+read64(const void *const ptr)
 {
     uint64_t val;
     memcpy(&val, ptr, sizeof(val));
@@ -25,7 +25,7 @@ read_u64(const void *const ptr)
 }
 
 inline static uint64_t
-read_u32(const void *const ptr)
+read32(const void *const ptr)
 {
     uint32_t val;
     memcpy(&val, ptr, sizeof(val));
@@ -33,7 +33,7 @@ read_u32(const void *const ptr)
 }
 
 inline static uint64_t
-read_u16(const void * const ptr)
+read16(const void * const ptr)
 {
     uint16_t val;
     memcpy(&val, ptr, sizeof(val));
@@ -41,7 +41,7 @@ read_u16(const void * const ptr)
 }
 
 inline static uint64_t
-read_u8(const void * const ptr)
+read8(const void * const ptr)
 {
 	return (uint64_t)*(const uint8_t *)ptr;
 }
@@ -69,61 +69,61 @@ xhash_metro64(const void *s, size_t len, const union xseed *seed)
 		v[3] = hash;
 
 		do {
-			v[0] += read_u64(ptr) * k0; ptr += 8; v[0] = rotr(v[0],29) + v[2];
-			v[1] += read_u64(ptr) * k1; ptr += 8; v[1] = rotr(v[1],29) + v[3];
-			v[2] += read_u64(ptr) * k2; ptr += 8; v[2] = rotr(v[2],29) + v[0];
-			v[3] += read_u64(ptr) * k3; ptr += 8; v[3] = rotr(v[3],29) + v[1];
+			v[0] += read64(ptr) * k0; ptr += 8; v[0] = rotr64(v[0],29) + v[2];
+			v[1] += read64(ptr) * k1; ptr += 8; v[1] = rotr64(v[1],29) + v[3];
+			v[2] += read64(ptr) * k2; ptr += 8; v[2] = rotr64(v[2],29) + v[0];
+			v[3] += read64(ptr) * k3; ptr += 8; v[3] = rotr64(v[3],29) + v[1];
 		}
 		while (ptr <= (end - 32));
 
-		v[2] ^= rotr(((v[0] + v[3]) * k0) + v[1], 33) * k1;
-		v[3] ^= rotr(((v[1] + v[2]) * k1) + v[0], 33) * k0;
-		v[0] ^= rotr(((v[0] + v[2]) * k0) + v[3], 33) * k1;
-		v[1] ^= rotr(((v[1] + v[3]) * k1) + v[2], 33) * k0;
+		v[2] ^= rotr64(((v[0] + v[3]) * k0) + v[1], 33) * k1;
+		v[3] ^= rotr64(((v[1] + v[2]) * k1) + v[0], 33) * k0;
+		v[0] ^= rotr64(((v[0] + v[2]) * k0) + v[3], 33) * k1;
+		v[1] ^= rotr64(((v[1] + v[3]) * k1) + v[2], 33) * k0;
 		hash += v[0] ^ v[1];
 	}
 
 	if ((end - ptr) >= 16) {
-		uint64_t v0 = hash + (read_u64(ptr) * k0); ptr += 8; v0 = rotr(v0,33) * k1;
-		uint64_t v1 = hash + (read_u64(ptr) * k1); ptr += 8; v1 = rotr(v1,33) * k2;
-		v0 ^= rotr(v0 * k0, 35) + v1;
-		v1 ^= rotr(v1 * k3, 35) + v0;
+		uint64_t v0 = hash + (read64(ptr) * k0); ptr += 8; v0 = rotr64(v0,33) * k1;
+		uint64_t v1 = hash + (read64(ptr) * k1); ptr += 8; v1 = rotr64(v1,33) * k2;
+		v0 ^= rotr64(v0 * k0, 35) + v1;
+		v1 ^= rotr64(v1 * k3, 35) + v0;
 		hash += v1;
 	}
 
 	if ((end - ptr) >= 8) {
-		hash += read_u64(ptr) * k3; ptr += 8;
-		hash ^= rotr(hash, 33) * k1;
+		hash += read64(ptr) * k3; ptr += 8;
+		hash ^= rotr64(hash, 33) * k1;
 	}
 
 	if ((end - ptr) >= 4) {
-		hash += read_u32(ptr) * k3; ptr += 4;
-		hash ^= rotr(hash, 15) * k1;
+		hash += read32(ptr) * k3; ptr += 4;
+		hash ^= rotr64(hash, 15) * k1;
 	}
 
 	if ((end - ptr) >= 2) {
-		hash += read_u16(ptr) * k3; ptr += 2;
-		hash ^= rotr(hash, 13) * k1;
+		hash += read16(ptr) * k3; ptr += 2;
+		hash ^= rotr64(hash, 13) * k1;
 	}
 
 	if ((end - ptr) >= 1) {
-		hash += read_u8(ptr) * k3;
-		hash ^= rotr(hash, 25) * k1;
+		hash += read8(ptr) * k3;
+		hash ^= rotr64(hash, 25) * k1;
 	}
 
-	hash ^= rotr(hash, 33);
+	hash ^= rotr64(hash, 33);
 	hash *= k0;
-	hash ^= rotr(hash, 33);
+	hash ^= rotr64(hash, 33);
 
 	return hash;
 }
 
 #define SIPROUND(n, a, b, c, d) do { \
 	for (int i = 0; i < n; i++) { \
-		a += b; b=rotl(b,13); b ^= a; a=rotl(a,32); \
-		c += d; d=rotl(d,16); d ^= c; \
-		a += d; d=rotl(d,21); d ^= a; \
-		c += b; b=rotl(b,17); b ^= c; c=rotl(c,32); \
+		a += b; b=rotl64(b,13); b ^= a; a=rotl64(a,32); \
+		c += d; d=rotl64(d,16); d ^= c; \
+		a += d; d=rotl64(d,21); d ^= a; \
+		c += b; b=rotl64(b,17); b ^= c; c=rotl64(c,32); \
 	} \
 } while (0)
 
@@ -232,46 +232,46 @@ xhash_xx64(const void *input, size_t len, const union xseed *seed)
 		uint64_t v4 = seed->u64 - XX64_PRIME_1;
 
 		do {
-			v1 += xle64toh(read_u64(p)) * XX64_PRIME_2;
+			v1 += xle64toh(read64(p)) * XX64_PRIME_2;
 			p+=8;
-			v1 = rotl(v1, 31);
+			v1 = rotl64(v1, 31);
 			v1 *= XX64_PRIME_1;
-			v2 += xle64toh(read_u64(p)) * XX64_PRIME_2;
+			v2 += xle64toh(read64(p)) * XX64_PRIME_2;
 			p+=8;
-			v2 = rotl(v2, 31);
+			v2 = rotl64(v2, 31);
 			v2 *= XX64_PRIME_1;
-			v3 += xle64toh(read_u64(p)) * XX64_PRIME_2;
+			v3 += xle64toh(read64(p)) * XX64_PRIME_2;
 			p+=8;
-			v3 = rotl(v3, 31);
+			v3 = rotl64(v3, 31);
 			v3 *= XX64_PRIME_1;
-			v4 += xle64toh(read_u64(p)) * XX64_PRIME_2;
+			v4 += xle64toh(read64(p)) * XX64_PRIME_2;
 			p+=8;
-			v4 = rotl(v4, 31);
+			v4 = rotl64(v4, 31);
 			v4 *= XX64_PRIME_1;
 		} while (p <= limit);
 
-		h = rotl(v1, 1) + rotl(v2, 7) + rotl(v3, 12) + rotl(v4, 18);
+		h = rotl64(v1, 1) + rotl64(v2, 7) + rotl64(v3, 12) + rotl64(v4, 18);
 
 		v1 *= XX64_PRIME_2;
-		v1 = rotl(v1, 31);
+		v1 = rotl64(v1, 31);
 		v1 *= XX64_PRIME_1;
 		h ^= v1;
 		h = h * XX64_PRIME_1 + XX64_PRIME_4;
 
 		v2 *= XX64_PRIME_2;
-		v2 = rotl(v2, 31);
+		v2 = rotl64(v2, 31);
 		v2 *= XX64_PRIME_1;
 		h ^= v2;
 		h = h * XX64_PRIME_1 + XX64_PRIME_4;
 
 		v3 *= XX64_PRIME_2;
-		v3 = rotl(v3, 31);
+		v3 = rotl64(v3, 31);
 		v3 *= XX64_PRIME_1;
 		h ^= v3;
 		h = h * XX64_PRIME_1 + XX64_PRIME_4;
 
 		v4 *= XX64_PRIME_2;
-		v4 = rotl(v4, 31);
+		v4 = rotl64(v4, 31);
 		v4 *= XX64_PRIME_1;
 		h ^= v4;
 		h = h * XX64_PRIME_1 + XX64_PRIME_4;
@@ -283,24 +283,24 @@ xhash_xx64(const void *input, size_t len, const union xseed *seed)
 	h += (uint64_t)len;
 
 	while (p+8 <= pe) {
-		uint64_t k1 = xle64toh(read_u64(p));
+		uint64_t k1 = xle64toh(read64(p));
 		k1 *= XX64_PRIME_2;
-		k1 = rotl(k1,31);
+		k1 = rotl64(k1,31);
 		k1 *= XX64_PRIME_1;
 		h ^= k1;
-		h = rotl(h,27) * XX64_PRIME_1 + XX64_PRIME_4;
+		h = rotl64(h,27) * XX64_PRIME_1 + XX64_PRIME_4;
 		p+=8;
 	}
 
 	if (p+4 <= pe) {
-		h ^= xle64toh(read_u32(p)) * XX64_PRIME_1;
-		h = rotl(h, 23) * XX64_PRIME_2 + XX64_PRIME_3;
+		h ^= xle64toh(read32(p)) * XX64_PRIME_1;
+		h = rotl64(h, 23) * XX64_PRIME_2 + XX64_PRIME_3;
 		p+=4;
 	}
 
 	while (p < pe) {
 		h ^= (*p) * XX64_PRIME_5;
-		h = rotl(h, 11) * XX64_PRIME_1;
+		h = rotl64(h, 11) * XX64_PRIME_1;
 		p++;
 	}
 
