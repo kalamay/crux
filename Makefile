@@ -142,6 +142,7 @@ SRC:= \
 	src/hash.c \
 	src/num.c \
 	src/vm.c \
+	src/rand.c \
 	src/buf.c
 
 # list of header files to include in build
@@ -178,8 +179,8 @@ TEST:= \
 	test/hashtier.c \
 	test/hashmap.c \
 	test/heap.c \
-	test/buf.c \
-	test/http.c
+	test/rand.c \
+	test/buf.c
 
 ifeq ($(WITH_POLL),1)
  SRC+= src/poll.c
@@ -206,6 +207,7 @@ endif
 ifeq ($(WITH_HTTP),1)
  SRC+= src/http.c
  INCLUDE+= include/crux/http.h
+ TEST+= test/http.c
 endif
 ifeq ($(WITH_NET),1)
  SRC+= src/net.c

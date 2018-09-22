@@ -141,6 +141,20 @@ mu_count_failure (void)
 #define mu_assert_uint_gt(a, b) mu_assert_uint(a, >,  b)
 #define mu_assert_uint_ge(a, b) mu_assert_uint(a, >=, b)
 
+#define mu_assert_char(a, OP, b) do { \
+	char MU_TMP(A) = (a); \
+	char MU_TMP(B) = (b); \
+	mu_assert_msg(MU_TMP(A) OP MU_TMP(B), \
+	    "'%s' failed: %s=%c, %s=%c\n", \
+		#a#OP#b, #a, MU_TMP(A), #b, MU_TMP(B)); \
+} while (0)
+#define mu_assert_char_eq(a, b) mu_assert_char(a, ==, b)
+#define mu_assert_char_ne(a, b) mu_assert_char(a, !=, b)
+#define mu_assert_char_lt(a, b) mu_assert_char(a, <,  b)
+#define mu_assert_char_le(a, b) mu_assert_char(a, <=, b)
+#define mu_assert_char_gt(a, b) mu_assert_char(a, >,  b)
+#define mu_assert_char_ge(a, b) mu_assert_char(a, >=, b)
+
 #ifdef MU_FLT_CLOSE
 #define mu_assert_flt_eq(a, b) do { \
 	double MU_TMP(A) = (a); \

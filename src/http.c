@@ -423,7 +423,7 @@ xhttp_reset(struct xhttp *p)
 	p->cscans = 0;
 
 	if (p->map) {
-		xhttp_map_reset(p->map);
+		xhttp_map_reset(p->map, (p->messages & 63) == 0);
 	}
 }
 
@@ -547,10 +547,7 @@ xhttp_map_init(struct xhttp_map *map)
 		goto err_tab;
 	}
 
-	rc = xrand(&map->seed, sizeof(map->seed));
-	if (rc < 0) {
-		goto err_rand;
-	}
+	xseed_random(&map->seed);
 
 	return 0;
 
@@ -577,10 +574,13 @@ xhttp_map_final(struct xhttp_map *map)
 }
 
 void
-xhttp_map_reset(struct xhttp_map *map)
+xhttp_map_reset(struct xhttp_map *map, bool reseed)
 {
 	xbuf_reset(&map->buf);
 	xhttp_tab_clear(map);
+	if (reseed) {
+		xseed_random(&map->seed);
+	}
 }
 
 int

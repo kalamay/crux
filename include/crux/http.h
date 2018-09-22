@@ -126,7 +126,7 @@ XEXTERN void
 xhttp_map_free(struct xhttp_map **mapp);
 
 XEXTERN void
-xhttp_map_reset(struct xhttp_map *map);
+xhttp_map_reset(struct xhttp_map *map, bool reseed);
 
 XEXTERN int
 xhttp_map_add(struct xhttp_map *map,

@@ -12,5 +12,8 @@
 XEXTERN int
 xinit(void);
 
+XEXTERN int
+xinit_thread(void);
+
 #endif
 

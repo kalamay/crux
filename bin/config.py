@@ -75,9 +75,6 @@ def has_pipe2():
 def has_getrandom():
 	return has_function("getrandom", 3, "sys/random.h")
 
-def has_arc4():
-	return has_function("arc4random_buf", 2, "stdlib.h")
-
 def has_mremap4():
 	return has_function("mremap", 4, "sys/mman.h")
 
@@ -123,7 +120,6 @@ if has_kqueue():        print_flag("KQUEUE")
 if has_epoll():         print_flag("EPOLL")
 if has_pipe2():         print_flag("PIPE2")
 if has_getrandom():     print_flag("GETRANDOM")
-if has_arc4():          print_flag("ARC4")
 if has_mremap4():       print_flag("MREMAP4")
 elif has_mremap5():     print_flag("MREMAP5")
 if has_vm_map():        print_flag("VM_MAP")

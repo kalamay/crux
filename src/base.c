@@ -19,78 +19,22 @@ size_t xpagesize;
 static mach_timebase_info_data_t info = { 1, 1 };
 #endif
 
-#if !HAS_ARC4 && !HAS_GETRANDOM
-# include <unistd.h>
-# include <sys/stat.h>
-static int randfd = -1;
-#endif
-
 static union xseed SEED_RANDOM;
 static union xseed SEED_DEFAULT = {
-	.u128 = {
-		0x9ae16a3b2f90404fULL,
-		0xc3a5c85c97cb3127ULL
-	}
+	.u128 = { 0x9ae16a3b2f90404f, 0xc3a5c85c97cb3127 }
 };
 
 const union xseed *const XSEED_RANDOM = &SEED_RANDOM;
 const union xseed *const XSEED_DEFAULT = &SEED_DEFAULT;
 
-#if !HAS_GETRANDOM && !HAS_ARC4
+XLOCAL int xrand_init(void);
+XLOCAL int xrand_init_thread(void);
 
-# ifdef S_ISNAM
-#  define IS_RAND_MODE(mode) (S_ISNAM(mode) || S_ISCHR(mode))
-# else
-#  define IS_RAND_MODE(mode) (S_ISCHR(mode))
-# endif
-
-# if defined(__linux__)
-#  define IS_RAND_DEVICE(dev) ((dev) == makedev(1, 9))
-# elif defined(__APPLE__)
-#  define IS_RAND_DEVICE(dev) ((dev) == makedev(14, 1))
-# elif defined(__FreeBSD__)
-#  define IS_RAND_DEVICE(dev) ((dev) == makedev(0, 10))
-# elif defined(__DragonFly__)
-#  define IS_RAND_DEVICE(dev) ((dev) == makedev(8, 4))
-# elif defined(__NetBSD__)
-#  define IS_RAND_DEVICE(dev) ((dev) == makedev(46, 1))
-# elif defined(__OpenBSD__)
-#  define IS_RAND_DEVICE(dev) ((dev) == makedev(45, 2))
-# else
-#  define IS_RAND_DEVICE(dev) 1
-# endif
-
-# define IS_RAND(st) (IS_RAND_MODE((st).st_mode) && IS_RAND_DEVICE((st).st_rdev))
-
-static int
-random_verify(int fd)
+int
+xinit_thread(void)
 {
-	struct stat st;
-	if (fstat(fd, &st) < 0) { return xerrno; }
-	if (!IS_RAND(st)) { return xerr_sys(EBADF); }
-	return 0;
+	return xrand_init_thread();
 }
-
-static int
-random_open(void)
-{
-	int fd, err;
-	for (;;) {
-		fd = open("/dev/urandom", O_RDONLY|O_CLOEXEC);
-		if (fd >= 0) {
-			err = random_verify(fd);
-			if (err == 0) { return fd; }
-			close(fd);
-		}
-		else {
-			err = xerrno;
-		}
-		if (err != xerr_sys(EINTR)) {
-			return err;
-		}
-	}
-}
-#endif
 
 int
 xinit(void)
@@ -99,16 +43,22 @@ xinit(void)
 	xheap_pagecount = xpagesize / sizeof(void *);
 	xheap_pagemask = xheap_pagecount - 1;
 	xheap_pageshift = log2(xheap_pagecount);
+
 #if HAS_MACH_TIME
 	(void)mach_timebase_info(&info);
 #endif
-#if !HAS_GETRANDOM && !HAS_ARC4
-	int fd = random_open();
-	if (fd < 0) { return fd; }
-	if (randfd >= 0) { close(randfd); }
-	randfd = fd;
-#endif
-	return xrand(&SEED_RANDOM, sizeof(SEED_RANDOM));
+
+	int rc = xrand_init();
+	if (rc < 0) {
+		return rc;
+	}
+
+	ssize_t n = xrand_secure(&SEED_RANDOM, sizeof(SEED_RANDOM));
+	if (n < 0) {
+		return (int)n;
+	}
+
+	return xinit_thread();
 }
 
 static void __attribute__((constructor))
@@ -239,93 +189,5 @@ xtimeout(struct xtimeout *t, const struct timespec *c)
 	if (t->rel < 0) { t->rel = 0; }
 	int64_t ms = X_NSEC_TO_MSEC(t->rel);
 	return ms < INT_MAX ? (int)ms : INT_MAX;
-}
-
-
-
-#if HAS_GETRANDOM
-
-#include <sys/random.h>
-
-int
-xrand(void *const restrict dst, size_t len)
-{
-	return getrandom(dst, len, 0);
-}
-
-#elif HAS_ARC4
-
-int
-xrand(void *const restrict dst, size_t len)
-{
-	arc4random_buf(dst, len);
-	return 0;
-}
-
-int
-xrand_u32(uint32_t bound, uint32_t *out)
-{
-	*out = bound ? arc4random_uniform(bound) : arc4random();
-	return 0;
-}
-
-#else
-
-int
-xrand(void *const restrict dst, size_t len)
-{
-	size_t amt = 0;
-	while (amt < len) {
-		ssize_t r = read(randfd, (char *)dst+amt, len-amt);
-		if (r > 0) {
-			amt += (size_t)r;
-		}
-		else if (r == 0 || errno != EINTR) {
-			return xerrno;
-		}
-	}
-	return 0;
-}
-
-#endif
-
-#if !HAS_ARC4
-
-int
-xrand_u32(uint32_t bound, uint32_t *out)
-{
-	uint32_t val;
-	int rc = xrand(&val, sizeof(val));
-	if (rc < 0) { return rc; }
-	if (bound) {
-		val = ((double)val / (double)UINT32_MAX) * bound;
-	}
-	*out = val;
-	return 0;
-}
-
-#endif
-
-int
-xrand_u64(uint64_t bound, uint64_t *out)
-{
-	uint64_t val;
-	int rc = xrand(&val, sizeof(val));
-	if (rc < 0) { return rc; }
-	if (bound) {
-		val = ((double)val / (double)UINT64_MAX) * bound;
-	}
-	*out = val;
-	return 0;
-}
-
-int
-xrand_num(double *out)
-{
-	uint64_t val;
-	int rc = xrand(&val, sizeof(val));
-	if (rc < 0) { return rc; }
-	*out = (double)val / (double)UINT64_MAX;
-	return 0;
 }
 

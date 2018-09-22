@@ -14,5 +14,11 @@ union xseed
 XEXTERN const union xseed *const XSEED_RANDOM;
 XEXTERN const union xseed *const XSEED_DEFAULT;
 
+XEXTERN void
+xseed_random(union xseed *seed);
+
+XEXTERN int
+xseed_random_secure(union xseed *seed);
+
 #endif
 
