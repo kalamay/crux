@@ -21,6 +21,10 @@
 # endif
 #endif
 
+typedef __uint128_t xuint128;
+#define XUINT128_C(high, low) \
+	((((xuint128)UINT64_C(high)) << 64) + UINT64_C(low))
+
 #define xcontainer(ptr, type, member) __extension__ ({ \
 	const __typeof(((type *)0)->member) *__mptr = (ptr); \
 	(type *)(void *)((char *)__mptr - offsetof(type,member)); \
