@@ -40,6 +40,9 @@ xsocket(int domain, int type);
 XEXTERN int
 xaccept(int s, int flags, int timeoutms, union xaddr *addr);
 
+XEXTERN int
+xconnect(int s, const struct sockaddr *addr, socklen_t addrlen, int timeoutms);
+
 XEXTERN const char *
 xaddrstr(const union xaddr *addr);
 

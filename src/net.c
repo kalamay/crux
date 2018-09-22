@@ -66,7 +66,7 @@ set_flags(int fd, int type, int flags)
 }
 
 static int
-open_addr(const struct sockaddr *addr, socklen_t addrlen, int domain, int type, int flags)
+open_addr(const struct sockaddr *addr, socklen_t addrlen, int domain, int type, int flags, int timeoutms)
 {
 	int ec;
 	int fd = xsocket(domain, type);
@@ -92,8 +92,8 @@ open_addr(const struct sockaddr *addr, socklen_t addrlen, int domain, int type, 
 		}
 	}
 	else {
-		if (xretry(connect(fd, addr, addrlen)) < 0 && errno != EINPROGRESS) {
-			ec = xerrno;
+		ec = xconnect(fd, addr, addrlen, timeoutms);
+		if (ec < 0) {
 			goto error;
 		}
 	}
@@ -108,7 +108,7 @@ error:
 }
 
 static int
-open_inet(const char *host, const char *serv, int type, int flags, union xaddr *addr)
+open_inet(const char *host, const char *serv, int type, int flags, union xaddr *addr, int timeoutms)
 {
 	struct addrinfo hints, *res;
 	memset(&hints, 0, sizeof(hints));
@@ -122,7 +122,7 @@ open_inet(const char *host, const char *serv, int type, int flags, union xaddr *
 	}
 
 	for (struct addrinfo *r = res; res; res = res->ai_next) {
-		if ((ec = open_addr(r->ai_addr, r->ai_addrlen, r->ai_family, type, flags)) >= 0) {
+		if ((ec = open_addr(r->ai_addr, r->ai_addrlen, r->ai_family, type, flags, timeoutms)) >= 0) {
 			memcpy(&addr->ss, r->ai_addr, r->ai_addrlen);
 			break;
 		}
@@ -150,7 +150,7 @@ open_un(const char *path, int type, int flags, union xaddr *addr)
 		}
 	}
 
-	return open_addr(&addr->sa, sizeof(addr->un), AF_UNIX, type, flags);
+	return open_addr(&addr->sa, sizeof(addr->un), AF_UNIX, type, flags, -1);
 }
 
 static int
@@ -192,7 +192,6 @@ open_fd(int fd, int type, int flags, union xaddr *addr)
 static int
 open_sock(const char *net, int type, int flags, int timeoutms, union xaddr *addr)
 {
-	(void)timeoutms;
 	/* If the full net value is an integer, interpret the input as using an
 	 * existing (and presumably inherited) file descriptor. */
 	int fd;
@@ -242,7 +241,7 @@ open_sock(const char *net, int type, int flags, int timeoutms, union xaddr *addr
 		serv = "0";
 	}
 
-	return open_inet(host, serv, type, flags, addr);
+	return open_inet(host, serv, type, flags, addr, timeoutms);
 }
 
 int
@@ -310,6 +309,23 @@ xaccept(int s, int flags, int timeoutms, union xaddr *addr)
 		int rc = xerrno;
 		if (rc == xerr_sys(EAGAIN)) {
 			rc = xwait(s, XPOLL_IN, timeoutms);
+			if (rc == 0) { continue; }
+			if (rc == xerr_io(CLOSE)) { rc = xerr_sys(ECONNABORTED); }
+		}
+		return rc;
+	}
+}
+
+int
+xconnect(int s, const struct sockaddr *addr, socklen_t addrlen, int timeoutms)
+{
+	for (;;) {
+		if (connect(s, addr, addrlen) == 0) {
+			return s;
+		}
+		int rc = xerrno;
+		if (rc == xerr_sys(EAGAIN)) {
+			rc = xwait(s, XPOLL_OUT, timeoutms);
 			if (rc == 0) { continue; }
 			if (rc == xerr_io(CLOSE)) { rc = xerr_sys(ECONNABORTED); }
 		}
