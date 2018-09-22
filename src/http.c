@@ -544,18 +544,12 @@ xhttp_map_init(struct xhttp_map *map)
 
 	rc = xhttp_tab_init(map, 0.9, 0);
 	if (rc < 0) {
-		goto err_tab;
+		xbuf_final(&map->buf);
+		return rc;
 	}
 
 	xseed_random(&map->seed);
-
 	return 0;
-
-err_rand:
-	xhttp_tab_final(map);
-err_tab:
-	xbuf_final(&map->buf);
-	return rc;
 }
 
 void
